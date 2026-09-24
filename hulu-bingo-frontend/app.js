@@ -1,4 +1,5 @@
-const API = `http://${window.location.hostname}:4000/api`;
+const configuredApi = "https://habesha-bingo-k6x4.onrender.com";
+const API = `${configuredApi || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:4000" : window.location.origin)}/api`;
 const $ = id => document.getElementById(id);
 let state = { game:null, ticket:null, called:new Set(), socket:null };
 
@@ -12,7 +13,7 @@ async function api(path, options={}){
   if(token) headers.Authorization=`Bearer ${token}`;
   let r;
   try{r=await fetch(API+path,{...options,headers})}
-  catch{throw new Error("Cannot connect to the API. Start the backend and PostgreSQL, then try again.")}
+  catch{throw new Error("Cannot connect to the API. Check that the backend is running and API_BASE_URL is configured.")}
   const d=await r.json().catch(()=>({}));
   if(!r.ok) throw new Error(d.error||"Request failed");
   return d;
@@ -117,9 +118,10 @@ $("withdrawForm").addEventListener("submit",async e=>{
 
 function connectSocket(){
   const s=document.createElement("script");
-  s.src=`http://${window.location.hostname}:4000/socket.io/socket.io.js`;
+  const socketOrigin=(configuredApi || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:4000" : window.location.origin)).replace(/\/$/,"");
+  s.src=`${socketOrigin}/socket.io/socket.io.js`;
   s.onload=()=>{
-    state.socket=io(`http://${window.location.hostname}:4000`);
+    state.socket=io(socketOrigin);
     state.socket.on("connect",()=>state.socket.emit("room",state.game?.id));
     state.socket.on("update",g=>{state.game=g;state.called=new Set(g.called_numbers||[]);drawGame();updateHero()});
     state.socket.on("finished",g=>{state.game=g;state.called=new Set(g.called_numbers||[]);drawGame();updateHero();toast(g.winner_id?"BINGO — game finished!":"Game finished")});
