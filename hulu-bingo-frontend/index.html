@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Habesha Bingo</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#"><span>HABESHA</span> BINGO</a>
+    <nav>
+      <a href="#game">Game</a>
+      <a href="#wallet">Wallet</a>
+      <a href="#winners">Winners</a>
+      <a href="#account">Account</a>
+      <button class="btn btn-gold" id="loginBtn">Login</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <div class="eyebrow">WORLD CLASS BINGO EXPERIENCE</div>
+        <h1>Play. Match.<br><span>Win Bingo.</span></h1>
+        <p>Join the main room, follow the live numbers and see your ticket update in real time.</p>
+        <div class="hero-actions">
+          <button class="btn btn-gold" id="playBtn">Play Now</button>
+          <button class="btn btn-outline" onclick="document.querySelector('#how').scrollIntoView({behavior:'smooth'})">How It Works</button>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="live"><i></i> LIVE GAME</div>
+        <div class="prize-label">CURRENT PRIZE POOL</div>
+        <div class="prize" id="heroPrize">0 <small>ETB</small></div>
+        <div class="mini-stats">
+          <div><b id="heroPlayers">0</b><small>Players</small></div>
+          <div><b>10</b><small>Entry ETB</small></div>
+          <div><b>1–150</b><small>Numbers</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="game">
+      <div class="section-title">
+        <div><div class="eyebrow">MAIN GAME</div><h2>Live Bingo Room</h2></div>
+        <span class="status" id="gameStatus">WAITING</span>
+      </div>
+      <div class="game-layout">
+        <div class="panel">
+          <div class="panel-head">
+            <div><small>LAST CALLED</small><strong id="currentNumber">—</strong></div>
+            <div><small>PLAYERS</small><strong id="players">0</strong></div>
+            <div><small>PRIZE POOL</small><strong id="prizePool">0 ETB</strong></div>
+          </div>
+          <h3>Called Numbers</h3>
+          <div class="balls" id="calledNumbers"><span class="empty">No numbers called yet</span></div>
+          <h3>Number Board</h3>
+          <div class="number-board" id="numberBoard"></div>
+        </div>
+
+        <aside class="panel ticket-panel">
+          <div class="panel-head simple">
+            <div><small>MY BINGO TICKET</small><h3>Player Card</h3></div>
+            <span class="ticket-badge">5 × 5</span>
+          </div>
+          <div class="ticket" id="ticket"></div>
+          <button class="btn btn-gold full" id="joinBtn">Join Game — 10 ETB</button>
+          <p class="hint">A row, column or diagonal completes Bingo in this demo.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="wallet">
+      <div class="section-title">
+        <div><div class="eyebrow">MY ACCOUNT</div><h2>Wallet</h2></div>
+      </div>
+      <div class="wallet-grid">
+        <div class="balance-card main-balance"><span>Main Game Wallet</span><strong id="mainBalance">0.00 ETB</strong><small>Used for the main game</small></div>
+        <div class="balance-card vip-balance"><span>VIP Wallet</span><strong id="vipBalance">0.00 ETB</strong><small>Reserved for VIP room</small></div>
+      </div>
+      <div class="forms-grid">
+        <form class="panel" id="depositForm">
+          <div class="eyebrow">DEPOSIT</div><h3>Add Funds</h3>
+          <label>Wallet<select name="wallet"><option value="main">Main Game</option><option value="vip">VIP Room</option></select></label>
+          <label>Method<select name="method"><option>TeleBirr</option><option>CBE Birr</option><option>M-Pesa</option><option>E-Birr</option></select></label>
+          <label>Amount<input name="amount" type="number" min="50" value="50"></label>
+          <label>Payment reference<input name="reference" placeholder="Transaction reference"></label>
+          <button class="btn btn-gold full">Submit Deposit Request</button>
+          <small class="hint">Minimum deposit: 50 ETB. Demo/manual request only.</small>
+        </form>
+        <form class="panel" id="withdrawForm">
+          <div class="eyebrow">WITHDRAW</div><h3>Withdraw Funds</h3>
+          <label>Wallet<select name="wallet"><option value="main">Main Game</option><option value="vip">VIP Room</option></select></label>
+          <label>Method<select name="method"><option>TeleBirr</option><option>CBE Birr</option><option>M-Pesa</option><option>E-Birr</option></select></label>
+          <label>Amount<input name="amount" type="number" min="100" value="100"></label>
+          <label>Account / phone<input name="account" placeholder="09xxxxxxxx"></label>
+          <button class="btn btn-outline full">Request Withdrawal</button>
+          <small class="hint">Minimum withdrawal: 100 ETB in this prototype.</small>
+        </form>
+      </div>
+    </section>
+
+    <section class="section" id="winners">
+      <div class="section-title">
+        <div><div class="eyebrow">RESULTS</div><h2>Recent Winners</h2></div>
+      </div>
+      <div class="winner-grid" id="winnersGrid"><div class="empty-card">No completed games yet.</div></div>
+    </section>
+
+    <section class="section how" id="how">
+      <div class="section-title"><div><div class="eyebrow">HOW IT WORKS</div><h2>Simple Player Journey</h2></div></div>
+      <div class="steps">
+        <div class="step" data-step-action="account" role="button" tabindex="0"><b>01</b><h3>Create account</h3><p>Register with your name, phone number and password.</p></div>
+        <div class="step" data-step-action="wallet" role="button" tabindex="0"><b>02</b><h3>Fund wallet</h3><p>Deposit from 50 ETB through the configured payment workflow.</p></div>
+        <div class="step" data-step-action="game" role="button" tabindex="0"><b>03</b><h3>Join game</h3><p>Main game entry is 10 ETB per player.</p></div>
+        <div class="step" data-step-action="game" role="button" tabindex="0"><b>04</b><h3>Play Bingo</h3><p>Watch numbers, mark your card and complete a valid pattern.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="brand"><span>HABESHA</span> BINGO</div><p>Prototype interface — real-money payment and gambling compliance are not connected.</p></footer>
+  <div class="auth-backdrop" id="authBackdrop" hidden>
+    <form class="auth-dialog" id="authForm">
+      <button class="auth-close" type="button" id="authClose" aria-label="Close">&times;</button>
+      <div class="eyebrow">PLAYER ACCOUNT</div>
+      <h2 id="authTitle">Login</h2>
+      <p id="authPrompt">Use your phone number and password to continue.</p>
+      <label id="nameField" hidden>Name<input name="name" autocomplete="name"></label>
+      <label>Phone number<input name="phone" type="tel" autocomplete="tel" required></label>
+      <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+      <button class="btn btn-gold full" id="authSubmit">Login</button>
+      <button class="auth-switch" type="button" id="authSwitch">Create an account</button>
+    </form>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
