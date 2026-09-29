@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Habesha Bingo Admin</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-page">
+  <header class="topbar">
+    <a class="brand" href="/"><span>HABESHA</span> BINGO</a>
+    <nav><a href="/">Public site</a><button class="btn btn-gold" id="logoutBtn" hidden>Logout</button></nav>
+  </header>
+  <main class="admin-shell">
+    <section class="panel admin-login" id="loginPanel">
+      <div class="eyebrow">ADMIN ACCESS</div>
+      <h1>Control centre</h1>
+      <p class="hint">Sign in with an authorized admin account.</p>
+      <form id="loginForm">
+        <label>Phone<input name="phone" type="tel" autocomplete="username" required></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+        <button class="btn btn-gold full">Sign in</button>
+      </form>
+      <p class="admin-error" id="loginError" hidden></p>
+    </section>
+    <section id="dashboard" hidden>
+      <div class="admin-heading"><div><div class="eyebrow">OPERATIONS</div><h1>Admin dashboard</h1></div><button class="btn btn-outline" id="refreshBtn">Refresh data</button></div>
+      <div class="admin-stats">
+        <div class="balance-card"><span>Users</span><strong id="userCount">0</strong></div>
+        <div class="balance-card"><span>Active players</span><strong id="activeUserCount">0</strong></div>
+        <div class="balance-card"><span>Total demo balance</span><strong id="demoBalance">0 ETB</strong></div>
+        <div class="balance-card"><span>Active games</span><strong id="gameCount">0</strong></div>
+        <div class="balance-card"><span>Current players</span><strong id="currentPlayerCount">0</strong></div>
+        <div class="balance-card"><span>Current demo pool</span><strong id="currentPrizePool">0 ETB</strong></div>
+        <div class="balance-card"><span>Completed games</span><strong id="completedGameCount">0</strong></div>
+        <div class="balance-card"><span>Pending transactions</span><strong id="pendingCount">0</strong></div>
+        <div class="balance-card"><span>Winners</span><strong id="winnerCount">0</strong></div>
+      </div>
+      <div class="admin-grid">
+        <section class="panel admin-section"><div class="section-title"><h2>Users</h2><input class="admin-search" id="userSearch" placeholder="Search name or phone"></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="usersBody"></tbody></table></div></section>
+        <section class="panel admin-section"><div class="section-title"><h2>Wallets</h2></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Main</th><th>VIP</th></tr></thead><tbody id="walletsBody"></tbody></table></div></section>
+        <section class="panel admin-section wide"><div class="section-title"><h2>Games</h2></div><div class="table-wrap"><table><thead><tr><th>Game</th><th>Players</th><th>Pool</th><th>Status</th><th></th></tr></thead><tbody id="gamesBody"></tbody></table></div></section>
+        <section class="panel admin-section wide"><div class="section-title"><h2>Support Messages</h2></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Subject</th><th>Status</th><th>Actions</th></tr></thead><tbody id="supportBody"></tbody></table></div></section>
+        <section class="panel admin-section wide"><div class="section-title"><h2>Transactions</h2></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Type</th><th>Wallet</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="transactionsBody"></tbody></table></div></section>
+        <section class="panel admin-section"><div class="section-title"><h2>Winners</h2></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Game</th><th>Prize</th></tr></thead><tbody id="winnersBody"></tbody></table></div></section>
+        <section class="panel admin-section"><div class="section-title"><h2>Audit log</h2></div><div class="table-wrap"><table><thead><tr><th>Action</th><th>Entity</th><th>Time</th></tr></thead><tbody id="auditBody"></tbody></table></div></section>
+        <section class="panel admin-section"><div class="section-title"><h2>Demo settings</h2></div><form id="settingsForm" class="settings-form"><label>Entry amount<input name="demo_entry_amount" type="number" min="1" max="1000000" required></label><label>Minimum deposit<input name="demo_min_deposit" type="number" min="1" max="1000000" required></label><label>Minimum withdrawal<input name="demo_min_withdrawal" type="number" min="1" max="1000000" required></label><label>Number range maximum<input name="demo_number_max" type="number" min="1" max="150" required></label><button class="btn btn-gold full">Save demo settings</button></form></section>
+        <section class="panel admin-section wide"><div class="section-title"><h2>Recent activity</h2></div><div class="table-wrap"><table><thead><tr><th>Action</th><th>Entity</th><th>Date</th></tr></thead><tbody id="activityBody"></tbody></table></div></section>
+      </div>
+      <p class="admin-error" id="dashboardError" hidden></p>
+    </section>
+  </main>
+  <script src="admin.js"></script>
+</body>
+</html>
