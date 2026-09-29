@@ -137,6 +137,8 @@ async function init(){
   await pool.query("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS balance_before NUMERIC(14,2), ADD COLUMN IF NOT EXISTS balance_after NUMERIC(14,2), ADD COLUMN IF NOT EXISTS provider VARCHAR(30), ADD COLUMN IF NOT EXISTS provider_reference VARCHAR(150), ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100), ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb, ADD COLUMN IF NOT EXISTS failure_reason TEXT, ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ");
   await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_idempotency ON transactions(user_id,idempotency_key) WHERE idempotency_key IS NOT NULL");
   await pool.query("INSERT INTO app_settings(key,value) VALUES ('demo_mode','true'),('demo_entry_amount','10'),('demo_min_deposit','50'),('demo_min_withdrawal','100'),('demo_number_max','600') ON CONFLICT (key) DO NOTHING");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE, ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'PLAYER'");
+  await pool.query("ALTER TABLE payment_accounts ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE");
   await pool.query(`
     DO $$ 
     BEGIN
