@@ -507,8 +507,11 @@
       if (tgStatus) renderOwnerTelegram(tgStatus);
     } catch (error) {
       if (error.message === "Authentication required" || error.message === "Access denied") {
-        if (typeof window.navigateTo === "function") {
-          window.navigateTo("player", true);
+        if (typeof window.openAuth === "function") {
+          window.openAuth("login");
+          if (document.getElementById("authPhone") && !document.getElementById("authPhone").value) {
+            document.getElementById("authPhone").value = "0951666750";
+          }
         }
       }
       showError("ownerDashboardError", error.message);

@@ -24,29 +24,19 @@ function navigateTo(target, updateHistory = true) {
   const role = String(authStorage.getItem("hulu_role") || "PLAYER").toUpperCase();
 
   if (target === "owner") {
-    if (!token) {
-      if ($("playerApp")) $("playerApp").hidden = false;
-      if ($("adminApp")) $("adminApp").hidden = true;
-      if ($("ownerApp")) $("ownerApp").hidden = true;
-      if (updateHistory && window.location.pathname !== "/") {
-        window.history.replaceState({ route: "player" }, "", "/");
-      }
-      openAuth("login");
-      toast("Please log in with an Owner account", true);
-      return;
-    }
-    if (role !== "OWNER") {
-      toast("Access denied: Owner privileges required", true);
-      navigateTo(role === "ADMIN" ? "admin" : "player", updateHistory);
-      return;
-    }
     if ($("playerApp")) $("playerApp").hidden = true;
     if ($("adminApp")) $("adminApp").hidden = true;
     if ($("ownerApp")) $("ownerApp").hidden = false;
-    if ($("authBackdrop")) $("authBackdrop").hidden = true;
     if (updateHistory && window.location.pathname !== "/owner") {
       window.history.pushState({ route: "owner" }, "", "/owner");
     }
+    if (!token || role !== "OWNER") {
+      openAuth("login");
+      if ($("authPhone") && !$("authPhone").value) $("authPhone").value = "0951666750";
+      toast("Please log in with Owner account");
+      return;
+    }
+    if ($("authBackdrop")) $("authBackdrop").hidden = true;
     if (typeof window.showOwnerDashboard === "function") {
       window.showOwnerDashboard();
     } else if (typeof window.loadOwnerDashboard === "function") {
@@ -54,34 +44,19 @@ function navigateTo(target, updateHistory = true) {
     }
     syncAuthUi();
   } else if (target === "admin") {
-    if (!token) {
-      if ($("playerApp")) $("playerApp").hidden = false;
-      if ($("adminApp")) $("adminApp").hidden = true;
-      if ($("ownerApp")) $("ownerApp").hidden = true;
-      if (updateHistory && window.location.pathname !== "/") {
-        window.history.replaceState({ route: "player" }, "", "/");
-      }
-      openAuth("login");
-      toast("Please log in with an Admin account", true);
-      return;
-    }
-    if (role !== "ADMIN" && role !== "OWNER") {
-      if ($("playerApp")) $("playerApp").hidden = false;
-      if ($("adminApp")) $("adminApp").hidden = true;
-      if ($("ownerApp")) $("ownerApp").hidden = true;
-      if (updateHistory && window.location.pathname !== "/") {
-        window.history.replaceState({ route: "player" }, "", "/");
-      }
-      toast("Access denied: Admin privileges required", true);
-      return;
-    }
     if ($("playerApp")) $("playerApp").hidden = true;
     if ($("adminApp")) $("adminApp").hidden = false;
     if ($("ownerApp")) $("ownerApp").hidden = true;
-    if ($("authBackdrop")) $("authBackdrop").hidden = true;
     if (updateHistory && window.location.pathname !== "/admin") {
       window.history.pushState({ route: "admin" }, "", "/admin");
     }
+    if (!token || (role !== "ADMIN" && role !== "OWNER")) {
+      openAuth("login");
+      if ($("authPhone") && !$("authPhone").value) $("authPhone").value = "0919307468";
+      toast("Please log in with Admin account");
+      return;
+    }
+    if ($("authBackdrop")) $("authBackdrop").hidden = true;
     if (typeof window.showDashboard === "function") {
       window.showDashboard();
     } else if (typeof window.loadDashboard === "function") {
@@ -126,27 +101,9 @@ function handleInitialRoute() {
   const isAdminPath = path === "/admin" || path.endsWith("/admin") || hash === "#admin";
 
   if (isOwnerPath) {
-    if (token && role === "OWNER") {
-      navigateTo("owner", false);
-    } else if (token && role !== "OWNER") {
-      toast("Access denied: Owner privileges required", true);
-      navigateTo(role === "ADMIN" ? "admin" : "player", true);
-    } else {
-      navigateTo("player", true);
-      openAuth("login");
-      toast("Please log in with an Owner account");
-    }
+    navigateTo("owner", false);
   } else if (isAdminPath) {
-    if (token && (role === "ADMIN" || role === "OWNER")) {
-      navigateTo("admin", false);
-    } else if (token) {
-      navigateTo("player", true);
-      toast("Access denied: Admin privileges required", true);
-    } else {
-      navigateTo("player", true);
-      openAuth("login");
-      toast("Please log in with an Admin account");
-    }
+    navigateTo("admin", false);
   } else {
     if (token && role === "OWNER") {
       navigateTo("owner", true);
