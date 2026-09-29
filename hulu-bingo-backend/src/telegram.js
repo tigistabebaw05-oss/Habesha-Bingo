@@ -52,6 +52,21 @@ class TelegramBingoService {
         this.botUsername = me.result.username || this.botUsername;
         console.log(`[Telegram] Successfully connected as @${this.botUsername} (${me.result.first_name})`);
         
+        // Configure Telegram Chat Menu Button as WebApp so it opens directly without confirmation
+        const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+        try {
+          await this.apiCall("setChatMenuButton", {
+            menu_button: {
+              type: "web_app",
+              text: "🎮 Play Bingo",
+              web_app: { url: webAppUrl }
+            }
+          });
+          console.log(`[Telegram] WebApp menu button configured for ${webAppUrl}`);
+        } catch (mErr) {
+          console.warn("[Telegram] Could not set chat menu button:", mErr.message);
+        }
+
         // Start long-polling if webhook is not set
         const webhookInfo = await this.apiCall("getWebhookInfo");
         if (!webhookInfo?.result?.url) {
@@ -316,7 +331,7 @@ class TelegramBingoService {
   }
 
   async cmdStart(chatId, from, user, isGroup) {
-    const webAppUrl = process.env.PUBLIC_APP_URL || "http://localhost:4000";
+    const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
     const text = `🎉 <b>እንኳን ወደ HABESHA BINGO በደህና መጡ!</b>\n\n` +
       `👤 ተጫዋች: <b>${user ? user.name : from.first_name}</b>\n` +
       `💰 ቀሪ ሂሳብ: <b>${user ? Number(user.main_balance || 0).toFixed(2) : "0.00"} ETB</b>\n\n` +
@@ -331,7 +346,7 @@ class TelegramBingoService {
     const inlineKeyboard = {
       inline_keyboard: [
         [
-          { text: "🎮 በድረ-ገጽ በቀጥታ ይጫወቱ (Open WebApp)", url: webAppUrl }
+          { text: "🎮 በቴሌግራም በቀጥታ ይጫወቱ (Play Bingo)", web_app: { url: webAppUrl } }
         ]
       ]
     };

@@ -5,6 +5,15 @@ const authStorage = window.sessionStorage;
 localStorage.removeItem("hulu_token");
 let state = { game:null, ticket:null, called:new Set(), socket:null };
 
+if (window.Telegram && window.Telegram.WebApp) {
+  try {
+    window.Telegram.WebApp.ready();
+    window.Telegram.WebApp.expand();
+  } catch (e) {
+    console.warn("Telegram WebApp init:", e);
+  }
+}
+
 function syncAuthUi(){
   const token = authStorage.getItem("hulu_token");
   const role = String(authStorage.getItem("hulu_role")||"PLAYER").toUpperCase();
