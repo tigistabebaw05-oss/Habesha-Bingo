@@ -147,19 +147,30 @@ async function init(){
     EXCEPTION WHEN OTHERS THEN NULL;
     END $$;
   `);
-  const ownerCheck = await pool.query("SELECT id FROM users WHERE role = 'OWNER' LIMIT 1");
-  if (ownerCheck.rowCount === 0) {
-    const defaultOwnerPhone = process.env.OWNER_PHONE || "0911000000";
-    const defaultOwnerName = process.env.OWNER_NAME || "Habesha Bingo Owner";
-    const defaultOwnerPassword = process.env.OWNER_PASSWORD || "Owner@12345";
-    const h = await bcrypt.hash(defaultOwnerPassword, 12);
-    const existingByPhone = (await pool.query("SELECT id FROM users WHERE phone = $1", [defaultOwnerPhone])).rows[0];
-    if (existingByPhone) {
-      await pool.query("UPDATE users SET role = 'OWNER', is_active = TRUE, name = $1, password_hash = $2 WHERE id = $3", [defaultOwnerName, h, existingByPhone.id]);
-    } else {
-      const newOwner = (await pool.query("INSERT INTO users(name, phone, password_hash, role, is_active) VALUES($1, $2, $3, 'OWNER', TRUE) RETURNING id", [defaultOwnerName, defaultOwnerPhone, h])).rows[0];
-      await pool.query("INSERT INTO wallets(user_id) VALUES($1) ON CONFLICT (user_id) DO NOTHING", [newOwner.id]);
-    }
+  // 1. Ensure Owner Account Exists
+  const ownerPhone = process.env.OWNER_PHONE || "0951666750";
+  const ownerName = process.env.OWNER_NAME || "abirham";
+  const ownerPassword = process.env.OWNER_PASSWORD || "A@12345";
+  const ownerHash = await bcrypt.hash(ownerPassword, 12);
+  const existingOwner = (await pool.query("SELECT id FROM users WHERE phone = $1", [ownerPhone])).rows[0];
+  if (existingOwner) {
+    await pool.query("UPDATE users SET role = 'OWNER', is_active = TRUE, name = $1, password_hash = $2 WHERE id = $3", [ownerName, ownerHash, existingOwner.id]);
+  } else {
+    const newOwner = (await pool.query("INSERT INTO users(name, phone, password_hash, role, is_active) VALUES($1, $2, $3, 'OWNER', TRUE) RETURNING id", [ownerName, ownerPhone, ownerHash])).rows[0];
+    await pool.query("INSERT INTO wallets(user_id) VALUES($1) ON CONFLICT (user_id) DO NOTHING", [newOwner.id]);
+  }
+
+  // 2. Ensure Admin Account Exists
+  const adminPhone = process.env.ADMIN_PHONE || "0919307468";
+  const adminName = process.env.ADMIN_NAME || "adissu";
+  const adminPassword = process.env.ADMIN_PASSWORD || "Ad@1234";
+  const adminHash = await bcrypt.hash(adminPassword, 12);
+  const existingAdmin = (await pool.query("SELECT id FROM users WHERE phone = $1", [adminPhone])).rows[0];
+  if (existingAdmin) {
+    await pool.query("UPDATE users SET role = 'ADMIN', is_active = TRUE, name = $1, password_hash = $2 WHERE id = $3", [adminName, adminHash, existingAdmin.id]);
+  } else {
+    const newAdmin = (await pool.query("INSERT INTO users(name, phone, password_hash, role, is_active) VALUES($1, $2, $3, 'ADMIN', TRUE) RETURNING id", [adminName, adminPhone, adminHash])).rows[0];
+    await pool.query("INSERT INTO wallets(user_id) VALUES($1) ON CONFLICT (user_id) DO NOTHING", [newAdmin.id]);
   }
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_id BIGINT UNIQUE, ADD COLUMN IF NOT EXISTS telegram_username VARCHAR(100)");
   await telegramService.init().catch(err => console.warn("[Telegram] Service init warning:", err.message));
