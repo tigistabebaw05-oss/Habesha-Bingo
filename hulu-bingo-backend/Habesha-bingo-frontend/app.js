@@ -9,6 +9,18 @@ if (window.Telegram && window.Telegram.WebApp) {
   try {
     window.Telegram.WebApp.ready();
     window.Telegram.WebApp.expand();
+    const openTgModal = () => {
+      const modal = $("huluBingoWebAppModal");
+      if (modal) {
+        modal.hidden = false;
+        switchToCardSelectionView();
+      }
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", openTgModal);
+    } else {
+      setTimeout(openTgModal, 100);
+    }
   } catch (e) {
     console.warn("Telegram WebApp init:", e);
   }
@@ -223,7 +235,15 @@ $("joinBtn").addEventListener("click",async()=>{
     await refresh();
   }catch(e){toast(e.message,true)}
 });
-$("playBtn").addEventListener("click",()=>document.querySelector("#game").scrollIntoView({behavior:"smooth"}));
+$("playBtn").addEventListener("click", () => {
+  const modal = $("huluBingoWebAppModal");
+  if (modal) {
+    modal.hidden = false;
+    switchToCardSelectionView();
+  } else {
+    document.querySelector("#game")?.scrollIntoView({behavior:"smooth"});
+  }
+});
 $("howBtn").addEventListener("click",()=>document.querySelector("#how").scrollIntoView({behavior:"smooth"}));
 let authMode="login";
 function openAuth(mode="register"){
@@ -597,7 +617,7 @@ function getBingoLetter(num) {
   return "B";
 }
 
-function syncHuluWebApp() {
+function syncHuluWebApp(overrideNum, overrideList) {
   const g = state.game;
   const roundEl = $("tgGameRound");
   const playersEl = $("tgLivePlayers");
@@ -610,24 +630,28 @@ function syncHuluWebApp() {
   const bingoBtn = $("tgBingoBtn");
 
   const roundNum = g?.id ? String(g.id).padStart(6, '0') : "221453";
-  const players = g?.players || 85;
-  const prize = g?.prize_pool ? Number(g.prize_pool).toFixed(0) : "1568";
-  const currentNum = g?.current_number || 6;
-  const calledList = (g?.called_numbers && g.called_numbers.length > 0)
-    ? g.called_numbers
-    : [3, 5, 6, 14, 26, 29, 32, 46, 47, 48, 50, 61];
+  const players = (takenCards && takenCards.size > 0) ? (takenCards.size + selectedCardNumbers.size) : (g?.players || 72);
+  const prize = players * 10;
+  const currentNum = overrideNum || g?.current_number || 6;
+  const calledList = (overrideList && overrideList.length > 0)
+    ? overrideList
+    : ((g?.called_numbers && g.called_numbers.length > 0)
+      ? g.called_numbers
+      : [3, 5, 6, 14, 26, 29, 32, 46, 47, 48, 50, 61]);
   const calledCount = calledList.length;
   const calledSet = new Set(calledList);
 
   if (roundEl) roundEl.textContent = `GAME ROUND #${roundNum}`;
   if (playersEl) playersEl.textContent = `LIVE - ${players} PLAYERS`;
   if (prizeEl) prizeEl.textContent = `${prize} ETB`;
+  const selPrizeEl = $("tgCardSelPrize");
+  if (selPrizeEl) selPrizeEl.textContent = `${prize} ETB`;
   if (ballLetterEl) ballLetterEl.textContent = getBingoLetter(currentNum);
   if (ballNumEl) ballNumEl.textContent = currentNum;
   if (trackerCount) trackerCount.textContent = `${calledCount}/75`;
 
   if (chipsContainer) {
-    const recent = [6, 50, 47, 14, 61];
+    const recent = calledList.slice(-5).reverse();
     chipsContainer.innerHTML = recent.map(n => {
       const l = getBingoLetter(n);
       return `<span class="chip"><b class="c-${l.toLowerCase()}">${l}</b> ${n}</span>`;
@@ -662,14 +686,63 @@ function syncHuluWebApp() {
 }
 
 let selectedCardNumbers = new Set();
+let takenCards = new Set();
 let cardCountdownInterval = null;
 let cardCountdownSeconds = 39;
+let rapidCounterInterval = null;
+let liveGameInterval = null;
+
+function updateDerashPrize() {
+  const totalCards = takenCards.size + selectedCardNumbers.size;
+  const entryPrice = 10;
+  const totalDerash = totalCards * entryPrice;
+
+  const selPrizeEl = $("tgCardSelPrize");
+  if (selPrizeEl) selPrizeEl.textContent = `${totalDerash} ETB`;
+
+  const livePrizeEl = $("tgPrizePool");
+  if (livePrizeEl) livePrizeEl.textContent = `${totalDerash} ETB`;
+
+  const playersEl = $("tgLivePlayers");
+  if (playersEl) playersEl.textContent = `LIVE - ${totalCards} PLAYERS`;
+}
 
 function startCardCountdown() {
   if (cardCountdownInterval) clearInterval(cardCountdownInterval);
+  if (rapidCounterInterval) clearInterval(rapidCounterInterval);
+  if (liveGameInterval) clearInterval(liveGameInterval);
+
   cardCountdownSeconds = 39;
   const digitsEl = $("tgCardCountdown");
   if (digitsEl) digitsEl.textContent = "00:39";
+
+  // Rapidly count up from the beginning and put on derash amount
+  const targetCards = 72;
+  rapidCounterInterval = setInterval(() => {
+    if (takenCards.size < targetCards) {
+      const batch = Math.min(2, targetCards - takenCards.size);
+      const available = [];
+      for (let i = 1; i <= 80; i++) {
+        if (!takenCards.has(i) && !selectedCardNumbers.has(i)) {
+          available.push(i);
+        }
+      }
+      for (let b = 0; b < batch && available.length > 0; b++) {
+        const idx = Math.floor(Math.random() * available.length);
+        const cardNum = available.splice(idx, 1)[0];
+        takenCards.add(cardNum);
+        const cell = document.querySelector(`#tgCardPickGrid .card-cell[data-card="${cardNum}"]`);
+        if (cell) {
+          cell.classList.remove("available");
+          cell.classList.add("taken");
+        }
+      }
+      updateDerashPrize();
+    } else {
+      clearInterval(rapidCounterInterval);
+    }
+  }, 180);
+
   cardCountdownInterval = setInterval(() => {
     if (cardCountdownSeconds > 0) {
       cardCountdownSeconds--;
@@ -677,6 +750,7 @@ function startCardCountdown() {
       if (digitsEl) digitsEl.textContent = `00:${secStr}`;
     } else {
       clearInterval(cardCountdownInterval);
+      clearInterval(rapidCounterInterval);
       toast("ጨዋታው ተጀምሯል!");
       switchToLiveGameView();
     }
@@ -686,10 +760,9 @@ function startCardCountdown() {
 function renderCardSelectionGrid() {
   const grid = $("tgCardPickGrid");
   if (!grid) return;
-  const takenSet = new Set([2, 9, 11, 14, 15, 16, 19, 20, 21, 25, 26, 27, 28, 36, 39, 42, 43, 51, 52, 58, 61, 67, 68, 69, 72, 73, 74, 75, 80]);
   let html = "";
   for (let i = 1; i <= 80; i++) {
-    const isTaken = takenSet.has(i);
+    const isTaken = takenCards.has(i);
     const isSelected = selectedCardNumbers.has(i);
     const classes = `card-cell ${isTaken ? 'taken' : 'available'} ${isSelected ? 'selected' : ''}`;
     html += `<div class="${classes}" data-card="${i}">${i}</div>`;
@@ -713,6 +786,8 @@ function renderCardSelectionGrid() {
       updateCardSelectionTotals();
     });
   });
+
+  updateCardSelectionTotals();
 }
 
 function updateCardSelectionTotals() {
@@ -721,6 +796,7 @@ function updateCardSelectionTotals() {
   const betEl = $("tgTotalBetAmount");
   if (countEl) countEl.textContent = count;
   if (betEl) betEl.textContent = `${count * 10} ETB`;
+  updateDerashPrize();
 }
 
 function switchToCardSelectionView() {
@@ -732,6 +808,9 @@ function switchToCardSelectionView() {
   if ($("tgBingoBtn")) $("tgBingoBtn").hidden = true;
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavHome")?.classList.add("active");
+  
+  takenCards = new Set();
+  selectedCardNumbers.clear();
   renderCardSelectionGrid();
   startCardCountdown();
 }
@@ -746,6 +825,24 @@ function switchToLiveGameView() {
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavBoard")?.classList.add("active");
   syncHuluWebApp();
+
+  // Start live ball caller loop
+  if (liveGameInterval) clearInterval(liveGameInterval);
+  let liveCalled = [3, 5, 6, 14, 26, 29, 32, 46, 47, 48, 50, 61];
+  liveGameInterval = setInterval(() => {
+    if (liveCalled.length < 75) {
+      const avail = Array.from({length:75}, (_,i)=>i+1).filter(n => !liveCalled.includes(n));
+      if (avail.length > 0) {
+        const nextNum = avail[Math.floor(Math.random() * avail.length)];
+        liveCalled.push(nextNum);
+        if (state.game) {
+          state.game.current_number = nextNum;
+          state.game.called_numbers = liveCalled;
+        }
+        syncHuluWebApp(nextNum, liveCalled);
+      }
+    }
+  }, 4000);
 }
 
 function switchToWinnersView() {
