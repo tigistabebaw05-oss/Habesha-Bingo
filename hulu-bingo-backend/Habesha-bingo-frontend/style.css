@@ -1196,6 +1196,52 @@ footer {
   flex: 100%;
 }
 
+/* Telegram Deposit Keyboards (Matching Screenshots) */
+.tg-deposit-keyboard {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px 20px 0 0;
+  padding: 14px 12px;
+  margin-bottom: 6px;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.45);
+  animation: popupSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tg-deposit-keyboard .keyboard-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.tg-deposit-keyboard .keyboard-row:last-child {
+  margin-bottom: 0;
+}
+
+.tg-deposit-keyboard .keyboard-btn {
+  background: #dde3ea;
+  border: 1px solid #c9d3df;
+  color: #1e293b;
+  border-radius: 14px;
+  padding: 15px 12px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  box-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.06);
+  transition: all 0.15s ease;
+}
+
+.tg-deposit-keyboard .keyboard-btn:hover {
+  background: #d0d9e4;
+  border-color: #bcc8d6;
+  color: #0f172a;
+  transform: none;
+}
+
+.tg-deposit-keyboard .keyboard-btn:active {
+  background: #c3cfdc;
+  transform: scale(0.985);
+}
+
 /* Telegram Floating Bottom Bar */
 .floating-menu-bar {
   display: flex;

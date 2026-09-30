@@ -217,6 +217,8 @@ class TelegramBingoService {
       // Check if command
       if (text.startsWith("/")) {
         await this.handleCommand(message);
+      } else if (text) {
+        await this.handleTextMessage(message);
       }
     } catch (e) {
       console.error("[Telegram] Error handling update:", e);
@@ -236,6 +238,9 @@ class TelegramBingoService {
     switch (rawCmd) {
       case "/start":
         await this.cmdStart(chatId, from, user, isGroup);
+        break;
+      case "/deposit":
+        await this.cmdDepositStep1(chatId);
         break;
       case "/help":
         await this.cmdHelp(chatId, isGroup);
@@ -267,6 +272,93 @@ class TelegramBingoService {
       default:
         // Unknown command
         break;
+    }
+  }
+
+  async cmdDepositStep1(chatId) {
+    const text = `📥 <b>ገንዘብ ማስገቢያ (Deposit Fund)</b>\n\nእባክዎ የሚፈልጉትን የጨዋታ አይነት ይምረጡ:`;
+    const replyMarkup = {
+      keyboard: [
+        [{ text: "🎮 ዋናው ጨዋታ" }, { text: "💎 VIP ክፍል" }],
+        [{ text: "አቋርጥ" }]
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: false
+    };
+    await this.sendMessage(chatId, text, { reply_markup: replyMarkup });
+  }
+
+  async cmdDepositStep2(chatId) {
+    const text = `💳 <b>የክፍያ ዘዴ ይምረጡ (Select Payment Method)</b>\n\nገንዘብ ገቢ (Deposit) ለማድረግ የሚፈልጉትን የክፍያ አማራጭ ይምረጡ:`;
+    const replyMarkup = {
+      keyboard: [
+        [{ text: "TeleBirr" }, { text: "CBE Birr" }],
+        [{ text: "MPesa" }, { text: "E-Birr" }],
+        [{ text: "አቋርጥ" }]
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: false
+    };
+    await this.sendMessage(chatId, text, { reply_markup: replyMarkup });
+  }
+
+  async cmdDepositPaymentMethod(chatId, user, method) {
+    const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+    const text = `💰 <b>በ ${method} ገንዘብ ማስገባት (Deposit via ${method})</b>\n\n` +
+      `👤 ተጠቃሚ: <b>${user ? user.name : "ተጫዋች"}</b>\n` +
+      `1️⃣ በ ${method} በኩል ወደ ድርጅቱ ሂሳብ ገንዘቡን ያስተላልፉ።\n` +
+      `2️⃣ የተላከውን የገንዘብ መጠን እና የግብይት ቁጥር (Txn Reference) በድረ-ገጹ ላይ በማስገባት ገቢ ያድርጉ።\n\n` +
+      `ገቢ (Deposit) ለማድረግ ከታች ያለውን ይጫኑ:`;
+
+    const inlineKeyboard = {
+      inline_keyboard: [
+        [
+          { text: `📥 በ ${method} ገንዘብ አስገባ (Deposit Now)`, web_app: { url: `${webAppUrl}?action=deposit&method=${encodeURIComponent(method)}` } }
+        ]
+      ]
+    };
+
+    await this.sendMessage(chatId, text, { reply_markup: inlineKeyboard });
+  }
+
+  async cmdCancel(chatId) {
+    const text = `❌ <b>ተሰርዟል (Operation Cancelled)</b>\n\nወደ ዋናው ሜኑ ተመልሰዋል።`;
+    const replyMarkup = {
+      keyboard: [
+        [{ text: "🎮 ይጫወቱ" }],
+        [{ text: "💰 አሸን" }, { text: "📥 በላኩት" }],
+        [{ text: "📤 ወጪ ላኩት" }, { text: "🔗 ጋር & አጋር" }],
+        [{ text: "💎 VIP ክፍል" }, { text: "🌟 Special Promoter" }],
+        [{ text: "🆘 እርዳታ" }, { text: "📜 ደንቦች" }]
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: false
+    };
+    await this.sendMessage(chatId, text, { reply_markup: replyMarkup });
+  }
+
+  async handleTextMessage(msg) {
+    const chatId = msg.chat.id;
+    const text = (msg.text || "").trim();
+    const from = msg.from;
+    const user = await this.getOrCreateTelegramUser(from);
+
+    const norm = text.toLowerCase();
+    if (norm.includes("ዋናው ጨዋታ") || norm === "🎮 ዋናው ጨዋታ") {
+      await this.cmdDepositStep2(chatId);
+    } else if (norm === "telebirr" || norm === "cbe birr" || norm === "mpesa" || norm === "m-pesa" || norm === "e-birr" || norm === "ebirr") {
+      const method = norm.includes("cbe") ? "CBE Birr" : norm.includes("mpesa") ? "M-Pesa" : norm.includes("ebirr") || norm.includes("e-birr") ? "E-Birr" : "TeleBirr";
+      await this.cmdDepositPaymentMethod(chatId, user, method);
+    } else if (norm.includes("አቋርጥ") || norm === "cancel") {
+      await this.cmdCancel(chatId);
+    } else if (norm.includes("በላኩት") || norm.includes("deposit") || norm.includes("ገቢ")) {
+      await this.cmdDepositStep1(chatId);
+    } else if (norm.includes("ይጫወቱ") || norm.includes("play")) {
+      await this.cmdJoinGame(chatId, user);
+    } else if (norm.includes("አሸን") || norm.includes("balance") || norm.includes("ቀሪ")) {
+      await this.cmdBalance(chatId, user);
+    } else if (norm.includes("vip") || norm.includes("ቪአይፒ")) {
+      await this.sendMessage(chatId, "💎 <b>VIP ክፍል</b>\n\nለ VIP ተጫዋቾች የተዘጋጀ ልዩ ክፍል! በቅርቡ ክፍት ይሆናል።");
     }
   }
 

@@ -407,15 +407,23 @@ if (menuToggleBtn) {
     const popup = document.getElementById("floatingMenuPopup");
     const grid = document.getElementById("telegramKeyboard");
     const chat = document.getElementById("telegramChatState");
-    const isAnyOpen = !popup.hidden || !grid.hidden || (chat && !chat.hidden);
+    const depType = document.getElementById("telegramDepositTypeKeyboard");
+    const depMethod = document.getElementById("telegramDepositMethodKeyboard");
+    const isAnyOpen = (popup && !popup.hidden) || 
+                      (grid && !grid.hidden) || 
+                      (chat && !chat.hidden) ||
+                      (depType && !depType.hidden) ||
+                      (depMethod && !depMethod.hidden);
     
     if (isAnyOpen) {
-      popup.hidden = true;
-      grid.hidden = true;
+      if (popup) popup.hidden = true;
+      if (grid) grid.hidden = true;
       if (chat) chat.hidden = true;
+      if (depType) depType.hidden = true;
+      if (depMethod) depMethod.hidden = true;
       menuToggleBtn.innerHTML = "☰ Menu";
     } else {
-      popup.hidden = false;
+      if (popup) popup.hidden = false;
       menuToggleBtn.innerHTML = "✕ Menu";
     }
   });
@@ -427,6 +435,29 @@ if($("menuStartBtn")) {
     $("telegramKeyboard").hidden = false;
   });
 }
+
+// Deposit Step 1 & Step 2 helpers
+window.openDepositTypeKeyboard = function() {
+  if ($("floatingMenuPopup")) $("floatingMenuPopup").hidden = true;
+  if ($("telegramKeyboard")) $("telegramKeyboard").hidden = true;
+  if ($("telegramChatState")) $("telegramChatState").hidden = true;
+  if ($("telegramDepositMethodKeyboard")) $("telegramDepositMethodKeyboard").hidden = true;
+  if ($("telegramDepositTypeKeyboard")) $("telegramDepositTypeKeyboard").hidden = false;
+  if ($("menuToggleBtn")) $("menuToggleBtn").innerHTML = "✕ Menu";
+};
+
+window.openDepositMethodKeyboard = function() {
+  if ($("telegramDepositTypeKeyboard")) $("telegramDepositTypeKeyboard").hidden = true;
+  if ($("telegramDepositMethodKeyboard")) $("telegramDepositMethodKeyboard").hidden = false;
+  if ($("menuToggleBtn")) $("menuToggleBtn").innerHTML = "✕ Menu";
+};
+
+window.cancelDepositFlow = function() {
+  if ($("telegramDepositTypeKeyboard")) $("telegramDepositTypeKeyboard").hidden = true;
+  if ($("telegramDepositMethodKeyboard")) $("telegramDepositMethodKeyboard").hidden = true;
+  if ($("floatingMenuPopup")) $("floatingMenuPopup").hidden = false;
+  if ($("menuToggleBtn")) $("menuToggleBtn").innerHTML = "✕ Menu";
+};
 
 // Telegram Modals controller
 const telegramModalIds = [
@@ -448,6 +479,8 @@ window.closeAllTelegramModals = function() {
     if (el) el.hidden = true;
   });
   if ($("huluBingoWebAppModal")) $("huluBingoWebAppModal").hidden = true;
+  if ($("telegramDepositTypeKeyboard")) $("telegramDepositTypeKeyboard").hidden = true;
+  if ($("telegramDepositMethodKeyboard")) $("telegramDepositMethodKeyboard").hidden = true;
   if ($("telegramKeyboard")) $("telegramKeyboard").hidden = false;
   if ($("floatingMenuPopup")) $("floatingMenuPopup").hidden = true;
   if ($("telegramChatState")) $("telegramChatState").hidden = true;
@@ -475,6 +508,8 @@ window.openTelegramModal = function(modalId) {
     if (el) el.hidden = true;
   });
   if ($("telegramKeyboard")) $("telegramKeyboard").hidden = true;
+  if ($("telegramDepositTypeKeyboard")) $("telegramDepositTypeKeyboard").hidden = true;
+  if ($("telegramDepositMethodKeyboard")) $("telegramDepositMethodKeyboard").hidden = true;
   if ($("floatingMenuPopup")) $("floatingMenuPopup").hidden = true;
   if ($("telegramChatState")) $("telegramChatState").hidden = true;
 
@@ -525,10 +560,67 @@ if($("menuBtnBalance")) {
   $("menuBtnBalance").addEventListener("click", () => openTelegramModal("balanceModal"));
 }
 
-// 3. 📥 በላኩት (Deposit)
-if($("menuBtnDeposit")) {
-  $("menuBtnDeposit").addEventListener("click", () => openTelegramModal("depositModal"));
+// 3. 📥 በላኩት / Deposit Fund! flow
+if ($("menuDepositFundBtn")) {
+  $("menuDepositFundBtn").addEventListener("click", () => {
+    openDepositTypeKeyboard();
+  });
 }
+
+if ($("menuBtnDeposit")) {
+  $("menuBtnDeposit").addEventListener("click", () => {
+    openDepositTypeKeyboard();
+  });
+}
+
+// Deposit Step 1 Listeners (🎮 ዋናው ጨዋታ | 💎 VIP ክፍል | አቋርጥ)
+if ($("btnDepositMainGame")) {
+  $("btnDepositMainGame").addEventListener("click", () => {
+    openDepositMethodKeyboard();
+  });
+}
+
+if ($("btnDepositVip")) {
+  $("btnDepositVip").addEventListener("click", () => {
+    if ($("telegramDepositTypeKeyboard")) $("telegramDepositTypeKeyboard").hidden = true;
+    openTelegramModal("vipModal");
+  });
+}
+
+if ($("btnDepositCancel1")) {
+  $("btnDepositCancel1").addEventListener("click", () => {
+    cancelDepositFlow();
+  });
+}
+
+// Deposit Step 2 Listeners (TeleBirr, CBE Birr, MPesa, E-Birr, አቋርጥ)
+if ($("btnDepositCancel2")) {
+  $("btnDepositCancel2").addEventListener("click", () => {
+    cancelDepositFlow();
+  });
+}
+
+document.querySelectorAll("#telegramDepositMethodKeyboard .keyboard-btn[data-method]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const chosenMethod = btn.getAttribute("data-method") || btn.textContent.trim();
+    if ($("telegramDepositMethodKeyboard")) $("telegramDepositMethodKeyboard").hidden = true;
+    openTelegramModal("depositModal");
+    
+    // Auto-select chosen payment method in deposit modal
+    const methodSelect = document.querySelector("#modalDepositForm select[name='method']");
+    if (methodSelect) {
+      for (let i = 0; i < methodSelect.options.length; i++) {
+        const optVal = methodSelect.options[i].value.toLowerCase().replace(/[^a-z]/g, "");
+        const targetVal = chosenMethod.toLowerCase().replace(/[^a-z]/g, "");
+        if (optVal === targetVal || optVal.includes(targetVal) || targetVal.includes(optVal)) {
+          methodSelect.selectedIndex = i;
+          methodSelect.dispatchEvent(new Event("change"));
+          break;
+        }
+      }
+    }
+  });
+});
 
 // 4. 📤 ወጪ ላኩት (Withdraw)
 if($("menuBtnWithdraw")) {
@@ -1114,3 +1206,32 @@ async function loadPaymentAccounts() {
   } catch(e) { console.error(e); }
 }
 loadPaymentAccounts();
+
+// Check if launched with deposit query parameter
+try {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("action") === "deposit") {
+    const preMethod = urlParams.get("method");
+    setTimeout(() => {
+      if (typeof openTelegramModal === "function") {
+        openTelegramModal("depositModal");
+        if (preMethod) {
+          const methodSelect = document.querySelector("#modalDepositForm select[name='method']");
+          if (methodSelect) {
+            for (let i = 0; i < methodSelect.options.length; i++) {
+              const optVal = methodSelect.options[i].value.toLowerCase().replace(/[^a-z]/g, "");
+              const targetVal = preMethod.toLowerCase().replace(/[^a-z]/g, "");
+              if (optVal === targetVal || optVal.includes(targetVal) || targetVal.includes(optVal)) {
+                methodSelect.selectedIndex = i;
+                methodSelect.dispatchEvent(new Event("change"));
+                break;
+              }
+            }
+          }
+        }
+      }
+    }, 400);
+  }
+} catch (e) {
+  console.warn("Error checking urlParams:", e);
+}
