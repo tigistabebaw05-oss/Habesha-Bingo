@@ -73,6 +73,10 @@
             <div><small>MY BINGO TICKET</small><h3>Player Card</h3></div>
             <span class="ticket-badge">5 × 5</span>
           </div>
+          <div class="hulu-switch-toggle" style="margin: 8px 0 10px; justify-content: flex-start;">
+            <button class="switch-opt active" id="deskModeAuto" type="button">AUTO</button>
+            <button class="switch-opt" id="deskModeManual" type="button">MANUAL</button>
+          </div>
           <div class="ticket" id="ticket"></div>
           <button class="btn btn-gold full" id="joinBtn">Join Game — 10 ETB</button>
           <p class="hint">A row, column or diagonal completes Bingo in this demo.</p>
@@ -619,7 +623,7 @@
         <!-- Main Body Area -->
         <div class="hulu-main-content">
           <!-- 75-Ball B-I-N-G-O Master Board -->
-          <div class="hulu-bingo-table-view" id="huluBingoTableView">
+          <div class="hulu-bingo-table-view" id="huluBingoTableView" hidden>
             <div class="bingo-table-header">
               <span class="col-head col-b">B</span>
               <span class="col-head col-i">I</span>
@@ -630,8 +634,20 @@
             <div class="bingo-table-grid" id="tgBingoTableGrid"></div>
           </div>
 
+          <!-- Player 5x5 Bingo Card (In-Game) -->
+          <div class="hulu-player-card-view" id="huluPlayerCardView">
+            <div class="bingo-table-header" style="margin-bottom: 4px;">
+              <span class="col-head col-b">B</span>
+              <span class="col-head col-i">I</span>
+              <span class="col-head col-n">N</span>
+              <span class="col-head col-g">G</span>
+              <span class="col-head col-o">O</span>
+            </div>
+            <div class="ticket" id="tgTicketGrid" style="margin: 4px 0 8px;"></div>
+          </div>
+
           <!-- Waiting State Screen -->
-          <div class="hulu-waiting-view" id="huluWaitingView">
+          <div class="hulu-waiting-view" id="huluWaitingView" hidden>
             <div class="clock-icon-circle">
               <svg class="clock-svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -647,55 +663,68 @@
       <!-- VIEW 3: Winners Celebration View (Matching the new screenshot) -->
       <div class="hulu-winners-celebration-view" id="huluWinnersCelebrationView" hidden>
         <div class="winners-sunburst-bg"></div>
+        <div class="winners-confetti-container" id="tgWinnersConfetti"></div>
 
-        <!-- 3 WINNERS Glowing Pill -->
-        <div class="winners-badge-pill">
-          <span>3 WINNERS</span>
+        <!-- 5 WINNERS Glowing Pill -->
+        <div class="winners-badge-pill" id="tgWinnersBadgePill">
+          <span id="tgWinnersBadgeCount">5 WINNERS</span>
         </div>
 
         <!-- Ethiopic Heading -->
-        <h2 class="winners-heading">የደራሽ ሽልማት ተካፋዮች!</h2>
+        <h2 class="winners-heading" id="tgWinnersHeading">የደረሽ ሽልማት ተካፋዮች!</h2>
 
         <!-- Main Winners Card -->
         <div class="winners-main-card">
           <div class="winners-stat-row">
             <span class="stat-lbl">ጠቅላላ አሸናፊዎች</span>
-            <span class="stat-val count-val" id="tgWinnersTotal">3</span>
+            <span class="stat-val count-val" id="tgWinnersTotal">5</span>
           </div>
+
+          <div class="winners-stat-divider"></div>
 
           <div class="winners-stat-row share-row">
             <span class="stat-lbl">ለአንድ ሰው ድርሻ</span>
-            <span class="stat-val share-val" id="tgWinnersShare">1600 ETB</span>
+            <span class="stat-val share-val" id="tgWinnersShare">960 ETB</span>
           </div>
 
           <!-- Winner Cards List -->
           <div class="winner-items-list" id="tgWinnerItemsList">
             <!-- Winner 1 -->
-            <div class="winner-row-card featured">
+            <div class="winner-row-card">
               <div class="winner-avatar">K</div>
               <div class="winner-info">
-                <span class="winner-name">Kura Hello</span>
-                <span class="winner-ticket">Ticket #280</span>
+                <span class="winner-name">King</span>
+                <span class="winner-ticket">Ticket #328</span>
               </div>
               <span class="winner-active-dot"></span>
             </div>
 
             <!-- Winner 2 -->
             <div class="winner-row-card">
-              <div class="winner-avatar">F</div>
+              <div class="winner-avatar">A</div>
               <div class="winner-info">
-                <span class="winner-name">የዐጋሪ 🇯🇲</span>
-                <span class="winner-ticket">Ticket #76</span>
+                <span class="winner-name">Ati22</span>
+                <span class="winner-ticket">Ticket #556</span>
               </div>
               <span class="winner-active-dot"></span>
             </div>
 
             <!-- Winner 3 -->
             <div class="winner-row-card">
-              <div class="winner-avatar">N</div>
+              <div class="winner-avatar">&lt;</div>
               <div class="winner-info">
-                <span class="winner-name">Netsanet</span>
-                <span class="winner-ticket">Ticket #276</span>
+                <span class="winner-name">&lt;*°*&gt;</span>
+                <span class="winner-ticket">Ticket #555</span>
+              </div>
+              <span class="winner-active-dot"></span>
+            </div>
+
+            <!-- Winner 4 -->
+            <div class="winner-row-card">
+              <div class="winner-avatar">M</div>
+              <div class="winner-info">
+                <span class="winner-name">Mezgebu86</span>
+                <span class="winner-ticket">Ticket #459</span>
               </div>
               <span class="winner-active-dot"></span>
             </div>

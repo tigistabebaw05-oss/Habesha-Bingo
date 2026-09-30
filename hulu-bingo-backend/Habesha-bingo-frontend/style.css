@@ -1619,6 +1619,20 @@ footer {
   padding: 10px 8px;
 }
 
+.hulu-player-card-view {
+  width: 100%;
+  background: rgba(11, 23, 40, 0.95);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 10px 8px;
+}
+
+.chip.latest-chip {
+  border-color: var(--habesha-gold);
+  background: rgba(245, 183, 22, 0.25);
+  box-shadow: 0 0 8px rgba(245, 183, 22, 0.4);
+}
+
 .bingo-table-header {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -2004,63 +2018,112 @@ footer {
   box-shadow: 0 0 20px rgba(245, 183, 22, 0.5);
 }
 
-/* Winners Celebration View */
+/* Winners Celebration View (Image 2 Match) */
 .hulu-winners-celebration-view {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 22px 16px;
+  padding: 24px 16px 30px;
   text-align: center;
   position: relative;
   overflow-y: auto;
+  background: radial-gradient(circle at 50% 18%, #1a2236 0%, #0d121e 70%);
+}
+
+.winners-confetti-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 9px;
+  height: 13px;
+  border-radius: 2px;
+  opacity: 0.9;
+  animation: confetti-fall linear infinite;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-20px) rotate(0deg) rotateY(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(800px) rotate(480deg) rotateY(360deg);
+    opacity: 0.2;
+  }
 }
 
 .winners-badge-pill {
-  background: linear-gradient(135deg, #ffd747, #f5b716);
-  color: #171100;
-  font-weight: 950;
+  background: linear-gradient(180deg, #ffc837, #f59e0b);
+  color: #000000;
+  font-weight: 900;
   font-size: 13px;
-  letter-spacing: 1.5px;
-  padding: 8px 24px;
+  letter-spacing: 1.2px;
+  padding: 7px 26px;
   border-radius: 999px;
-  box-shadow: 0 0 20px rgba(245, 183, 22, 0.45);
-  margin-bottom: 14px;
+  box-shadow: 0 0 24px rgba(246, 192, 57, 0.45);
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 2;
 }
 
 .winners-heading {
-  color: var(--habesha-gold);
+  color: #fffaf0;
   font-size: 26px;
-  font-weight: 950;
-  margin: 0 0 18px;
+  font-weight: 900;
+  margin: 0 0 20px;
+  position: relative;
+  z-index: 2;
+  letter-spacing: 0.5px;
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.8);
 }
 
 .winners-main-card {
   width: 100%;
   max-width: 380px;
-  background: rgba(14, 28, 48, 0.95);
-  border: 1px solid var(--line-gold);
-  border-radius: var(--radius-xl);
-  padding: 22px 18px;
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6);
+  background: #141926;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 20px 18px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.65);
+  position: relative;
+  z-index: 2;
 }
 
 .winners-stat-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  padding: 2px 4px;
 }
 
 .stat-lbl {
-  color: var(--habesha-muted);
+  color: #94a3b8;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
+}
+
+.stat-val.count-val {
+  color: #ffffff;
+  font-size: 19px;
+  font-weight: 900;
+}
+
+.winners-stat-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 10px 0 12px;
 }
 
 .stat-val.share-val {
-  color: var(--habesha-gold);
-  font-size: 23px;
+  color: #f6c039;
+  font-size: 22px;
   font-weight: 950;
 }
 
@@ -2068,41 +2131,39 @@ footer {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin-top: 14px;
 }
 
 .winner-row-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #091322;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
+  background: #1c2233;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 11px 14px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .winner-row-card:hover {
-  border-color: var(--habesha-gold);
-  transform: translateY(-2px);
-}
-
-.winner-row-card.featured {
-  border-color: var(--habesha-gold);
-  box-shadow: 0 0 12px rgba(245, 183, 22, 0.2);
+  border-color: rgba(246, 192, 57, 0.4);
+  transform: translateY(-1px);
 }
 
 .winner-avatar {
   width: 38px;
   height: 38px;
-  border-radius: 50%;
-  background: var(--habesha-gold);
-  color: #171100;
-  font-weight: 950;
+  border-radius: 9px;
+  background: #f6c039;
+  color: #000000;
+  font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 17px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
 }
 
 .winner-info {
@@ -2110,17 +2171,38 @@ footer {
   flex-direction: column;
   text-align: left;
   flex: 1;
-  padding-left: 10px;
+  padding-left: 12px;
 }
 
-.winner-name { font-weight: 800; font-size: 14px; color: #ffffff; }
-.winner-ticket { font-size: 11px; color: var(--habesha-muted); }
+.winner-name {
+  font-weight: 800;
+  font-size: 14.5px;
+  color: #ffffff;
+}
+
+.winner-ticket {
+  font-size: 11.5px;
+  color: #eab308;
+  margin-top: 2px;
+  opacity: 0.9;
+}
+
 .winner-active-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: #2edbb4;
-  box-shadow: 0 0 8px #2edbb4;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  flex-shrink: 0;
+}
+
+.winners-footer-status {
+  color: #64748b;
+  font-size: 13px;
+  margin-top: 24px;
+  position: relative;
+  z-index: 2;
+  letter-spacing: 0.5px;
 }
 
 /* Grand Winner Screen */

@@ -263,9 +263,20 @@ async function createSession(u){
 }
 function resetToken(){return crypto.randomBytes(32).toString("base64url")}
 function randomTicket(){
-  const a=Array.from({length:600},(_,i)=>i+1);
-  for(let i=a.length-1;i>0;i--){const j=crypto.randomInt(i+1);[a[i],a[j]]=[a[j],a[i]]}
-  return [a.slice(0,5),a.slice(5,10),a.slice(10,15),a.slice(15,20),a.slice(20,25)];
+  const cols = [
+    Array.from({length:15}, (_,i)=>i+1),
+    Array.from({length:15}, (_,i)=>i+16),
+    Array.from({length:15}, (_,i)=>i+31),
+    Array.from({length:15}, (_,i)=>i+46),
+    Array.from({length:15}, (_,i)=>i+61)
+  ];
+  const card = [];
+  for(let c=0; c<5; c++){
+    const pool = [...cols[c]];
+    for(let i=pool.length-1; i>0; i--){const j=crypto.randomInt(i+1); [pool[i],pool[j]]=[pool[j],pool[i]];}
+    card.push(pool.slice(0,5));
+  }
+  return [0,1,2,3,4].map(r => [card[0][r], card[1][r], card[2][r], card[3][r], card[4][r]]);
 }
 function validTicket(ticket){
   return Array.isArray(ticket)&&ticket.length===5&&ticket.every(row=>Array.isArray(row)&&row.length===5&&row.every(n=>Number.isInteger(n)&&n>=1&&n<=600))&&new Set(ticket.flat()).size===25;
@@ -298,7 +309,11 @@ async function recalc(gameId){
 }
 async function broadcast(id){
   const g=(await pool.query("SELECT * FROM games WHERE id=$1",[id])).rows[0];
-  if(g)io.to("game:"+id).emit("update",await publicGame(g));
+  if(g){
+    const pub = await publicGame(g);
+    io.to("game:"+id).emit("update", pub);
+    io.emit("update", pub);
+  }
 }
 
 app.get("/api/health",(req,res)=>res.json({ok:true,service:"Habesha Bingo API"}));
@@ -1019,103 +1034,168 @@ app.post("/api/owner/telegram/test", auth, requireRole("OWNER"), async (req, res
   }
 });
 
-io.on("connection",socket=>socket.on("room",async id=>{
-  const gameId=Number(id);
-  if(!Number.isSafeInteger(gameId)||gameId<1)return;
-  socket.join("game:"+gameId);
-  const game=(await pool.query("SELECT * FROM games WHERE id=$1",[gameId])).rows[0];
-  if(game)socket.emit("update",await publicGame(game));
-}));
+io.on("connection", socket => {
+  socket.on("room", async id => {
+    const gameId = Number(id);
+    if (!Number.isSafeInteger(gameId) || gameId < 1) return;
+    for (const r of socket.rooms) {
+      if (r.startsWith("game:") && r !== "game:" + gameId) {
+        socket.leave(r);
+      }
+    }
+    socket.join("game:" + gameId);
+    const game = (await pool.query("SELECT * FROM games WHERE id=$1", [gameId])).rows[0];
+    if (game) socket.emit("update", await publicGame(game));
+  });
 
-let running=false;
-let waitCycle=0;
-async function callNumber(){
-  if(running)return; running=true;
-  const client=await pool.connect();
-  try{
+  // Provide initial active game on connect
+  currentGame().then(async g => {
+    if (g) {
+      socket.join("game:" + g.id);
+      socket.emit("update", await publicGame(g));
+    }
+  }).catch(() => {});
+});
+
+let running = false;
+let waitCycle = 0;
+let nextRoundTimeout = null;
+
+async function startNextGame(previousGameId) {
+  if (nextRoundTimeout) {
+    clearTimeout(nextRoundTimeout);
+    nextRoundTimeout = null;
+  }
+  const client = await pool.connect();
+  let g = null;
+  try {
     await client.query("BEGIN");
-    let g=(await client.query("SELECT * FROM games WHERE status IN ('waiting','running') ORDER BY id DESC LIMIT 1 FOR UPDATE")).rows[0];
-    if(!g){
-      const x=await client.query("INSERT INTO games(name) VALUES('Main Game') RETURNING *");
-      g=x.rows[0];
-      waitCycle=0;
-    }
-
-    if(g.status==='waiting'){
-      waitCycle++;
-      // Auto-enter players during waiting phase
-      let currentTickets=(await client.query("SELECT COUNT(*)::int AS count FROM tickets WHERE game_id=$1",[g.id])).rows[0].count;
-      if(currentTickets<20){
-        const demoIdx=(currentTickets % 15)+1;
-        const demoPhone=`09991110${demoIdx<10?'0'+demoIdx:demoIdx}`;
-        let demoUser=(await client.query("SELECT id FROM users WHERE phone=$1",[demoPhone])).rows[0];
-        if(!demoUser){
-          const dummyHash=await bcrypt.hash("Demo@123", 10);
-          demoUser=(await client.query("INSERT INTO users(name,phone,password_hash,role,is_active) VALUES($1,$2,$3,'PLAYER',TRUE) RETURNING id",[`Player ${demoIdx}`, demoPhone, dummyHash])).rows[0];
-          await client.query("INSERT INTO wallets(user_id, main_balance) VALUES($1, 1000) ON CONFLICT (user_id) DO NOTHING",[demoUser.id]);
-        }
-        const hasTicket=(await client.query("SELECT id FROM tickets WHERE game_id=$1 AND user_id=$2",[g.id, demoUser.id])).rows[0];
-        if(!hasTicket){
-          const tNum=randomTicket();
-          await client.query("INSERT INTO tickets(game_id,user_id,numbers) VALUES($1,$2,$3)",[g.id, demoUser.id, JSON.stringify(tNum)]);
-          currentTickets++;
-        }
-      }
-
-      // Calculate derash prize pool proportionally to what entered (begebaw lik):
-      const entryFee=Number(g.entry||10);
-      const prize=currentTickets * entryFee;
-      const fee=currentTickets>3?(currentTickets*2):0;
-      await client.query("UPDATE games SET prize_pool=$1, platform_fee=$2 WHERE id=$3",[prize, fee, g.id]);
-
-      // If at least 6 players entered and waited at least 3 cycles, start game!
-      if(currentTickets>=6 && waitCycle>=3){
-        await client.query("UPDATE games SET status='running' WHERE id=$1",[g.id]);
-        g.status='running';
-        waitCycle=0;
-      }
-
-      await client.query("COMMIT");
-      const updated=(await pool.query("SELECT * FROM games WHERE id=$1",[g.id])).rows[0];
-      io.to("game:"+g.id).emit("update",await publicGame(updated));
-      return;
-    }
-
-    const called=g.called_numbers||[];
-    const available=Array.from({length:150},(_,i)=>i+1).filter(n=>!called.includes(n));
-    if(!available.length){
-      await client.query("UPDATE games SET status='finished',finished_at=now() WHERE id=$1",[g.id]);
-      await client.query("COMMIT");
-      io.to("game:"+g.id).emit("finished",await publicGame((await pool.query("SELECT * FROM games WHERE id=$1",[g.id])).rows[0]));
-      setTimeout(()=>currentGame().catch(()=>{}), 3000);
-      return;
-    }
-    const n=available[crypto.randomInt(available.length)],next=[...called,n];
-    const ts=(await client.query("SELECT * FROM tickets WHERE game_id=$1 ORDER BY id",[g.id])).rows;
-    const playerCount=ts.length;
-    const entryFee=Number(g.entry||10);
-    const prize=playerCount * entryFee;
-    const fee=playerCount>3?(playerCount*2):0;
-    const winner=ts.find(t=>validTicket(t.numbers)&&isBingo(t.numbers,next));
-    await client.query("UPDATE games SET current_number=$1,called_numbers=$2,prize_pool=$3,platform_fee=$4 WHERE id=$5",[n,JSON.stringify(next),prize,fee,g.id]);
-    let winnerUser = null;
-    if(winner){
-      await client.query("INSERT INTO winners(game_id,user_id,prize_amount,ticket_snapshot) VALUES($1,$2,$3,$4)",[g.id,winner.user_id,prize,JSON.stringify(winner.numbers)]);
-      await changeBalance(client,{userId:winner.user_id,wallet:"main",delta:prize,type:"prize",method:"game",reference:"Game #"+g.id});
-      await client.query("UPDATE games SET status='finished',winner_id=$1,winner_ticket=$2,finished_at=now() WHERE id=$3",[winner.user_id,JSON.stringify(winner.numbers),g.id]);
-      winnerUser = (await client.query("SELECT name FROM users WHERE id=$1",[winner.user_id])).rows[0];
+    await client.query("SELECT pg_advisory_xact_lock($1)", [390711]);
+    const r = await client.query("SELECT * FROM games WHERE status IN ('waiting','running') ORDER BY id DESC LIMIT 1");
+    if (r.rows[0]) {
+      g = r.rows[0];
+    } else {
+      const x = await client.query("INSERT INTO games(name, entry, status, prize_pool, platform_fee, current_number, called_numbers) VALUES('Main Game', 10, 'waiting', 0, 0, NULL, '[]'::jsonb) RETURNING *");
+      g = x.rows[0];
     }
     await client.query("COMMIT");
-    const updated=(await pool.query("SELECT * FROM games WHERE id=$1",[g.id])).rows[0];
-    if(winner){
-      io.to("game:"+g.id).emit("finished",await publicGame(updated));
-      telegramService.notifyWinner(g.id, winnerUser ? winnerUser.name : "Winner", prize, winner.numbers).catch(()=>{});
-      setTimeout(()=>currentGame().catch(()=>{}), 4000);
-    } else {
-      io.to("game:"+g.id).emit("update",await publicGame(updated));
-      telegramService.notifyNumberCalled(g.id, n, next).catch(()=>{});
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error starting next game:", error.message);
+    return null;
+  } finally {
+    client.release();
+  }
+
+  if (g) {
+    const pub = await publicGame(g);
+    if (previousGameId) {
+      io.to("game:" + previousGameId).emit("round_reset", pub);
     }
-  }catch(error){await client.query("ROLLBACK");console.error("Game loop error:",error.message)}finally{client.release();running=false}
+    io.emit("new_round", pub);
+    io.emit("update", pub);
+  }
+  return g;
+}
+
+async function callNumber() {
+  if (running) return;
+  running = true;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    let g = (await client.query("SELECT * FROM games WHERE status IN ('waiting','running') ORDER BY id DESC LIMIT 1 FOR UPDATE")).rows[0];
+    if (!g) {
+      const x = await client.query("INSERT INTO games(name, entry, status, prize_pool, platform_fee, current_number, called_numbers) VALUES('Main Game', 10, 'waiting', 0, 0, NULL, '[]'::jsonb) RETURNING *");
+      g = x.rows[0];
+      waitCycle = 0;
+    }
+
+    if (g.status === 'waiting') {
+      const currentTickets = (await client.query("SELECT COUNT(*)::int AS count FROM tickets WHERE game_id=$1", [g.id])).rows[0].count;
+
+      // Requirement: If there are no players, keep the new round in WAITING state
+      if (currentTickets === 0) {
+        waitCycle = 0;
+        await client.query("UPDATE games SET prize_pool=0, platform_fee=0 WHERE id=$1", [g.id]);
+        await client.query("COMMIT");
+        const updated = (await pool.query("SELECT * FROM games WHERE id=$1", [g.id])).rows[0];
+        const pub = await publicGame(updated);
+        io.to("game:" + g.id).emit("update", pub);
+        return;
+      }
+
+      // If players exist, update prize pool and transition to running
+      const entryFee = Number(g.entry || 10);
+      const prize = currentTickets * entryFee;
+      const fee = currentTickets > 3 ? (currentTickets * 2) : 0;
+      await client.query("UPDATE games SET prize_pool=$1, platform_fee=$2, status='running' WHERE id=$3", [prize, fee, g.id]);
+      g.status = 'running';
+      waitCycle = 0;
+
+      await client.query("COMMIT");
+      const updated = (await pool.query("SELECT * FROM games WHERE id=$1", [g.id])).rows[0];
+      const pub = await publicGame(updated);
+      io.to("game:" + g.id).emit("update", pub);
+      io.emit("update", pub);
+      telegramService.notifyGameStarted(g.id, g.entry, prize, currentTickets).catch(() => {});
+      return;
+    }
+
+    const called = g.called_numbers || [];
+    const available = Array.from({ length: 75 }, (_, i) => i + 1).filter(n => !called.includes(n));
+    if (!available.length) {
+      await client.query("UPDATE games SET status='finished', finished_at=now() WHERE id=$1", [g.id]);
+      await client.query("COMMIT");
+      const finishedGame = (await pool.query("SELECT * FROM games WHERE id=$1", [g.id])).rows[0];
+      const pub = await publicGame(finishedGame);
+      io.to("game:" + g.id).emit("finished", pub);
+      io.emit("game_finished", pub);
+      if (nextRoundTimeout) clearTimeout(nextRoundTimeout);
+      nextRoundTimeout = setTimeout(() => startNextGame(g.id).catch(() => {}), 4500);
+      return;
+    }
+
+    const n = available[crypto.randomInt(available.length)], next = [...called, n];
+    const ts = (await client.query("SELECT * FROM tickets WHERE game_id=$1 ORDER BY id", [g.id])).rows;
+    const playerCount = ts.length;
+    const entryFee = Number(g.entry || 10);
+    const prize = playerCount * entryFee;
+    const fee = playerCount > 3 ? (playerCount * 2) : 0;
+    const winner = ts.find(t => validTicket(t.numbers) && isBingo(t.numbers, next));
+    await client.query("UPDATE games SET current_number=$1, called_numbers=$2, prize_pool=$3, platform_fee=$4 WHERE id=$5", [n, JSON.stringify(next), prize, fee, g.id]);
+    
+    let winnerUser = null;
+    if (winner) {
+      await client.query("INSERT INTO winners(game_id, user_id, prize_amount, ticket_snapshot) VALUES($1,$2,$3,$4)", [g.id, winner.user_id, prize, JSON.stringify(winner.numbers)]);
+      await changeBalance(client, { userId: winner.user_id, wallet: "main", delta: prize, type: "prize", method: "game", reference: "Game #" + g.id });
+      await client.query("UPDATE games SET status='finished', winner_id=$1, winner_ticket=$2, finished_at=now() WHERE id=$3", [winner.user_id, JSON.stringify(winner.numbers), g.id]);
+      winnerUser = (await client.query("SELECT name FROM users WHERE id=$1", [winner.user_id])).rows[0];
+    }
+    await client.query("COMMIT");
+
+    const updated = (await pool.query("SELECT * FROM games WHERE id=$1", [g.id])).rows[0];
+    const pub = await publicGame(updated);
+    if (winner) {
+      pub.winner_name = winnerUser ? winnerUser.name : "Winner";
+      pub.winner_prize = prize;
+      pub.winner_ticket = winner.numbers;
+      io.to("game:" + g.id).emit("finished", pub);
+      io.emit("game_finished", pub);
+      telegramService.notifyWinner(g.id, winnerUser ? winnerUser.name : "Winner", prize, winner.numbers).catch(() => {});
+      if (nextRoundTimeout) clearTimeout(nextRoundTimeout);
+      nextRoundTimeout = setTimeout(() => startNextGame(g.id).catch(() => {}), 4500);
+    } else {
+      io.to("game:" + g.id).emit("update", pub);
+      telegramService.notifyNumberCalled(g.id, n, next).catch(() => {});
+    }
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Game loop error:", error.message);
+  } finally {
+    client.release();
+    running = false;
+  }
 }
 app.use((req, res, next) => {
   if (req.method === "GET" && !req.path.startsWith("/api")) {
