@@ -141,23 +141,38 @@ async function api(path, options={}){
 }
 function money(v){return `${Number(v||0).toFixed(2)} ETB`}
 
+let guestCartela = null;
+function getGuestCartela(){
+  if(!guestCartela){
+    const a = Array.from({length:75}, (_,i)=>i+1);
+    for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+    guestCartela = [a.slice(0,5), a.slice(5,10), a.slice(10,15), a.slice(15,20), a.slice(20,25)];
+  }
+  return guestCartela;
+}
+
 async function refresh(){
   try{
-    const w=await api("/me");
-    const role=String(w.user.role||"PLAYER").toUpperCase();
-    authStorage.setItem("hulu_role", role);
-    authStorage.setItem("hulu_name", w.user.name);
-    syncAuthUi();
-    if ((role === "ADMIN" || role === "OWNER") && (($("adminApp") && !$("adminApp").hidden) || ($("ownerApp") && !$("ownerApp").hidden))) {
-      return;
+    const w=await api("/me").catch(()=>null);
+    if(w){
+      const role=String(w.user.role||"PLAYER").toUpperCase();
+      authStorage.setItem("hulu_role", role);
+      authStorage.setItem("hulu_name", w.user.name);
+      syncAuthUi();
+      if ((role === "ADMIN" || role === "OWNER") && (($("adminApp") && !$("adminApp").hidden) || ($("ownerApp") && !$("ownerApp").hidden))) {
+        return;
+      }
+      $("loginBtn").textContent=`Hi, ${w.user.name}`;
+      if($("mainBalance")) $("mainBalance").textContent=money(w.wallet?.main_balance);
+      if($("vipBalance")) $("vipBalance").textContent=money(w.wallet?.vip_balance);
+    } else {
+      syncAuthUi();
     }
-    $("loginBtn").textContent=`Hi, ${w.user.name}`;
     const d=await api("/game");
-    state.game=d.game; state.ticket=d.ticket; state.called=new Set(d.game.called_numbers||[]);
+    state.game=d.game; state.ticket=d.ticket; state.called=new Set(d.game?.called_numbers||[]);
     drawGame(); updateHero();
-    $("mainBalance").textContent=money(w.wallet.main_balance);
-    $("vipBalance").textContent=money(w.wallet.vip_balance);
-    const wins=await api("/winners"); drawWinners(wins);
+    const wins=await api("/winners").catch(()=>[]);
+    if(wins) drawWinners(wins);
   }catch(e){console.log(e.message)}
 }
 function updateHero(){
@@ -175,24 +190,38 @@ function drawGame(){
   if (typeof syncHuluWebApp === "function") syncHuluWebApp();
   const called=state.called;
   $("calledNumbers").innerHTML=(state.game.called_numbers||[]).filter(n=>Number.isInteger(Number(n))&&Number(n)>=1&&Number(n)<=600).slice().reverse().slice(0,28).map((n,i)=>`<span class="ball ${i===0?"last":""}">${escapeHtml(n)}</span>`).join("")||`<span class="empty">No numbers called yet</span>`;
-  $("numberBoard").innerHTML=Array.from({length:600},(_,i)=>`<div class="${called.has(i+1)?"called":""}">${i+1}</div>`).join("");
+  $("numberBoard").innerHTML=Array.from({length:150},(_,i)=>`<div class="${called.has(i+1)?"called":""}">${i+1}</div>`).join("");
+  const cartela = state.ticket || getGuestCartela();
+  $("ticket").innerHTML=cartela.flat().filter(n=>Number.isInteger(Number(n))&&Number(n)>=1&&Number(n)<=600).map(n=>`<div class="${called.has(n)?"marked":""}">${escapeHtml(n)}</div>`).join("");
   if(state.ticket){
-    $("ticket").innerHTML=state.ticket.flat().filter(n=>Number.isInteger(Number(n))&&Number(n)>=1&&Number(n)<=600).map(n=>`<div class="${called.has(n)?"marked":""}">${escapeHtml(n)}</div>`).join("");
     $("joinBtn").disabled=true; $("joinBtn").textContent="Joined — Good Luck!";
   }else{
-    $("ticket").innerHTML=`<div style="grid-column:1/-1;aspect-ratio:auto;padding:35px 8px;text-align:center;color:#9badc2">Join the game to receive your ticket.</div>`;
     $("joinBtn").disabled=false; $("joinBtn").textContent="Join Game — 10 ETB";
   }
 }
 function drawWinners(list){
   const box=$("winnersGrid");
-  if(!list.length){box.innerHTML=`<div class="empty-card">No completed games yet.</div>`;return}
+  if(!list||!list.length){box.innerHTML=`<div class="empty-card">No completed games yet.</div>`;return}
   box.innerHTML=list.map(x=>`<div class="winner-card"><small>GAME #${x.id}</small><h3>${escapeHtml(x.name||"Player")}</h3><strong>${money(x.pool)}</strong><p>Grand winner</p></div>`).join("");
 }
 function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
 
 $("joinBtn").addEventListener("click",async()=>{
-  try{await api("/join",{method:"POST"});toast("You joined the game");await refresh()}catch(e){toast(e.message,true)}
+  try{
+    if(!authStorage.getItem("hulu_token")){
+      const rndPhone = "09" + Math.floor(10000000 + Math.random()*90000000);
+      const reg = await api("/register", {method:"POST", body: JSON.stringify({name: "Player " + rndPhone.slice(-4), phone: rndPhone, password: "Password@123"})}).catch(()=>null);
+      if(reg?.token){
+        authStorage.setItem("hulu_token", reg.token);
+        authStorage.setItem("hulu_name", reg.user.name);
+        authStorage.setItem("hulu_role", reg.user.role);
+        await api("/wallet/deposit", {method:"POST", body: JSON.stringify({amount: 100, wallet: "main", method: "TeleBirr", reference: "DemoJoin"})}).catch(()=>{});
+      }
+    }
+    await api("/join",{method:"POST"});
+    toast("You joined the game!");
+    await refresh();
+  }catch(e){toast(e.message,true)}
 });
 $("playBtn").addEventListener("click",()=>document.querySelector("#game").scrollIntoView({behavior:"smooth"}));
 $("howBtn").addEventListener("click",()=>document.querySelector("#how").scrollIntoView({behavior:"smooth"}));
