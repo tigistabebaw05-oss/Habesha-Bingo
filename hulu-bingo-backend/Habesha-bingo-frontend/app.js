@@ -581,8 +581,9 @@ function syncHuluWebApp() {
   const bingoBtn = $("tgBingoBtn");
 
   const roundNum = g?.id ? String(g.id).padStart(6, '0') : "221453";
-  const players = g?.players || 85;
-  const prize = g?.prize_pool ? Number(g.prize_pool).toFixed(0) : "1568";
+  const players = (takenCards && takenCards.size > 0) ? (takenCards.size + selectedCardNumbers.size) : (g?.players || 45);
+  const entryPrice = Number(g?.entry) || 10;
+  const prize = (takenCards && takenCards.size > 0) ? (players * entryPrice) : (g?.prize_pool ? Number(g.prize_pool).toFixed(0) : (players * entryPrice));
   const currentNum = g?.current_number || 6;
   const calledList = (g?.called_numbers && g.called_numbers.length > 0)
     ? g.called_numbers
@@ -593,6 +594,8 @@ function syncHuluWebApp() {
   if (roundEl) roundEl.textContent = `GAME ROUND #${roundNum}`;
   if (playersEl) playersEl.textContent = `LIVE - ${players} PLAYERS`;
   if (prizeEl) prizeEl.textContent = `${prize} ETB`;
+  const selPrizeEl = $("tgCardSelPrize");
+  if (selPrizeEl) selPrizeEl.textContent = `${prize} ETB`;
   if (ballLetterEl) ballLetterEl.textContent = getBingoLetter(currentNum);
   if (ballNumEl) ballNumEl.textContent = currentNum;
   if (trackerCount) trackerCount.textContent = `${calledCount}/75`;
@@ -633,19 +636,61 @@ function syncHuluWebApp() {
 }
 
 let selectedCardNumbers = new Set();
+let takenCards = new Set([2, 9, 11, 14, 15, 16, 19, 20, 21, 25, 26, 27, 28, 36, 39, 42, 43, 51, 52, 58, 61, 67, 68, 69, 72, 73, 74, 75, 80]);
 let cardCountdownInterval = null;
 let cardCountdownSeconds = 39;
+
+function updateDerashPrize() {
+  const totalCards = takenCards.size + selectedCardNumbers.size;
+  const entryPrice = Number(state.game?.entry) || 10;
+  const totalDerash = totalCards * entryPrice;
+
+  const selPrizeEl = $("tgCardSelPrize");
+  if (selPrizeEl) selPrizeEl.textContent = `${totalDerash} ETB`;
+
+  const livePrizeEl = $("tgPrizePool");
+  if (livePrizeEl) livePrizeEl.textContent = `${totalDerash} ETB`;
+
+  const playersEl = $("tgLivePlayers");
+  if (playersEl) playersEl.textContent = `LIVE - ${totalCards} PLAYERS`;
+}
 
 function startCardCountdown() {
   if (cardCountdownInterval) clearInterval(cardCountdownInterval);
   cardCountdownSeconds = 39;
   const digitsEl = $("tgCardCountdown");
   if (digitsEl) digitsEl.textContent = "00:39";
+  updateDerashPrize();
+
   cardCountdownInterval = setInterval(() => {
     if (cardCountdownSeconds > 0) {
       cardCountdownSeconds--;
       const secStr = String(cardCountdownSeconds).padStart(2, "0");
       if (digitsEl) digitsEl.textContent = `00:${secStr}`;
+
+      // Automatically count incoming entered cards as countdown ticks
+      if (cardCountdownSeconds % 1 === 0 && takenCards.size < 76) {
+        const availableCards = [];
+        for (let i = 1; i <= 80; i++) {
+          if (!takenCards.has(i) && !selectedCardNumbers.has(i)) {
+            availableCards.push(i);
+          }
+        }
+        if (availableCards.length > 0) {
+          const randomIndex = Math.floor(Math.random() * availableCards.length);
+          const newCard = availableCards[randomIndex];
+          takenCards.add(newCard);
+          const grid = $("tgCardPickGrid");
+          if (grid) {
+            const cell = grid.querySelector(`.card-cell[data-card="${newCard}"]`);
+            if (cell) {
+              cell.classList.remove("available");
+              cell.classList.add("taken");
+            }
+          }
+          updateDerashPrize();
+        }
+      }
     } else {
       clearInterval(cardCountdownInterval);
       toast("ጨዋታው ተጀምሯል!");
@@ -657,10 +702,9 @@ function startCardCountdown() {
 function renderCardSelectionGrid() {
   const grid = $("tgCardPickGrid");
   if (!grid) return;
-  const takenSet = new Set([2, 9, 11, 14, 15, 16, 19, 20, 21, 25, 26, 27, 28, 36, 39, 42, 43, 51, 52, 58, 61, 67, 68, 69, 72, 73, 74, 75, 80]);
   let html = "";
   for (let i = 1; i <= 80; i++) {
-    const isTaken = takenSet.has(i);
+    const isTaken = takenCards.has(i);
     const isSelected = selectedCardNumbers.has(i);
     const classes = `card-cell ${isTaken ? 'taken' : 'available'} ${isSelected ? 'selected' : ''}`;
     html += `<div class="${classes}" data-card="${i}">${i}</div>`;
@@ -684,6 +728,8 @@ function renderCardSelectionGrid() {
       updateCardSelectionTotals();
     });
   });
+
+  updateCardSelectionTotals();
 }
 
 function updateCardSelectionTotals() {
@@ -692,6 +738,7 @@ function updateCardSelectionTotals() {
   const betEl = $("tgTotalBetAmount");
   if (countEl) countEl.textContent = count;
   if (betEl) betEl.textContent = `${count * 10} ETB`;
+  updateDerashPrize();
 }
 
 function switchToCardSelectionView() {
@@ -703,6 +750,10 @@ function switchToCardSelectionView() {
   if ($("tgBingoBtn")) $("tgBingoBtn").hidden = true;
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavHome")?.classList.add("active");
+  if (cardCountdownSeconds <= 0) {
+    takenCards = new Set([2, 9, 11, 14, 15, 16, 19, 20, 21, 25, 26, 27, 28, 36, 39, 42, 43, 51, 52, 58, 61, 67, 68, 69, 72, 73, 74, 75, 80]);
+    selectedCardNumbers.clear();
+  }
   renderCardSelectionGrid();
   startCardCountdown();
 }
