@@ -353,14 +353,34 @@ class TelegramBingoService {
     const amount = currentState.amount || 100;
     this.userState.set(chatId, { step: "deposit_confirm", target, method, amount });
 
-    const phone = "0951666750";
-    const name = "Tirualem";
+    let text = "";
 
-    const text = `🔄 <b>ክፍያ መመሪያ</b>\n\n` +
-      `Depisite yaderegutin birrETB በ ${method} ወደዚህ ይላኩ:\n` +
-      `<b>${phone}(${name})</b>\n\n` +
-      `ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n\n` +
-      `የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):`;
+    if (method === "CBE Birr") {
+      text = `🔄 <b>ክፍያ መመሪያ</b>\n\n` +
+        `1. Deposite yadereginewun ETB በ CBE Birr ወደዚህ ይላኩ፡\n` +
+        `<b>0951666750 (Abrham)</b>\n\n` +
+        `2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n\n` +
+        `3. የ መልክቱን ID (sms ሙሉውን) እዚህ ጋር ይለጥፉ (past)`;
+    } else if (method === "MPesa") {
+      text = `🔄 <b>ክፍያ መመሪያ</b>\n\n` +
+        `1. Depisite yadereginewun ETB በ MPesa ወደዚህ ይላኩ:\n` +
+        `<b>0726666750 (Abrham)</b>\n\n` +
+        `2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n\n` +
+        `3. የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):`;
+    } else if (method === "E-Birr") {
+      text = `🔄 <b>ክፍያ መመሪያ</b>\n\n` +
+        `1. Deposite yetederegew ETB በ E-Birr ወደዚህ ይላኩ:\n` +
+        `<b>0919307468(Abdu)</b>\n\n` +
+        `2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n\n` +
+        `3. የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):`;
+    } else {
+      // Default: TeleBirr
+      text = `🔄 <b>ክፍያ መመሪያ</b>\n\n` +
+        `Depisite yaderegutin birrETB በ TeleBirr ወደዚህ ይላኩ:\n` +
+        `<b>0951666750(Tirualem)</b>\n\n` +
+        `ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n\n` +
+        `የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):`;
+    }
 
     await this.sendMessage(chatId, text, { reply_markup: this.getDepositConfirmKeyboard() });
   }
