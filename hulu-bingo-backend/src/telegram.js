@@ -246,6 +246,9 @@ class TelegramBingoService {
       case "/help":
         await this.cmdHelp(chatId, isGroup);
         break;
+      case "/support":
+        await this.cmdSupport(chatId);
+        break;
       case "/game":
       case "/status":
         await this.cmdGameStatus(chatId);
@@ -546,9 +549,9 @@ class TelegramBingoService {
       await this.cmdPromoterInfo(chatId, user);
       return;
     }
-    if (norm.includes("እርዳታ") || norm === "help" || norm.includes("ድጋፍ")) {
+    if (norm.includes("እርዳታ") || norm === "help" || norm.includes("ድጋፍ") || norm.includes("support")) {
       this.userState.delete(chatId);
-      await this.cmdHelp(chatId, false);
+      await this.cmdSupport(chatId);
       return;
     }
     if (norm.includes("ደንቦች") || norm === "rules" || norm.includes("ህጎች")) {
@@ -710,6 +713,19 @@ class TelegramBingoService {
       `3️⃣ <b>ቢንጎ ማሸነፍ:</b> በካርድዎ ላይ 5 ቁጥሮች በአግድም፣ በቁም ወይም በሰያፍ ሲሞሉ ወዲያውኑ <b>/bingo</b> ይበሉ!\n` +
       `4️⃣ <b>ሽልማት:</b> ሲስተሙ ትኬቱን አረጋግጦ አሸናፊውን ሽልማት በቀጥታ ወደ ዋሌትዎ ያስገባል!`;
     await this.sendMessage(chatId, text);
+  }
+
+  async cmdSupport(chatId) {
+    const text = `🆘 <b>ሁሉ ቢንጎ እርዳታ (Support)</b>\n\n` +
+      `👤 <b>Admin:</b> adissu\n\n` +
+      `👇 <b>ወይም እዚሁ ይጻፉ:</b>\n` +
+      `መልእክትዎትን እዚሁ መጻፍ ይችላሉ፣ ለ አድሚን በቀጥታ ይደርሳል።`;
+    await this.sendMessage(chatId, text, {
+      reply_markup: {
+        force_reply: true,
+        input_field_placeholder: "መልእክትዎን እዚህ ይጻፉ..."
+      }
+    });
   }
 
   async cmdGameStatus(chatId) {

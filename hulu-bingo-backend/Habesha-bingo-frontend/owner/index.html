@@ -436,15 +436,20 @@
         <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
         <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
       </div>
-      <h2 data-i18n="supportTitle">🆘 የደንበኞች ድጋፍ (Support)</h2>
+      <h2>🆘 ሁሉ ቢንጎ እርዳታ (Support)</h2>
+      <div style="background: #081a30; border: 1px solid #1f3c57; border-radius: 12px; padding: 14px; margin-bottom: 14px; line-height: 1.6; font-size: 14px; color: #e2e8f0;">
+        <div style="font-weight: 700; margin-bottom: 6px; color: #f8fafc; font-size: 15px;">👤 Admin: adissu</div>
+        <div style="font-weight: 700; color: #ffd700; margin-bottom: 4px;">👇 ወይም እዚሁ ይጻፉ:</div>
+        <div style="font-size: 13px; color: #94a3b8;">መልእክትዎትን እዚሁ መጻፍ ይችላሉ፣ ለ አድሚን በቀጥታ ይደርሳል።</div>
+      </div>
       <div class="support-tabs">
         <button id="tabNewTicket" class="active">አዲስ ጥያቄ (New Ticket)</button>
         <button id="tabMyTickets">የቀድሞ መልዕክቶች (My Tickets)</button>
       </div>
       <form id="supportForm">
-        <label>ጉዳዩ (Subject)<input name="subject" required></label>
-        <label>መልዕክትዎ (Message)<textarea name="message" rows="4" required></textarea></label>
-        <button class="btn btn-gold full" type="submit" style="margin-top: 10px;">ላክ (Send Message)</button>
+        <label>ጉዳዩ (Subject)<input name="subject" value="የእርዳታ ጥያቄ" required></label>
+        <label>መልዕክትዎ (Message)<textarea name="message" rows="4" placeholder="መልእክትዎን እዚህ ይጻፉ..." required></textarea></label>
+        <button class="btn btn-gold full" type="submit" style="margin-top: 10px;">✉️ ላክ (Send Message)</button>
       </form>
       <div id="myTickets" hidden class="my-tickets-list"></div>
       <button class="btn btn-outline full modal-bottom-back-btn" style="margin-top: 12px;" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>

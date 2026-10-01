@@ -514,6 +514,7 @@ window.closeAllTelegramModals = function() {
   if ($("huluBingoWebAppModal")) $("huluBingoWebAppModal").hidden = true;
   if ($("huluVipRoomView")) $("huluVipRoomView").hidden = true;
   if ($("telegramVipChatState")) $("telegramVipChatState").hidden = true;
+  if ($("telegramSupportChatState")) $("telegramSupportChatState").hidden = true;
   if ($("telegramDepositTypeKeyboard")) $("telegramDepositTypeKeyboard").hidden = true;
   if ($("telegramDepositMethodKeyboard")) $("telegramDepositMethodKeyboard").hidden = true;
   if ($("telegramDepositConfirmKeyboard")) $("telegramDepositConfirmKeyboard").hidden = true;
@@ -1353,15 +1354,39 @@ window.joinRoom = async function(id) {
 };
 
 const handleSupportClick = () => {
-  if(!authStorage.getItem("hulu_token")) return openAuth("login");
-  $("supportModal").hidden = false;
-  $("floatingMenuPopup").hidden = true;
-  $("telegramKeyboard").hidden = true;
+  if ($("floatingMenuPopup")) $("floatingMenuPopup").hidden = true;
+  if ($("telegramKeyboard")) $("telegramKeyboard").hidden = true;
   if ($("telegramChatState")) $("telegramChatState").hidden = true;
-  showSupportTab("new");
+  if ($("telegramVipChatState")) $("telegramVipChatState").hidden = true;
+  if ($("telegramDepositChatState")) $("telegramDepositChatState").hidden = true;
+  if ($("menuToggleBtn")) $("menuToggleBtn").innerHTML = "✕ Menu";
+  
+  if ($("telegramSupportChatState")) {
+    $("telegramSupportChatState").hidden = false;
+  } else {
+    $("supportModal").hidden = false;
+    showSupportTab("new");
+  }
 };
 if($("menuSupportBtnText")) $("menuSupportBtnText").addEventListener("click", handleSupportClick);
 if($("menuSupportBtnGrid")) $("menuSupportBtnGrid").addEventListener("click", handleSupportClick);
+if($("menuBtnSupport")) $("menuBtnSupport").addEventListener("click", handleSupportClick);
+
+if ($("chatSupportForm")) {
+  $("chatSupportForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const input = $("chatSupportMsgInput");
+    const txt = input?.value?.trim();
+    if (!txt) return;
+    try {
+      if (authStorage.getItem("hulu_token")) {
+        await api("/support", { method: "POST", body: JSON.stringify({ subject: "የእርዳታ ጥያቄ", message: txt }) });
+      }
+    } catch(err) {}
+    toast("መልእክትዎ ለ Admin: adissu ተልኳል! እናመሰግናለን");
+    if (input) input.value = "";
+  });
+}
 
 if($("menuLangToggleBtn")) {
   $("menuLangToggleBtn").addEventListener("click", () => {
