@@ -139,6 +139,12 @@ async function init(){
   await pool.query("INSERT INTO app_settings(key,value) VALUES ('demo_mode','true'),('demo_entry_amount','10'),('demo_min_deposit','50'),('demo_min_withdrawal','100'),('demo_number_max','600') ON CONFLICT (key) DO NOTHING");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE, ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'PLAYER'");
   await pool.query("ALTER TABLE payment_accounts ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE");
+  const telebirrAcc = (await pool.query("SELECT id FROM payment_accounts WHERE method = 'TeleBirr'")).rows[0];
+  if (!telebirrAcc) {
+    await pool.query(
+      "INSERT INTO payment_accounts (method, account_number, account_name, is_active) VALUES ('TeleBirr', '0951666750', 'Tirualem', TRUE)"
+    );
+  }
   await pool.query(`
     DO $$ 
     BEGIN

@@ -455,7 +455,10 @@ window.openDepositMethodKeyboard = function() {
 window.cancelDepositFlow = function() {
   if ($("telegramDepositTypeKeyboard")) $("telegramDepositTypeKeyboard").hidden = true;
   if ($("telegramDepositMethodKeyboard")) $("telegramDepositMethodKeyboard").hidden = true;
-  if ($("floatingMenuPopup")) $("floatingMenuPopup").hidden = false;
+  if ($("telegramDepositConfirmKeyboard")) $("telegramDepositConfirmKeyboard").hidden = true;
+  if ($("telegramDepositChatState")) $("telegramDepositChatState").hidden = true;
+  if ($("telegramKeyboard")) $("telegramKeyboard").hidden = false;
+  if ($("floatingMenuPopup")) $("floatingMenuPopup").hidden = true;
   if ($("menuToggleBtn")) $("menuToggleBtn").innerHTML = "✕ Menu";
 };
 
@@ -474,6 +477,10 @@ const telegramModalIds = [
 ];
 
 window.closeAllTelegramModals = function() {
+  if (typeof winnersAutoRestartTimeout !== "undefined" && winnersAutoRestartTimeout) {
+    clearTimeout(winnersAutoRestartTimeout);
+    winnersAutoRestartTimeout = null;
+  }
   telegramModalIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.hidden = true;
@@ -481,6 +488,8 @@ window.closeAllTelegramModals = function() {
   if ($("huluBingoWebAppModal")) $("huluBingoWebAppModal").hidden = true;
   if ($("telegramDepositTypeKeyboard")) $("telegramDepositTypeKeyboard").hidden = true;
   if ($("telegramDepositMethodKeyboard")) $("telegramDepositMethodKeyboard").hidden = true;
+  if ($("telegramDepositConfirmKeyboard")) $("telegramDepositConfirmKeyboard").hidden = true;
+  if ($("telegramDepositChatState")) $("telegramDepositChatState").hidden = true;
   if ($("telegramKeyboard")) $("telegramKeyboard").hidden = false;
   if ($("floatingMenuPopup")) $("floatingMenuPopup").hidden = true;
   if ($("telegramChatState")) $("telegramChatState").hidden = true;
@@ -576,14 +585,15 @@ if ($("menuBtnDeposit")) {
 // Deposit Step 1 Listeners (🎮 ዋናው ጨዋታ | 💎 VIP ክፍል | አቋርጥ)
 if ($("btnDepositMainGame")) {
   $("btnDepositMainGame").addEventListener("click", () => {
+    window.currentDepositTarget = "🎮 Main Game";
     openDepositMethodKeyboard();
   });
 }
 
 if ($("btnDepositVip")) {
   $("btnDepositVip").addEventListener("click", () => {
-    if ($("telegramDepositTypeKeyboard")) $("telegramDepositTypeKeyboard").hidden = true;
-    openTelegramModal("vipModal");
+    window.currentDepositTarget = "💎 VIP ክፍል";
+    openDepositMethodKeyboard();
   });
 }
 
@@ -600,27 +610,98 @@ if ($("btnDepositCancel2")) {
   });
 }
 
+window.openDepositInstructionFlow = function(method = "TeleBirr") {
+  window.currentDepositTarget = window.currentDepositTarget || "🎮 Main Game";
+  window.currentDepositMethod = method;
+
+  if ($("telegramDepositMethodKeyboard")) $("telegramDepositMethodKeyboard").hidden = true;
+  if ($("telegramDepositTypeKeyboard")) $("telegramDepositTypeKeyboard").hidden = true;
+  if ($("telegramKeyboard")) $("telegramKeyboard").hidden = true;
+  if ($("telegramChatState")) $("telegramChatState").hidden = true;
+  if ($("floatingMenuPopup")) $("floatingMenuPopup").hidden = true;
+
+  const chatContainer = $("telegramDepositChatState");
+  const msgBox = $("depositChatMessages");
+  if (chatContainer && msgBox) {
+    chatContainer.hidden = false;
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    msgBox.innerHTML = `
+      <div class="chat-message bot-message" style="text-align: left; line-height: 1.6;">
+        <div class="bot-msg-title">📋 ክፍያ መመሪያ</div>
+        <div class="bot-msg-text">
+          1, deposite ያደረጉትን ETB በ ${escapeHtml(method)} ወደዚህ ይላኩ፡ <b>0951666750 (Tirualem)</b><br>
+          2, ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።<br>
+          3, የመልክቱን ID (sms ሙሉውን) እዚህ ጋር ይለጥፉ(past)
+        </div>
+        <small class="msg-time">${now}</small>
+      </div>
+    `;
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  if ($("telegramDepositConfirmKeyboard")) $("telegramDepositConfirmKeyboard").hidden = false;
+  if ($("menuToggleBtn")) $("menuToggleBtn").innerHTML = "✕ Menu";
+};
+
+window.confirmDepositFlow1 = async function() {
+  const method = window.currentDepositMethod || "TeleBirr";
+  const target = window.currentDepositTarget || "🎮 Main Game";
+  const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const chatContainer = $("telegramDepositChatState");
+  const msgBox = $("depositChatMessages");
+  if (chatContainer && msgBox) {
+    msgBox.innerHTML += `
+      <div class="chat-message user-message" style="align-self: flex-end;">
+        1 <small class="msg-time">${now} <span style="color: #4caf50;">✓✓</span></small>
+      </div>
+      <div class="chat-message bot-message" style="text-align: left; line-height: 1.6;">
+        <div style="font-weight: bold; color: #4caf50; font-size: 15px;">✅ ጥያቄዎ ተልኳል!</div>
+        <div style="margin-top: 8px;">መጠን: <b>100 ETB</b><br>Txn ID: <b>-</b></div>
+        <div style="margin-top: 8px;">አድሚን እንዳረጋገጠው ገቢ ይደረጋል።<br>🎯 Target: <b>${escapeHtml(target)}</b></div>
+        <div style="margin-top: 8px; color: #94a3b8; font-style: italic;">⏳ Waiting for network confirmation...</div>
+        <small class="msg-time">${now}</small>
+      </div>
+    `;
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  if ($("telegramDepositConfirmKeyboard")) $("telegramDepositConfirmKeyboard").hidden = true;
+  if ($("telegramKeyboard")) $("telegramKeyboard").hidden = false;
+
+  try {
+    if (state && state.token) {
+      await api("/wallet/deposit", {
+        method: method,
+        amount: 100,
+        wallet: target.toLowerCase().includes("vip") ? "vip" : "main",
+        reference: `Telegram WebApp Deposit (100 ETB - ${method})`
+      });
+      toast("የገቢ ጥያቄዎ ለአድሚን ተልኳል (Deposit request sent)!");
+    }
+  } catch(e) {
+    console.warn("Deposit note:", e.message);
+  }
+};
+
 document.querySelectorAll("#telegramDepositMethodKeyboard .keyboard-btn[data-method]").forEach(btn => {
   btn.addEventListener("click", () => {
     const chosenMethod = btn.getAttribute("data-method") || btn.textContent.trim();
-    if ($("telegramDepositMethodKeyboard")) $("telegramDepositMethodKeyboard").hidden = true;
-    openTelegramModal("depositModal");
-    
-    // Auto-select chosen payment method in deposit modal
-    const methodSelect = document.querySelector("#modalDepositForm select[name='method']");
-    if (methodSelect) {
-      for (let i = 0; i < methodSelect.options.length; i++) {
-        const optVal = methodSelect.options[i].value.toLowerCase().replace(/[^a-z]/g, "");
-        const targetVal = chosenMethod.toLowerCase().replace(/[^a-z]/g, "");
-        if (optVal === targetVal || optVal.includes(targetVal) || targetVal.includes(optVal)) {
-          methodSelect.selectedIndex = i;
-          methodSelect.dispatchEvent(new Event("change"));
-          break;
-        }
-      }
-    }
+    openDepositInstructionFlow(chosenMethod);
   });
 });
+
+if ($("btnDepositConfirm1")) {
+  $("btnDepositConfirm1").addEventListener("click", () => {
+    confirmDepositFlow1();
+  });
+}
+
+if ($("btnDepositCancel3")) {
+  $("btnDepositCancel3").addEventListener("click", () => {
+    cancelDepositFlow();
+  });
+}
 
 // 4. 📤 ወጪ ላኩት (Withdraw)
 if($("menuBtnWithdraw")) {
@@ -892,6 +973,10 @@ function updateCardSelectionTotals() {
 }
 
 function switchToCardSelectionView() {
+  if (typeof winnersAutoRestartTimeout !== "undefined" && winnersAutoRestartTimeout) {
+    clearTimeout(winnersAutoRestartTimeout);
+    winnersAutoRestartTimeout = null;
+  }
   if ($("huluCardSelectionView")) $("huluCardSelectionView").hidden = false;
   if ($("huluLiveGameView")) $("huluLiveGameView").hidden = true;
   if ($("huluWinnersCelebrationView")) $("huluWinnersCelebrationView").hidden = true;
@@ -908,6 +993,10 @@ function switchToCardSelectionView() {
 }
 
 function switchToLiveGameView() {
+  if (typeof winnersAutoRestartTimeout !== "undefined" && winnersAutoRestartTimeout) {
+    clearTimeout(winnersAutoRestartTimeout);
+    winnersAutoRestartTimeout = null;
+  }
   if ($("huluCardSelectionView")) $("huluCardSelectionView").hidden = true;
   if ($("huluLiveGameView")) $("huluLiveGameView").hidden = false;
   if ($("huluWinnersCelebrationView")) $("huluWinnersCelebrationView").hidden = true;
@@ -970,10 +1059,16 @@ function renderWinnersConfetti() {
   }
 }
 
+let winnersAutoRestartTimeout = null;
+
 function switchToWinnersView() {
   if (liveGameInterval) {
     clearInterval(liveGameInterval);
     liveGameInterval = null;
+  }
+  if (winnersAutoRestartTimeout) {
+    clearTimeout(winnersAutoRestartTimeout);
+    winnersAutoRestartTimeout = null;
   }
   if ($("huluCardSelectionView")) $("huluCardSelectionView").hidden = true;
   if ($("huluLiveGameView")) $("huluLiveGameView").hidden = true;
@@ -989,15 +1084,24 @@ function switchToWinnersView() {
   const totalEl = $("tgWinnersTotal");
   const shareEl = $("tgWinnersShare");
   if (badgeEl) badgeEl.textContent = "5 WINNERS";
-  if (headingEl) headingEl.textContent = "የደረሽ ሽልማት ተካፋዮች!";
+  if (headingEl) headingEl.textContent = "የደራሽ ሽልማት ተካፋዮች!";
   if (totalEl) totalEl.textContent = "5";
   if (shareEl) shareEl.textContent = "960 ETB";
 
   renderWinnersConfetti();
-  toast("🎉 የደረሽ ሽልማት ተካፋዮች!");
+  toast("🎉 የደራሽ ሽልማት ተካፋዮች!");
+
+  // ይህን ካመጣ በኋላ ቀጥታ አውቶማቲክ ጨዋታውን ሰርቶ እንዲጀምር
+  winnersAutoRestartTimeout = setTimeout(() => {
+    switchToCardSelectionView();
+  }, 5000);
 }
 
 function switchToGrandWinnerView() {
+  if (winnersAutoRestartTimeout) {
+    clearTimeout(winnersAutoRestartTimeout);
+    winnersAutoRestartTimeout = null;
+  }
   if ($("huluCardSelectionView")) $("huluCardSelectionView").hidden = true;
   if ($("huluLiveGameView")) $("huluLiveGameView").hidden = true;
   if ($("huluWinnersCelebrationView")) $("huluWinnersCelebrationView").hidden = true;
@@ -1006,6 +1110,10 @@ function switchToGrandWinnerView() {
   if ($("tgBingoBtn")) $("tgBingoBtn").hidden = true;
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavRank")?.classList.add("active");
+
+  winnersAutoRestartTimeout = setTimeout(() => {
+    switchToCardSelectionView();
+  }, 5000);
 }
 
 if($("finalPlayBtn")) {

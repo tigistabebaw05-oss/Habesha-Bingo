@@ -185,16 +185,16 @@
         <button class="keyboard-btn full-width" id="menuBtnPlay">🎮 ይጫወቱ</button>
       </div>
       <div class="keyboard-row">
-        <button class="keyboard-btn" id="menuBtnBalance">💰 አሸን</button>
-        <button class="keyboard-btn" id="menuBtnDeposit">📥 በላኩት</button>
+        <button class="keyboard-btn" id="menuBtnBalance">💰 ሂሳብ</button>
+        <button class="keyboard-btn" id="menuBtnDeposit">📥 ገቢ ለማድረግ</button>
       </div>
       <div class="keyboard-row">
-        <button class="keyboard-btn" id="menuBtnWithdraw">📤 ወጪ ላኩት</button>
-        <button class="keyboard-btn" id="menuBtnReferral">🔗 ጋር & አጋር</button>
+        <button class="keyboard-btn" id="menuBtnWithdraw">📤 ወጪ ለማድረግ</button>
+        <button class="keyboard-btn" id="menuBtnReferral">🔗 ጋብዝ & አግኝ</button>
       </div>
       <div class="keyboard-row">
         <button class="keyboard-btn" id="menuBtnVip">💎 VIP ክፍል</button>
-        <button class="keyboard-btn" id="menuBtnPromoter">🌟 Special Promoter</button>
+        <button class="keyboard-btn" id="menuBtnPromoter">⭐ Special Promoter</button>
       </div>
       <div class="keyboard-row">
         <button class="keyboard-btn" id="menuBtnSupport">🆘 እርዳታ</button>
@@ -229,6 +229,21 @@
       <div class="keyboard-row">
         <button class="keyboard-btn full-width" id="btnDepositCancel2">አቋርጥ</button>
       </div>
+    </div>
+
+    <!-- Deposit Step 3 Keyboard: [ 1 ] and [ አቋርጥ ] -->
+    <div class="telegram-keyboard tg-deposit-keyboard" id="telegramDepositConfirmKeyboard" hidden>
+      <div class="keyboard-row">
+        <button class="keyboard-btn full-width" id="btnDepositConfirm1" style="font-size: 18px; font-weight: bold;">1</button>
+      </div>
+      <div class="keyboard-row">
+        <button class="keyboard-btn full-width" id="btnDepositCancel3">አቋርጥ</button>
+      </div>
+    </div>
+
+    <!-- Deposit Chat State for step-by-step TeleBirr flow -->
+    <div class="telegram-chat-state" id="telegramDepositChatState" hidden>
+      <div id="depositChatMessages" style="display: flex; flex-direction: column; gap: 10px;"></div>
     </div>
     
     <!-- Third state: Chat Message -->
@@ -697,7 +712,7 @@
         </div>
 
         <!-- Ethiopic Heading -->
-        <h2 class="winners-heading" id="tgWinnersHeading">የደረሽ ሽልማት ተካፋዮች!</h2>
+        <h2 class="winners-heading" id="tgWinnersHeading">የደራሽ ሽልማት ተካፋዮች!</h2>
 
         <!-- Main Winners Card -->
         <div class="winners-main-card">
