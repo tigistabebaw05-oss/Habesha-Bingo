@@ -293,7 +293,7 @@ class TelegramBingoService {
   getDepositTargetKeyboard() {
     return {
       keyboard: [
-        [{ text: "🎮 ዋናው ጨዋታ" }, { text: "💎 VIP ክፍል" }],
+        [{ text: "🎮 ዋና ሂሳብ" }, { text: "💎 VIP ሽልማት" }],
         [{ text: "አቋርጥ" }]
       ],
       resize_keyboard: true,
@@ -326,7 +326,15 @@ class TelegramBingoService {
 
   async cmdDepositStep1(chatId, user) {
     this.userState.set(chatId, { step: "deposit_target" });
-    const text = `📥 <b>ገንዘብ ማስገቢያ (Deposit Fund)</b>\n\nእባክዎ የሚፈልጉትን የጨዋታ አይነት ይምረጡ:`;
+    const mainBal = user ? Number(user.main_balance || 0).toFixed(2) : "0.00";
+    const vipBal = user ? Number(user.vip_balance || 0).toFixed(2) : "0.00";
+
+    const text = `🎯 <b>ከየትኛው ሂሳብ ገቢ ማድረግ ይፈልጋሉ?</b>\n` +
+      `<i>From which wallet do you want to deposit?</i>\n\n` +
+      `🎮 <b>ዋና ሂሳብ (Main): ${mainBal} ETB</b>\n` +
+      `💎 <b>VIP ሽልማት (VIP Win): ${vipBal} ETB</b>\n\n` +
+      `<i>ማሳሰቢያ: ገቢ ማድረግ የሚፈልጉትን ሂሳብ ይምረጡ::</i>`;
+
     await this.sendMessage(chatId, text, { reply_markup: this.getDepositTargetKeyboard() });
   }
 
