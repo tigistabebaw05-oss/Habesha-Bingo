@@ -570,15 +570,24 @@ if($("menuBtnBalance")) {
 }
 
 // 3. 📥 በላኩት / Deposit Fund! flow
+window.openDepositAmountPrompt = function() {
+  const amountStr = prompt("💸 ገቢ ለማድረግ (Deposit)\n\nእባክዎን ገቢ ማድረግ የሚፈልጉትን የብር መጠን ያስገቡ (ለምሳሌ፡ 100):", "100");
+  if (!amountStr) return;
+  const amount = parseFloat(amountStr) || 100;
+  window.currentDepositAmount = amount;
+  window.currentDepositTarget = "🎮 Main Game";
+  openDepositMethodKeyboard();
+};
+
 if ($("menuDepositFundBtn")) {
   $("menuDepositFundBtn").addEventListener("click", () => {
-    openDepositTypeKeyboard();
+    openDepositAmountPrompt();
   });
 }
 
 if ($("menuBtnDeposit")) {
   $("menuBtnDeposit").addEventListener("click", () => {
-    openDepositTypeKeyboard();
+    openDepositAmountPrompt();
   });
 }
 
@@ -586,14 +595,14 @@ if ($("menuBtnDeposit")) {
 if ($("btnDepositMainGame")) {
   $("btnDepositMainGame").addEventListener("click", () => {
     window.currentDepositTarget = "🎮 Main Game";
-    openDepositMethodKeyboard();
+    openDepositAmountPrompt();
   });
 }
 
 if ($("btnDepositVip")) {
   $("btnDepositVip").addEventListener("click", () => {
     window.currentDepositTarget = "💎 VIP ክፍል";
-    openDepositMethodKeyboard();
+    openDepositAmountPrompt();
   });
 }
 
@@ -647,6 +656,7 @@ window.openDepositInstructionFlow = function(method = "TeleBirr") {
 window.confirmDepositFlow1 = async function() {
   const method = window.currentDepositMethod || "TeleBirr";
   const target = window.currentDepositTarget || "🎮 Main Game";
+  const amount = window.currentDepositAmount || 100;
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const chatContainer = $("telegramDepositChatState");
@@ -658,7 +668,7 @@ window.confirmDepositFlow1 = async function() {
       </div>
       <div class="chat-message bot-message" style="text-align: left; line-height: 1.6;">
         <div style="font-weight: bold; color: #4caf50; font-size: 15px;">✅ ጥያቄዎ ተልኳል!</div>
-        <div style="margin-top: 8px;">መጠን: <b>100 ETB</b><br>Txn ID: <b>—</b></div>
+        <div style="margin-top: 8px;">መጠን: <b>${amount} ETB</b><br>Txn ID: <b>—</b></div>
         <div style="margin-top: 8px;">አድሚን እንዳረጋገጠው ገቢ ይደረጋል።<br>🎯 Target: <b>${escapeHtml(target)}</b></div>
         <div style="margin-top: 8px; color: #94a3b8; font-style: italic;">⏳ Waiting for network confirmation...</div>
         <small class="msg-time">${now}</small>
@@ -674,9 +684,9 @@ window.confirmDepositFlow1 = async function() {
     if (state && state.token) {
       await api("/wallet/deposit", {
         method: method,
-        amount: 100,
+        amount: amount,
         wallet: target.toLowerCase().includes("vip") ? "vip" : "main",
-        reference: `Telegram WebApp Deposit (100 ETB - ${method})`
+        reference: `Telegram WebApp Deposit (${amount} ETB - ${method})`
       });
       toast("የገቢ ጥያቄዎ ለአድሚን ተልኳል (Deposit request sent)!");
     }

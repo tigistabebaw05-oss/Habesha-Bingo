@@ -325,30 +325,35 @@ class TelegramBingoService {
   }
 
   async cmdDepositStep1(chatId) {
-    this.userState.set(chatId, { step: "deposit_target" });
-    const text = `📥 <b>ገንዘብ ማስገቢያ (Deposit Fund)</b>\n\nእባክዎ የሚፈልጉትን የጨዋታ አይነት ይምረጡ:`;
-    await this.sendMessage(chatId, text, { reply_markup: this.getDepositTargetKeyboard() });
+    this.userState.set(chatId, { step: "deposit_amount", target: "🎮 Main Game" });
+    const text = `💸 <b>ገቢ ለማድረግ (Deposit)</b>\n\nእባክዎን ገቢ ማድረግ የሚፈልጉትን የብር መጠን ያስገቡ (ለምሳሌ፡ 100):`;
+    await this.sendMessage(chatId, text, {
+      reply_markup: {
+        force_reply: true,
+        input_field_placeholder: "የብር መጠን ያስገቡ (ለምሳሌ፡ 100)..."
+      }
+    });
   }
 
-  async cmdDepositStep2(chatId, target = "🎮 Main Game") {
-    this.userState.set(chatId, { step: "deposit_method", target });
-    const text = `💳 <b>የክፍያ ዘዴ ይምረጡ (Select Payment Method)</b>\n\nገንዘብ ገቢ (Deposit) ለማድረግ የሚፈልጉትን የክፍያ አማራጭ ይምረጡ:`;
+  async cmdDepositStep2(chatId, target = "🎮 Main Game", amount = 100) {
+    this.userState.set(chatId, { step: "deposit_method", target, amount });
+    const text = `💳 <b>የክፍያ ዘዴ ይምረጡ (Select Payment Method)</b>\n\nየተመረጠ መጠን: <b>${amount} ETB</b>\n\nገንዘብ ገቢ (Deposit) ለማድረግ የሚፈልጉትን የክፍያ አማራጭ ይምረጡ:`;
     await this.sendMessage(chatId, text, { reply_markup: this.getDepositMethodKeyboard() });
   }
 
   async cmdDepositInstruction(chatId, user, method = "TeleBirr") {
     const currentState = this.userState.get(chatId) || {};
     const target = currentState.target || "🎮 Main Game";
-    this.userState.set(chatId, { step: "deposit_confirm", target, method });
+    const amount = currentState.amount || 100;
+    this.userState.set(chatId, { step: "deposit_confirm", target, method, amount });
 
     const phone = "0951666750";
     const name = "Tirualem";
 
     const text = `🔄 <b>ክፍያ መመሪያ</b>\n\n` +
-      `1. Depisite yaderegutin birrETB በ ${method} ወደዚህ ይላኩ:\n` +
-      `<b>${phone}(${name})</b>\n\n` +
-      `2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n\n` +
-      `3. የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):`;
+      `1, deposite yadereginewun ETB በ ${method} ወደዚህ ይላኩ፡ <b>${phone} (${name})</b>\n` +
+      `2, ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n` +
+      `3, የመልክቱን ID (sms ሙሉውን) እዚህ ጋር ይለጥፉ (past)`;
 
     await this.sendMessage(chatId, text, { reply_markup: this.getDepositConfirmKeyboard() });
   }
@@ -357,8 +362,7 @@ class TelegramBingoService {
     const currentState = this.userState.get(chatId) || {};
     const target = currentState.target || "🎮 Main Game";
     const method = currentState.method || "TeleBirr";
-
-    let amount = 100;
+    let amount = currentState.amount || 100;
     let txnId = "—";
 
     const trimmed = (inputMessage || "").trim();
@@ -476,7 +480,21 @@ class TelegramBingoService {
       return;
     }
 
-    // 2. Deposit Step 3 confirmation or user typing "1"
+    // 2. Deposit Step 1: Amount input
+    if (state?.step === "deposit_amount") {
+      const match = text.match(/([0-9]+(?:\.[0-9]{1,2})?)/);
+      const amount = match ? Number(match[1]) : 100;
+      if (amount <= 0 || isNaN(amount)) {
+        await this.sendMessage(chatId, "⚠️ <b>ትክክለኛ የብር መጠን ያስገቡ</b> (ለምሳሌ፡ 100):", {
+          reply_markup: { force_reply: true, input_field_placeholder: "የብር መጠን ያስገቡ..." }
+        });
+        return;
+      }
+      await this.cmdDepositStep2(chatId, state?.target || "🎮 Main Game", amount);
+      return;
+    }
+
+    // 3. Deposit Step 3 confirmation or user typing "1"
     if (state?.step === "deposit_confirm" || text === "1" || (state?.step === "deposit_method" && text === "1")) {
       await this.cmdDepositComplete(chatId, user, text);
       return;
