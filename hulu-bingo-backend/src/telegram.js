@@ -241,7 +241,7 @@ class TelegramBingoService {
         await this.cmdStart(chatId, from, user, isGroup);
         break;
       case "/deposit":
-        await this.cmdDepositStep1(chatId);
+        await this.cmdDepositStep1(chatId, user);
         break;
       case "/help":
         await this.cmdHelp(chatId, isGroup);
@@ -293,7 +293,7 @@ class TelegramBingoService {
   getDepositTargetKeyboard() {
     return {
       keyboard: [
-        [{ text: "🎮 ዋናው ጨዋታ" }, { text: "💎 VIP ክፍል" }],
+        [{ text: "🎮 ዋና ሂሳብ" }, { text: "💎 VIP ሽልማት" }],
         [{ text: "አቋርጥ" }]
       ],
       resize_keyboard: true,
@@ -324,8 +324,22 @@ class TelegramBingoService {
     };
   }
 
-  async cmdDepositStep1(chatId) {
-    this.userState.set(chatId, { step: "deposit_amount", target: "🎮 Main Game" });
+  async cmdDepositStep1(chatId, user) {
+    this.userState.set(chatId, { step: "deposit_target" });
+    const mainBal = user ? Number(user.main_balance || 0).toFixed(2) : "0.00";
+    const vipBal = user ? Number(user.vip_balance || 0).toFixed(2) : "0.00";
+
+    const text = `🎯 <b>ከየትኛው ሂሳብ ገቢ ማድረግ ይፈልጋሉ?</b>\n` +
+      `<i>From which wallet do you want to deposit?</i>\n\n` +
+      `🎮 <b>ዋና ሂሳብ (Main): ${mainBal} ETB</b>\n` +
+      `💎 <b>VIP ሽልማት (VIP Win): ${vipBal} ETB</b>\n\n` +
+      `<i>ማሳሰቢያ: ገቢ ማድረግ የሚፈልጉትን ሂሳብ ይምረጡ::</i>`;
+
+    await this.sendMessage(chatId, text, { reply_markup: this.getDepositTargetKeyboard() });
+  }
+
+  async cmdDepositAmountPrompt(chatId, target = "🎮 Main Game") {
+    this.userState.set(chatId, { step: "deposit_amount", target });
     const text = `💸 <b>ገቢ ለማድረግ (Deposit)</b>\n\nእባክዎን ገቢ ማድረግ የሚፈልጉትን የብር መጠን ያስገቡ (ለምሳሌ፡ 100):`;
     await this.sendMessage(chatId, text, {
       reply_markup: {
@@ -500,13 +514,10 @@ class TelegramBingoService {
       return;
     }
 
-    // 3. Deposit Step 1 -> Target selection
-    if (norm.includes("ዋናው ጨዋታ") || norm === "🎮 ዋናው ጨዋታ") {
-      await this.cmdDepositStep2(chatId, "🎮 Main Game");
-      return;
-    }
-    if (norm.includes("vip ክፍል") || norm === "💎 vip ክፍል") {
-      await this.cmdDepositStep2(chatId, "💎 VIP Room");
+    // 3. Deposit Step 1 -> Target selection (🎮 ዋና ሂሳብ / 💎 VIP ሽልማት)
+    if (state?.step === "deposit_target" || norm.includes("ዋና ሂሳብ") || norm.includes("ዋናው ጨዋታ") || norm.includes("vip ሽልማት") || norm.includes("vip ክፍል")) {
+      const target = (norm.includes("vip") || norm.includes("ቪአይፒ")) ? "💎 VIP Room" : "🎮 Main Game";
+      await this.cmdDepositAmountPrompt(chatId, target);
       return;
     }
 
@@ -528,7 +539,7 @@ class TelegramBingoService {
     } else if (norm.includes("ሂሳብ") || norm.includes("አሸን") || norm.includes("balance") || norm.includes("ቀሪ")) {
       await this.cmdBalance(chatId, user);
     } else if (norm.includes("ገቢ ለማድረግ") || norm.includes("በላኩት") || norm.includes("deposit") || norm === "ገቢ") {
-      await this.cmdDepositStep1(chatId);
+      await this.cmdDepositStep1(chatId, user);
     } else if (norm.includes("ወጪ ለማድረግ") || norm.includes("ወጪ")) {
       await this.cmdWithdrawInfo(chatId, user);
     } else if (norm.includes("ጋብዝ") || norm.includes("አጋር") || norm.includes("referral")) {
