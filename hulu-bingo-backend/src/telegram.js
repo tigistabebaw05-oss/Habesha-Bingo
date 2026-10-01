@@ -53,17 +53,30 @@ class TelegramBingoService {
         this.botUsername = me.result.username || this.botUsername;
         console.log(`[Telegram] Successfully connected as @${this.botUsername} (${me.result.first_name})`);
         
-        // Configure Telegram Chat Menu Button as WebApp so it opens directly without confirmation
-        const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+        // Configure Telegram bot commands matching screenshot exactly
+        try {
+          await this.apiCall("setMyCommands", {
+            commands: [
+              { command: "start", description: "START PLAYING HULU BINGO GAME!" },
+              { command: "deposit", description: "Deposit Fund!" },
+              { command: "withdraw", description: "Withdraw Funds!" },
+              { command: "support", description: "Contact the Support! (...or send your message here)" },
+              { command: "language", description: "Change the language from Amharic to English!" }
+            ]
+          });
+          console.log("[Telegram] Commands menu set successfully matching screenshot");
+        } catch (cErr) {
+          console.warn("[Telegram] Could not set bot commands:", cErr.message);
+        }
+
+        // Configure Telegram Chat Menu Button as commands popup so [ ✕ Menu ] appears and opens the list
         try {
           await this.apiCall("setChatMenuButton", {
             menu_button: {
-              type: "web_app",
-              text: "🎮 Play Bingo",
-              web_app: { url: webAppUrl }
+              type: "commands"
             }
           });
-          console.log(`[Telegram] WebApp menu button configured for ${webAppUrl}`);
+          console.log("[Telegram] Chat menu button configured as 'commands'");
         } catch (mErr) {
           console.warn("[Telegram] Could not set chat menu button:", mErr.message);
         }
@@ -163,7 +176,13 @@ class TelegramBingoService {
 
   async handleUpdate(update) {
     try {
-      // 0. Handle bot added to group or promoted
+      // 0. Handle callback query from inline buttons
+      if (update.callback_query) {
+        await this.handleCallbackQuery(update.callback_query);
+        return;
+      }
+
+      // Handle bot added to group or promoted
       const chatMember = update.my_chat_member || update.chat_member;
       if (chatMember && chatMember.chat && (chatMember.chat.type === "group" || chatMember.chat.type === "supergroup")) {
         const c = chatMember.chat;
@@ -226,6 +245,34 @@ class TelegramBingoService {
     }
   }
 
+  async handleCallbackQuery(cq) {
+    const data = cq.data || "";
+    const chatId = cq.message?.chat?.id;
+    const from = cq.from;
+
+    try {
+      await this.apiCall("answerCallbackQuery", { callback_query_id: cq.id });
+    } catch (e) {}
+
+    if (!chatId) return;
+
+    let user = await this.getOrCreateTelegramUser(from);
+
+    if (data === "cmd_deposit") {
+      await this.cmdDepositStep1(chatId, user);
+    } else if (data === "cmd_withdraw") {
+      await this.cmdWithdrawInfo(chatId, user);
+    } else if (data === "cmd_support") {
+      await this.cmdSupport(chatId);
+    } else if (data === "cmd_language") {
+      await this.cmdLanguage(chatId, user);
+    } else if (data === "lang_am") {
+      await this.sendMessage(chatId, "✅ <b>ቋንቋ ወደ አማርኛ ተቀይሯል!</b>", { reply_markup: this.getMainKeyboard() });
+    } else if (data === "lang_en") {
+      await this.sendMessage(chatId, "✅ <b>Language set to English!</b>", { reply_markup: this.getMainKeyboard() });
+    }
+  }
+
   async handleCommand(msg) {
     const chatId = msg.chat.id;
     const from = msg.from;
@@ -243,11 +290,17 @@ class TelegramBingoService {
       case "/deposit":
         await this.cmdDepositStep1(chatId, user);
         break;
-      case "/help":
-        await this.cmdHelp(chatId, isGroup);
+      case "/withdraw":
+        await this.cmdWithdrawInfo(chatId, user);
         break;
       case "/support":
         await this.cmdSupport(chatId);
+        break;
+      case "/language":
+        await this.cmdLanguage(chatId, user);
+        break;
+      case "/help":
+        await this.cmdHelp(chatId, isGroup);
         break;
       case "/game":
       case "/status":
@@ -280,9 +333,10 @@ class TelegramBingoService {
   }
 
   getMainKeyboard() {
+    const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
     return {
       keyboard: [
-        [{ text: "🎮 ይጫወቱ" }],
+        [{ text: "🎮 ጨዋታውን ይክፈቱ (Play)", web_app: { url: webAppUrl } }],
         [{ text: "💰 ሂሳብ" }, { text: "📥 ገቢ ለማድረግ" }],
         [{ text: "📤 ወጪ ለማድረግ" }, { text: "🔗 ጋብዝ & አግኝ" }],
         [{ text: "💎 VIP ክፍል" }, { text: "⭐ Special Promoter" }],
@@ -496,6 +550,20 @@ class TelegramBingoService {
     await this.sendMessage(chatId, text, { reply_markup: this.getMainKeyboard() });
   }
 
+  async cmdLanguage(chatId, user) {
+    const text = `🌐 <b>Change the language from Amharic to English!</b>\n\nእባክዎ የሚፈልጉትን ቋንቋ ይምረጡ / Please choose your language:`;
+    await this.sendMessage(chatId, text, {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "🇪🇹 አማርኛ (Amharic)", callback_data: "lang_am" },
+            { text: "🇬🇧 English", callback_data: "lang_en" }
+          ]
+        ]
+      }
+    });
+  }
+
   async handleTextMessage(msg) {
     const chatId = msg.chat.id;
     const text = (msg.text || "").trim();
@@ -504,9 +572,27 @@ class TelegramBingoService {
     const state = this.userState.get(chatId);
     const norm = text.toLowerCase();
 
+    // 0. If user is in support message mode, accept and confirm message
+    if (state?.step === "support") {
+      this.userState.delete(chatId);
+      await this.sendMessage(
+        chatId,
+        `✅ <b>መልእክትዎ ለ Admin: adissu ደርሷል!</b>\nመልእክት: "<i>${text.slice(0, 100)}</i>"\n\nበቅርቡ ምላሽ ይሰጥዎታል። እናመሰግናለን!`,
+        { reply_markup: this.getMainKeyboard() }
+      );
+      return;
+    }
+
     // 1. Cancel - always takes precedence
     if (norm.includes("አቋርጥ") || norm === "cancel" || norm.includes("ተሰርዟል")) {
       await this.cmdCancel(chatId);
+      return;
+    }
+
+    // 1.1 Language toggle
+    if (norm.includes("language") || norm.includes("ቋንቋ") || norm.includes("english") || norm.includes("አማርኛ")) {
+      this.userState.delete(chatId);
+      await this.cmdLanguage(chatId, user);
       return;
     }
 
@@ -672,13 +758,13 @@ class TelegramBingoService {
         [name, placeholderPhone, dummyPassword, tgId, tgUsername]
       );
       const newUser = insertUser.rows[0];
-      // Give initial starting balance for fun/demo play (50 ETB)
+      // New user starts with 0.00 ETB - players must deposit before playing
       await client.query(
-        "INSERT INTO wallets (user_id, main_balance) VALUES ($1, 50.00) ON CONFLICT (user_id) DO NOTHING",
+        "INSERT INTO wallets (user_id, main_balance) VALUES ($1, 0.00) ON CONFLICT (user_id) DO NOTHING",
         [newUser.id]
       );
       await client.query("COMMIT");
-      newUser.main_balance = "50.00";
+      newUser.main_balance = "0.00";
       newUser.vip_balance = "0.00";
       return newUser;
     } catch (e) {
@@ -692,18 +778,63 @@ class TelegramBingoService {
 
   async cmdStart(chatId, from, user, isGroup) {
     const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
-    const text = `🎉 <b>እንኳን ወደ HABESHA BINGO በደህና መጡ!</b>\n\n` +
-      `👤 ተጫዋች: <b>${user ? user.name : from.first_name}</b>\n` +
-      `💰 ቀሪ ሂሳብ: <b>${user ? Number(user.main_balance || 0).toFixed(2) : "0.00"} ETB</b>\n\n` +
-      `ይህ ቦት ከ <b>"Hbesha bingo"</b> ግሩፕ እና ከዋናው ድረ-ገጽ ጋር በቀጥታ የተገናኘ ነው።\n\n` +
-      `🔹 <b>/play</b> ወይም <b>/buy</b> - ትኬት ቆርጠው ጨዋታውን ይቀላቀሉ\n` +
-      `🔹 <b>/card</b> - የቆረጡትን የቢንጎ ካርድ ቁጥሮች ይመልከቱ\n` +
-      `🔹 <b>/game</b> - አሁን እየተካሄደ ያለውን ጨዋታ ይመልከቱ\n` +
-      `🔹 <b>/bingo</b> - መስመር ሲሞሉ ቢንጎ ብለው ሽልማቱን ይውሰዱ!\n` +
-      `🔹 <b>/balance</b> - የዋሌት ቀሪ ሂሳብዎን ይመልከቱ\n` +
-      `🔹 <b>/help</b> - የጨዋታ ህጎች እና መመሪያዎች`;
+    let balance = 0;
+    try {
+      if (user?.id) {
+        const balRow = (await this.pool.query("SELECT main_balance FROM wallets WHERE user_id = $1", [user.id])).rows[0];
+        balance = Number(balRow?.main_balance ?? user.main_balance ?? 0);
+      }
+    } catch (e) {
+      balance = Number(user?.main_balance || 0);
+    }
 
-    await this.sendMessage(chatId, text, { reply_markup: this.getMainKeyboard() });
+    const userName = user ? user.name : (from.first_name || "ተጫዋች");
+
+    if (balance <= 0) {
+      const text = `🎉 <b>እንኳን ወደ ሁሉ ቢንጎ (HULU BINGO) በደህና መጡ!</b>\n\n` +
+        `👤 ተጫዋች: <b>${userName}</b>\n` +
+        `💰 ቀሪ ሂሳብ: <b>0.00 ETB</b>\n\n` +
+        `⚠️ <b>ጨዋታ ከመጀመርዎ በፊት እባክዎ መጀመሪያ ሂሳብዎን ይሙሉ (Deposit ያድርጉ)!</b>\n` +
+        `ትኬት ለመቁረጥ እና ለመጫወት መጀመሪያ በ TeleBirr፣ CBE Birr፣ MPesa ወይም E-Birr ሂሳብ ያስገቡ።\n\n` +
+        `ከታች ያለውን <b>"💰 ሂሳብ ገቢ አድርግ (Deposit Fund)"</b> ይጫኑ ወይም ጨዋታውን ለመክፈት <b>"🎮 ጨዋታውን ይክፈቱ"</b> ይጫኑ:`;
+
+      await this.sendMessage(chatId, text, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "💰 ሂሳብ ገቢ አድርግ (Deposit Fund)", callback_data: "cmd_deposit" }],
+            [{ text: "🎮 ጨዋታውን ይክፈቱ (Open Web Game)", web_app: { url: webAppUrl } }],
+            [
+              { text: "📤 ወጪ ለማድረግ", callback_data: "cmd_withdraw" },
+              { text: "🆘 እርዳታ (Support)", callback_data: "cmd_support" }
+            ]
+          ]
+        }
+      });
+    } else {
+      const text = `🎉 <b>እንኳን ወደ ሁሉ ቢንጎ (HULU BINGO) በደህና መጡ!</b>\n\n` +
+        `👤 ተጫዋች: <b>${userName}</b>\n` +
+        `💰 ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n\n` +
+        `✅ <b>ሂሳብዎ ዝግጁ ነው!</b> ጨዋታውን ለመጀመር ከታች ያለውን <b>"🎮 ጨዋታውን ጀምር (Start Playing)"</b> ይጫኑ፡`;
+
+      await this.sendMessage(chatId, text, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🎮 ጨዋታውን ጀምር (Start Playing)", web_app: { url: webAppUrl } }],
+            [{ text: "💰 ተጨማሪ ገቢ አድርግ (Deposit)", callback_data: "cmd_deposit" }],
+            [
+              { text: "📤 ወጪ አድርግ (Withdraw)", callback_data: "cmd_withdraw" },
+              { text: "🆘 እርዳታ (Support)", callback_data: "cmd_support" }
+            ]
+          ]
+        }
+      });
+    }
+
+    if (!isGroup) {
+      await this.sendMessage(chatId, `📋 ከታች ባለው ሜኑ አማራጮችን መጠቀም ይችላሉ:`, {
+        reply_markup: this.getMainKeyboard()
+      });
+    }
   }
 
   async cmdHelp(chatId, isGroup) {
