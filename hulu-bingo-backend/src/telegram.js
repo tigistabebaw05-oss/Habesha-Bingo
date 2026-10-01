@@ -293,7 +293,7 @@ class TelegramBingoService {
   getDepositTargetKeyboard() {
     return {
       keyboard: [
-        [{ text: "🎮 ዋና ሂሳብ" }, { text: "💎 VIP ሽልማት" }],
+        [{ text: "🎮 ዋናው ጨዋታ" }, { text: "💎 VIP ክፍል" }],
         [{ text: "አቋርጥ" }]
       ],
       resize_keyboard: true,
@@ -324,17 +324,9 @@ class TelegramBingoService {
     };
   }
 
-  async cmdDepositStep1(chatId, user) {
+  async cmdDepositStep1(chatId) {
     this.userState.set(chatId, { step: "deposit_target" });
-    const mainBal = user ? Number(user.main_balance || 0).toFixed(2) : "0.00";
-    const vipBal = user ? Number(user.vip_balance || 0).toFixed(2) : "0.00";
-
-    const text = `🎯 <b>ከየትኛው ሂሳብ ገቢ ማድረግ ይፈልጋሉ?</b>\n` +
-      `<i>From which wallet do you want to deposit?</i>\n\n` +
-      `🎮 <b>ዋና ሂሳብ (Main): ${mainBal} ETB</b>\n` +
-      `💎 <b>VIP ሽልማት (VIP Win): ${vipBal} ETB</b>\n\n` +
-      `<i>ማሳሰቢያ: ገቢ ማድረግ የሚፈልጉትን ሂሳብ ይምረጡ::</i>`;
-
+    const text = `📥 <b>ገንዘብ ማስገቢያ (Deposit Fund)</b>\n\nእባክዎ የሚፈልጉትን የጨዋታ አይነት ይምረጡ:`;
     await this.sendMessage(chatId, text, { reply_markup: this.getDepositTargetKeyboard() });
   }
 
@@ -515,8 +507,8 @@ class TelegramBingoService {
       return;
     }
 
-    // 3. Deposit Step 1 -> Target selection (🎮 ዋና ሂሳብ / 💎 VIP ሽልማት)
-    if (state?.step === "deposit_target" || norm.includes("ዋና ሂሳብ") || norm.includes("ዋናው ጨዋታ") || norm.includes("vip ሽልማት") || norm.includes("vip ክፍል")) {
+    // 3. Deposit Step 1 -> Target selection (🎮 ዋናው ጨዋታ / 💎 VIP ክፍል)
+    if (state?.step === "deposit_target" || norm.includes("ዋናው ጨዋታ") || norm.includes("ዋና ጨዋታ") || norm.includes("ዋና ሂሳብ") || norm.includes("vip ክፍል") || norm.includes("vip ሽልማት")) {
       const target = (norm.includes("vip") || norm.includes("ቪአይፒ")) ? "💎 VIP Room" : "🎮 Main Game";
       await this.cmdDepositAmountPrompt(chatId, target);
       return;
