@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 
 class TelegramBingoService {
   constructor(options = {}) {
@@ -23,6 +24,42 @@ class TelegramBingoService {
 
   setGameEngine(engine) {
     this.gameEngine = engine;
+  }
+
+  async createSessionForUser(user) {
+    if (!user || !user.id || !this.pool) return null;
+    const secret = process.env.JWT_SECRET;
+    if (!secret) return null;
+    try {
+      const jti = crypto.randomUUID();
+      const token = jwt.sign(
+        { id: user.id, name: user.name, phone: user.phone, role: String(user.role || "PLAYER").toUpperCase() },
+        secret,
+        { expiresIn: "7d", jwtid: jti }
+      );
+      const hash = crypto.createHash("sha256").update(String(jti)).digest("hex");
+      await this.pool.query(
+        "INSERT INTO sessions (user_id, token_hash, expires_at) VALUES ($1, $2, now() + interval '7 days')",
+        [user.id, hash]
+      );
+      return token;
+    } catch (e) {
+      console.warn("[Telegram] Could not create session for user:", e.message);
+      return null;
+    }
+  }
+
+  async getWebAppUrl(user, view = "") {
+    let baseUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+    baseUrl = baseUrl.replace(/\/$/, "");
+    const params = [];
+    if (user && user.id) {
+      const token = await this.createSessionForUser(user);
+      if (token) params.push(`auth_token=${encodeURIComponent(token)}`);
+      params.push(`tg_user=${user.id}`);
+    }
+    if (view) params.push(`view=${encodeURIComponent(view)}`);
+    return params.length > 0 ? `${baseUrl}?${params.join("&")}` : baseUrl;
   }
 
   async init() {
@@ -403,8 +440,8 @@ class TelegramBingoService {
     }
   }
 
-  getMainKeyboard() {
-    const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+  getMainKeyboard(customUrl) {
+    const webAppUrl = customUrl || process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
     return {
       keyboard: [
         [{ text: "🎮 ጨዋታውን ይክፈቱ (Play)", web_app: { url: webAppUrl } }],
@@ -549,16 +586,25 @@ class TelegramBingoService {
       }
     }
 
+    const isDemo = process.env.DEMO_MODE !== "false";
     if (user && this.pool) {
       try {
         const wallet = target.toLowerCase().includes("vip") ? "vip" : "main";
+        const wCol = wallet === "vip" ? "vip_balance" : "main_balance";
+        if (isDemo) {
+          await this.pool.query(
+            `UPDATE wallets SET ${wCol} = ${wCol} + $1, updated_at = now() WHERE user_id = $2`,
+            [amount, user.id]
+          );
+        }
         await this.pool.query(
           `INSERT INTO transactions (user_id, type, wallet, amount, status, method, reference, provider, provider_reference, metadata)
-           VALUES ($1, 'deposit', $2, $3, 'pending', $4, $5, $6, $7, $8)`,
+           VALUES ($1, 'deposit', $2, $3, $4, $5, $6, $7, $8, $9)`,
           [
             user.id,
             wallet,
             amount,
+            isDemo ? "completed" : "pending",
             method,
             `Telegram Deposit (${method})`,
             method,
@@ -567,7 +613,8 @@ class TelegramBingoService {
               source: "telegram_bot",
               chat_id: chatId,
               target,
-              raw_input: trimmed
+              raw_input: trimmed,
+              demo: isDemo
             })
           ]
         );
@@ -578,18 +625,25 @@ class TelegramBingoService {
 
     this.userState.delete(chatId);
 
-    const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
-    const confirmationText = `✅ <b>የገቢ ጥያቄዎ በተሳካ ሁኔታ ተልኳል!</b>\n\n` +
-      `💰 መጠን: <b>${amount} ETB</b>\n` +
-      `💳 ዘዴ: <b>${method}</b>\n` +
-      `🔢 Txn ID: <b>${txnId}</b>\n` +
-      `🎯 Target: <b>${target}</b>\n\n` +
-      `⏳ <i>አድሚን ክፍያውን እንደተቀበለ በደቂቃዎች ውስጥ ወደ ሂሳብዎ ይገባል!</i>`;
+    const playUrl = await this.getWebAppUrl(user);
+    const confirmationText = isDemo
+      ? `✅ <b>የገቢ ጥያቄዎ በተሳካ ሁኔታ ተጠናቋል!</b>\n\n` +
+        `💰 መጠን: <b>${amount} ETB</b>\n` +
+        `💳 ዘዴ: <b>${method}</b>\n` +
+        `🔢 Txn ID: <b>${txnId}</b>\n` +
+        `🎯 Target: <b>${target}</b>\n\n` +
+        `🎉 <b>ገንዘቡ ወደ ዋሌትዎ ገብቷል!</b> አሁኑኑ ጨዋታውን ለመጀመር ከታች ያለውን <b>"🎮 ጨዋታውን ጀምር (Start Playing)"</b> ይጫኑ ወይም <b>/start</b> ይበሉ!`
+      : `✅ <b>የገቢ ጥያቄዎ በተሳካ ሁኔታ ተልኳል!</b>\n\n` +
+        `💰 መጠን: <b>${amount} ETB</b>\n` +
+        `💳 ዘዴ: <b>${method}</b>\n` +
+        `🔢 Txn ID: <b>${txnId}</b>\n` +
+        `🎯 Target: <b>${target}</b>\n\n` +
+        `⏳ <i>አድሚን ክፍያውን እንዳረጋገጠ በደቂቃዎች ውስጥ ወደ ሂሳብዎ ይገባል!</i>`;
 
     await this.sendMessage(chatId, confirmationText, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "🎮 ጨዋታውን ይክፈቱ (Play)", web_app: { url: webAppUrl } }],
+          [{ text: "🎮 ጨዋታውን ጀምር (Start Playing)", web_app: { url: playUrl } }],
           [{ text: "💰 ሂሳብ ይመልከቱ (Balance)", callback_data: "cmd_balance" }]
         ]
       }
@@ -938,6 +992,15 @@ class TelegramBingoService {
         `✅ <b>መልእክትዎ ለ Admin: adissu ደርሷል!</b>\nመልእክት: "<i>${text.slice(0, 100)}</i>"\n\nበቅርቡ ምላሽ ይሰጥዎታል። እናመሰግናለን!`,
         { reply_markup: this.getMainKeyboard() }
       );
+      if (this.groupId) {
+        this.broadcastToGroup(`🆘 <b>የእርዳታ ጥያቄ (ከ @${from.username || from.first_name || chatId}):</b>\n"${text}"`).catch(()=>{});
+      }
+      return;
+    }
+
+    // 0.1 Start / Play commands typed as text
+    if (norm === "start" || norm === "/start" || norm === "ጀምር" || norm === "play" || norm === "/play") {
+      await this.cmdStart(chatId, from, user, msg.chat.type === "group" || msg.chat.type === "supergroup");
       return;
     }
 
@@ -1131,7 +1194,6 @@ class TelegramBingoService {
   }
 
   async cmdStart(chatId, from, user, isGroup) {
-    const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
     let balance = 0;
     try {
       if (user?.id) {
@@ -1143,6 +1205,7 @@ class TelegramBingoService {
     }
 
     const userName = user ? user.name : (from.first_name || "ተጫዋች");
+    const playUrl = await this.getWebAppUrl(user);
 
     if (balance <= 0) {
       const text = `🎉 <b>እንኳን ወደ ሁሉ ቢንጎ (HULU BINGO) በደህና መጡ!</b>\n\n` +
@@ -1156,7 +1219,7 @@ class TelegramBingoService {
         reply_markup: {
           inline_keyboard: [
             [{ text: "💰 ሂሳብ ገቢ አድርግ (Deposit Fund)", callback_data: "cmd_deposit" }],
-            [{ text: "🎮 ጨዋታውን ይክፈቱ (Open Web Game)", web_app: { url: webAppUrl } }],
+            [{ text: "🎮 ጨዋታውን ይክፈቱ (Open Web Game)", web_app: { url: playUrl } }],
             [
               { text: "📤 ወጪ ለማድረግ", callback_data: "cmd_withdraw" },
               { text: "🆘 እርዳታ (Support)", callback_data: "cmd_support" }
@@ -1173,7 +1236,7 @@ class TelegramBingoService {
       await this.sendMessage(chatId, text, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🎮 ጨዋታውን ጀምር (Start Playing)", web_app: { url: webAppUrl } }],
+            [{ text: "🎮 ጨዋታውን ጀምር (Start Playing)", web_app: { url: playUrl } }],
             [{ text: "💰 ተጨማሪ ገቢ አድርግ (Deposit)", callback_data: "cmd_deposit" }],
             [
               { text: "📤 ወጪ አድርግ (Withdraw)", callback_data: "cmd_withdraw" },
@@ -1186,7 +1249,7 @@ class TelegramBingoService {
 
     if (!isGroup) {
       await this.sendMessage(chatId, `📋 ከታች ባለው ሜኑ አማራጮችን መጠቀም ይችላሉ:`, {
-        reply_markup: this.getMainKeyboard()
+        reply_markup: this.getMainKeyboard(playUrl)
       });
     }
   }
@@ -1201,16 +1264,50 @@ class TelegramBingoService {
   }
 
   async cmdSupport(chatId) {
+    this.userState.set(chatId, { step: "support" });
     const text = `🆘 <b>ሁሉ ቢንጎ እርዳታ (Support)</b>\n\n` +
-      `👤 <b>Admin:</b> adissu\n\n` +
+      `👤 <b>Admin:</b> adissu\n` +
+      `📞 <b>ስልክ:</b> <code>0919307468</code>\n\n` +
       `👇 <b>ወይም እዚሁ ይጻፉ:</b>\n` +
-      `መልእክትዎትን እዚሁ መጻፍ ይችላሉ፣ ለ አድሚን በቀጥታ ይደርሳል።`;
+      `መልእክትዎን እዚሁ መጻፍ ይችላሉ፣ ለ አድሚን በቀጥታ ይደርሳል።`;
     await this.sendMessage(chatId, text, {
       reply_markup: {
         force_reply: true,
         input_field_placeholder: "መልእክትዎን እዚህ ይጻፉ..."
       }
     });
+  }
+
+  async notifyDepositApproved(userId, amount, method) {
+    if (!this.pool || !userId) return;
+    try {
+      const uRes = await this.pool.query(
+        "SELECT u.telegram_id, u.name, u.phone, u.role, w.main_balance FROM users u LEFT JOIN wallets w ON w.user_id = u.id WHERE u.id = $1",
+        [userId]
+      );
+      const user = uRes.rows[0];
+      if (!user || !user.telegram_id) return;
+      const playUrl = await this.getWebAppUrl({ id: userId, name: user.name, phone: user.phone, role: user.role || 'PLAYER' });
+      const balance = Number(user.main_balance || 0);
+
+      const msg = `🎉 <b>የገቢ ጥያቄዎ ጸድቋል (Deposit Approved)!</b>\n\n` +
+        `👤 ተጫዋች: <b>${user.name}</b>\n` +
+        `💰 የገባ መጠን: <b>${Number(amount).toFixed(2)} ETB</b>\n` +
+        `💳 ዘዴ: <b>${method || "TeleBirr"}</b>\n` +
+        `💵 አዲሱ ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n\n` +
+        `✅ <b>ሂሳብዎ ዝግጁ ነው!</b> ጨዋታውን ለመጀመር <b>/start</b> ይበሉ ወይም ከታች ያለውን <b>🎮 አሁኑኑ ተጫወት (Play Now)</b> ይጫኑ:`;
+
+      await this.sendMessage(user.telegram_id, msg, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🎮 አሁኑኑ ተጫወት (Play Now)", web_app: { url: playUrl } }],
+            [{ text: "💰 ቀሪ ሂሳብ (Balance)", callback_data: "cmd_balance" }]
+          ]
+        }
+      });
+    } catch (e) {
+      console.warn("[Telegram] Could not notify deposit approved:", e.message);
+    }
   }
 
   async cmdGameStatus(chatId) {
@@ -1242,20 +1339,6 @@ class TelegramBingoService {
     } catch (e) {
       await this.sendMessage(chatId, "⚠️ የጨዋታውን መረጃ ማግኘት አልተቻለም: " + e.message);
     }
-  }
-
-  async cmdBalance(chatId, user) {
-    if (!user) {
-      await this.sendMessage(chatId, "⚠️ መጀመሪያ /start በማድረግ ይመዝገቡ።");
-      return;
-    }
-    const bal = (await this.pool.query("SELECT main_balance, vip_balance FROM wallets WHERE user_id = $1", [user.id])).rows[0];
-    const text = `💰 <b>የእርስዎ የዋሌት ቀሪ ሂሳብ</b>\n\n` +
-      `👤 ተጠቃሚ: <b>${user.name}</b>\n` +
-      `💵 Main Balance: <b>${Number(bal?.main_balance || 0).toFixed(2)} ETB</b>\n` +
-      `⭐ VIP Balance: <b>${Number(bal?.vip_balance || 0).toFixed(2)} ETB</b>\n\n` +
-      `ገንዘብ ለማስገባት ወይም ወጪ ለማድረግ ድረ-ገጹን ይጎብኙ!`;
-    await this.sendMessage(chatId, text);
   }
 
   async cmdJoinGame(chatId, user) {

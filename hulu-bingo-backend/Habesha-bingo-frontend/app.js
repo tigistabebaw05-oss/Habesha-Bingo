@@ -5,6 +5,61 @@ const authStorage = window.sessionStorage;
 localStorage.removeItem("hulu_token");
 let state = { game:null, ticket:null, called:new Set(), socket:null };
 
+// Auto-authenticate via auth_token URL param or Telegram WebApp initData
+async function initTelegramSession() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const authToken = urlParams.get("auth_token");
+  const viewParam = urlParams.get("view");
+
+  if (authToken) {
+    authStorage.setItem("hulu_token", authToken);
+    try {
+      const res = await api("/me");
+      if (res && res.user) {
+        authStorage.setItem("hulu_role", res.user.role || "PLAYER");
+        authStorage.setItem("hulu_name", res.user.name || "Player");
+        state.wallet = res.wallet;
+        syncAuthUi();
+        const bal = Number(res.wallet?.main_balance || 0);
+        if (viewParam === "vip") {
+          window.switchToVipRoomView();
+        } else if (bal > 0 || urlParams.get("action") === "play" || window.location.search.includes("start")) {
+          if (typeof switchToCardSelectionView === "function") switchToCardSelectionView();
+        }
+      }
+    } catch (e) {
+      console.warn("Auth token load error:", e);
+    }
+  } else if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+    const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+    if (!authStorage.getItem("hulu_token")) {
+      try {
+        const resp = await fetch(`${API}/telegram/webapp-login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ initData: window.Telegram.WebApp.initData, user: tgUser })
+        });
+        const data = await resp.json();
+        if (data && data.token) {
+          authStorage.setItem("hulu_token", data.token);
+          authStorage.setItem("hulu_role", data.user?.role || "PLAYER");
+          authStorage.setItem("hulu_name", data.user?.name || tgUser.first_name);
+          state.wallet = data.wallet;
+          syncAuthUi();
+          const bal = Number(data.wallet?.main_balance || 0);
+          if (viewParam === "vip") {
+            window.switchToVipRoomView();
+          } else if (bal > 0) {
+            if (typeof switchToCardSelectionView === "function") switchToCardSelectionView();
+          }
+        }
+      } catch (e) {
+        console.warn("Telegram WebApp login error:", e);
+      }
+    }
+  }
+}
+
 if (window.Telegram && window.Telegram.WebApp) {
   try {
     window.Telegram.WebApp.ready();
@@ -12,9 +67,9 @@ if (window.Telegram && window.Telegram.WebApp) {
     const openTgModal = () => {
       const modal = $("huluBingoWebAppModal");
       if (modal) {
-        modal.hidden = false;
         const s = (window.location.search || "") + " " + (window.location.hash || "") + " " + (window.location.href || "");
         const tgStart = window.Telegram?.WebApp?.initDataUnsafe?.start_param || "";
+        modal.hidden = false;
         if (s.includes("view=vip") || s.includes("action=vip") || tgStart === "vip") {
           window.switchToVipRoomView();
         } else {
@@ -23,12 +78,22 @@ if (window.Telegram && window.Telegram.WebApp) {
       }
     };
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", openTgModal);
+      document.addEventListener("DOMContentLoaded", () => {
+        initTelegramSession();
+        openTgModal();
+      });
     } else {
+      initTelegramSession();
       setTimeout(openTgModal, 100);
     }
   } catch (e) {
     console.warn("Telegram WebApp init:", e);
+  }
+} else {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initTelegramSession);
+  } else {
+    initTelegramSession();
   }
 }
 
@@ -436,9 +501,40 @@ if (menuToggleBtn) {
 }
 
 if($("menuStartBtn")) {
-  $("menuStartBtn").addEventListener("click", () => {
+  $("menuStartBtn").addEventListener("click", async () => {
     $("floatingMenuPopup").hidden = true;
-    $("telegramKeyboard").hidden = false;
+    if ($("menuToggleBtn")) $("menuToggleBtn").innerHTML = "☰ Menu";
+
+    let bal = Number(state.wallet?.main_balance || state.wallet?.balance || 0);
+    const token = authStorage.getItem("hulu_token");
+    if (token) {
+      try {
+        const me = await api("/me");
+        if (me && me.wallet) {
+          state.wallet = me.wallet;
+          bal = Number(me.wallet.main_balance || 0);
+        }
+      } catch(e) {}
+    }
+
+    if (bal > 0) {
+      toast(`✅ ሂሳብዎ ${bal.toFixed(2)} ETB አለዎት! መልካም ዕድል!`);
+      closeAllTelegramModals();
+      if (typeof switchToCardSelectionView === "function") {
+        switchToCardSelectionView();
+      }
+    } else {
+      toast("⚠️ ጨዋታ ከመጀመርዎ በፊት እባክዎ መጀመሪያ ሂሳብዎን ይሙሉ (Deposit)!");
+      openDepositTypeKeyboard();
+    }
+  });
+}
+
+if($("menuWithdrawFundBtn")) {
+  $("menuWithdrawFundBtn").addEventListener("click", () => {
+    if ($("floatingMenuPopup")) $("floatingMenuPopup").hidden = true;
+    if ($("menuToggleBtn")) $("menuToggleBtn").innerHTML = "☰ Menu";
+    openTelegramModal("withdrawalModal");
   });
 }
 
@@ -591,6 +687,34 @@ if($("chatBackBtn")) {
   $("chatBackBtn").addEventListener("click", () => {
     if ($("telegramChatState")) $("telegramChatState").hidden = true;
     if ($("telegramKeyboard")) $("telegramKeyboard").hidden = false;
+  });
+}
+
+// Final Play button in chat state (🎰 ተጫወት (Play))
+if($("finalPlayBtn")) {
+  $("finalPlayBtn").addEventListener("click", async () => {
+    closeAllTelegramModals();
+    let bal = Number(state.wallet?.main_balance || state.wallet?.balance || 0);
+    const token = authStorage.getItem("hulu_token");
+    if (token) {
+      try {
+        const me = await api("/me");
+        if (me && me.wallet) {
+          state.wallet = me.wallet;
+          bal = Number(me.wallet.main_balance || 0);
+        }
+      } catch(e) {}
+    }
+
+    if (bal > 0) {
+      toast(`✅ ሂሳብዎ ${bal.toFixed(2)} ETB አለዎት! መልካም ዕድል!`);
+      if (typeof switchToCardSelectionView === "function") {
+        switchToCardSelectionView();
+      }
+    } else {
+      toast("⚠️ ጨዋታ ለመጀመር እባክዎ መጀመሪያ ሂሳብዎን ይሙሉ (Deposit ያድርጉ)!");
+      openDepositTypeKeyboard();
+    }
   });
 }
 
@@ -752,7 +876,16 @@ window.confirmDepositFlow1 = async function() {
   const method = window.currentDepositMethod || "TeleBirr";
   const target = window.currentDepositTarget || "🎮 Main Game";
   const amount = window.currentDepositAmount || 100;
+  const isVip = target.toLowerCase().includes("vip");
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  // Update local wallet so player can play immediately
+  if (!state.wallet) state.wallet = { main_balance: "0.00", vip_balance: "0.00" };
+  if (isVip) {
+    state.wallet.vip_balance = (Number(state.wallet.vip_balance || 0) + amount).toFixed(2);
+  } else {
+    state.wallet.main_balance = (Number(state.wallet.main_balance || 0) + amount).toFixed(2);
+  }
 
   const chatContainer = $("telegramDepositChatState");
   const msgBox = $("depositChatMessages");
@@ -762,28 +895,45 @@ window.confirmDepositFlow1 = async function() {
         1 <small class="msg-time">${now} <span style="color: #4caf50;">✓✓</span></small>
       </div>
       <div class="chat-message bot-message" style="text-align: left; line-height: 1.6;">
-        <div style="font-weight: bold; color: #4caf50; font-size: 15px;">✅ ጥያቄዎ ተልኳል!</div>
-        <div style="margin-top: 8px;">መጠን: <b>${amount} ETB</b><br>Txn ID: <b>—</b></div>
-        <div style="margin-top: 8px;">አድሚን እንዳረጋገጠው ገቢ ይደረጋል።<br>🎯 Target: <b>${escapeHtml(target)}</b></div>
-        <div style="margin-top: 8px; color: #94a3b8; font-style: italic;">⏳ Waiting for network confirmation...</div>
+        <div style="font-weight: bold; color: #4caf50; font-size: 15px;">✅ የገቢ ጥያቄዎ ተጠናቋል!</div>
+        <div style="margin-top: 8px;">መጠን: <b>${amount} ETB</b><br>ዘዴ: <b>${escapeHtml(method)}</b></div>
+        <div style="margin-top: 8px;">🎯 Target: <b>${escapeHtml(target)}</b></div>
+        <div style="margin-top: 8px; color: #22c55e; font-weight: 600;">🎉 ገንዘቡ ወደ ዋሌትዎ ገብቷል! አሁኑኑ ጨዋታውን መጀመር ይችላሉ።</div>
+        <button class="keyboard-btn full-width" id="btnDepositPlayNow" type="button" style="margin-top: 10px; background: #22c55e; color: #ffffff; font-weight: bold; border-radius: 8px; border: none; padding: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">🎮 ጨዋታውን ጀምር (Start Playing)</button>
         <small class="msg-time">${now}</small>
       </div>
     `;
     chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    setTimeout(() => {
+      const playBtn = $("btnDepositPlayNow");
+      if (playBtn) {
+        playBtn.onclick = () => {
+          closeAllTelegramModals();
+          if (isVip) {
+            window.switchToVipRoomView();
+          } else {
+            switchToCardSelectionView();
+          }
+        };
+      }
+    }, 50);
   }
 
   if ($("telegramDepositConfirmKeyboard")) $("telegramDepositConfirmKeyboard").hidden = true;
   if ($("telegramKeyboard")) $("telegramKeyboard").hidden = false;
 
   try {
-    if (state && state.token) {
+    const token = authStorage.getItem("hulu_token");
+    if (token) {
       await api("/wallet/deposit", {
         method: method,
         amount: amount,
-        wallet: target.toLowerCase().includes("vip") ? "vip" : "main",
+        wallet: isVip ? "vip" : "main",
         reference: `Telegram WebApp Deposit (${amount} ETB - ${method})`
       });
-      toast("የገቢ ጥያቄዎ ለአድሚን ተልኳል (Deposit request sent)!");
+      await refresh();
+      toast("የገቢ ጥያቄዎ በተሳካ ሁኔታ ተጠናቋል (Deposit completed)!");
     }
   } catch(e) {
     console.warn("Deposit note:", e.message);

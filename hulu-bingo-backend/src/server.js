@@ -351,6 +351,47 @@ app.post("/api/login",async(req,res)=>{
   const user={id:u.id,name:u.name,phone:u.phone,role:String(u.role).toUpperCase()};
   res.json({token:await createSession(user),user});
 });
+app.post("/api/telegram/webapp-login",async(req,res)=>{
+  try{
+    const tgUser=req.body.user;
+    if(!tgUser||!tgUser.id)return res.status(400).json({error:"Missing Telegram user"});
+    const tgId=Number(tgUser.id);
+    const tgUsername=tgUser.username||"";
+    const name=[tgUser.first_name,tgUser.last_name].filter(Boolean).join(" ")||`TG_${tgId}`;
+
+    const client=await pool.connect();
+    try{
+      await client.query("BEGIN");
+      let u=(await client.query("SELECT u.*, w.main_balance, w.vip_balance FROM users u LEFT JOIN wallets w ON w.user_id = u.id WHERE u.telegram_id = $1",[tgId])).rows[0];
+      if(!u){
+        const placeholderPhone=`TG${tgId}`;
+        const existing=(await client.query("SELECT id FROM users WHERE phone = $1",[placeholderPhone])).rows[0];
+        if(existing){
+          await client.query("UPDATE users SET telegram_id = $1, telegram_username = $2 WHERE id = $3",[tgId,tgUsername,existing.id]);
+          u=(await client.query("SELECT u.*, w.main_balance, w.vip_balance FROM users u LEFT JOIN wallets w ON w.user_id = u.id WHERE u.id = $1",[existing.id])).rows[0];
+        }else{
+          const dummyPassword=crypto.randomBytes(16).toString("hex");
+          const hash=await bcrypt.hash(dummyPassword,12);
+          const newUser=(await client.query("INSERT INTO users(name,phone,password_hash,role,telegram_id,telegram_username) VALUES($1,$2,$3,'PLAYER',$4,$5) RETURNING *",[name,placeholderPhone,hash,tgId,tgUsername])).rows[0];
+          await client.query("INSERT INTO wallets(user_id,main_balance,vip_balance) VALUES($1,0.00,0.00) ON CONFLICT (user_id) DO NOTHING",[newUser.id]);
+          u={...newUser,main_balance:"0.00",vip_balance:"0.00"};
+        }
+      }
+      await client.query("COMMIT");
+      const token=await createSession(u);
+      res.json({
+        token,
+        user:{id:u.id,name:u.name,phone:u.phone,role:String(u.role).toUpperCase()},
+        wallet:{main_balance:u.main_balance||"0.00",vip_balance:u.vip_balance||"0.00"}
+      });
+    }catch(dbErr){
+      await client.query("ROLLBACK");throw dbErr;
+    }finally{client.release()}
+  }catch(err){
+    console.error("[Telegram WebApp Login Error]:",err.message);
+    res.status(500).json({error:"Could not authenticate Telegram user"});
+  }
+});
 app.post("/api/logout",auth,async(req,res)=>{
   await pool.query("UPDATE sessions SET revoked_at=now() WHERE token_hash=$1 AND revoked_at IS NULL",[hashToken(req.user.jti)]);
   res.json({ok:true});
@@ -632,8 +673,10 @@ app.post("/api/admin/transactions/:id/approve",auth,requireRole("ADMIN"),async(r
   try{await client.query("BEGIN");
     const tx=(await client.query("SELECT * FROM transactions WHERE id=$1 FOR UPDATE",[transactionId])).rows[0];
     if(!tx||tx.status!=="pending")throw new Error("NOT_PENDING");
-    if(tx.type==="deposit")await changeBalance(client,{userId:tx.user_id,wallet:tx.wallet,delta:Number(tx.amount),type:tx.type,status:"approved",method:tx.method,reference:tx.reference,transactionId});
-    else if(tx.type==="withdrawal")await client.query("UPDATE transactions SET status='completed' WHERE id=$1",[transactionId]);
+    if(tx.type==="deposit") {
+      await changeBalance(client,{userId:tx.user_id,wallet:tx.wallet,delta:Number(tx.amount),type:tx.type,status:"approved",method:tx.method,reference:tx.reference,transactionId});
+      telegramService.notifyDepositApproved(tx.user_id, Number(tx.amount), tx.method).catch(()=>{});
+    } else if(tx.type==="withdrawal")await client.query("UPDATE transactions SET status='completed' WHERE id=$1",[transactionId]);
     else throw new Error("UNSUPPORTED");
     await client.query("COMMIT");
     await audit(req,"transaction.approved","transaction",transactionId,{type:tx.type,userId:tx.user_id});
