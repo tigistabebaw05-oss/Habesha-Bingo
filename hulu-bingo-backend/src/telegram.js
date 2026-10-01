@@ -357,10 +357,10 @@ class TelegramBingoService {
     const name = "Tirualem";
 
     const text = `🔄 <b>ክፍያ መመሪያ</b>\n\n` +
-      `1. Depisite yaderegutin birrETB በ ${method} ወደዚህ ይላኩ:\n` +
+      `Depisite yaderegutin birrETB በ ${method} ወደዚህ ይላኩ:\n` +
       `<b>${phone}(${name})</b>\n\n` +
-      `2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n\n` +
-      `3. የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):`;
+      `ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n\n` +
+      `የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):`;
 
     await this.sendMessage(chatId, text, { reply_markup: this.getDepositConfirmKeyboard() });
   }
@@ -402,7 +402,7 @@ class TelegramBingoService {
             method,
             `Telegram Deposit (${method})`,
             method,
-            txnId !== "-" ? txnId : null,
+            txnId !== "—" && txnId !== "-" ? txnId : null,
             JSON.stringify({
               source: "telegram_bot",
               chat_id: chatId,
@@ -481,16 +481,84 @@ class TelegramBingoService {
     const state = this.userState.get(chatId);
     const norm = text.toLowerCase();
 
-    // 1. Cancel
+    // 1. Cancel - always takes precedence
     if (norm.includes("አቋርጥ") || norm === "cancel" || norm.includes("ተሰርዟል")) {
       await this.cmdCancel(chatId);
       return;
     }
 
-    // 2. Deposit Step 1: Amount input
+    // 2. Deposit Button clicked from Main Menu:
+    // ALWAYS start Step 1 (show game selection) and reset state, regardless of any previous state
+    if (
+      norm.includes("ገቢ ለማድረግ") ||
+      norm.includes("📥 ገቢ") ||
+      norm.includes("በላኩት") ||
+      norm === "deposit" ||
+      norm === "ገቢ"
+    ) {
+      await this.cmdDepositStep1(chatId);
+      return;
+    }
+
+    // 3. Main Menu buttons (if clicked, clear deposit state and handle command)
+    if (norm.includes("ይጫወቱ") || norm === "play" || norm.includes("join")) {
+      this.userState.delete(chatId);
+      await this.cmdJoinGame(chatId, user);
+      return;
+    }
+    if (norm.includes("ሂሳብ") || norm.includes("አሸን") || norm.includes("balance") || norm.includes("ቀሪ")) {
+      this.userState.delete(chatId);
+      await this.cmdBalance(chatId, user);
+      return;
+    }
+    if (norm.includes("ወጪ ለማድረግ") || (norm.includes("ወጪ") && !norm.includes("ገቢ"))) {
+      this.userState.delete(chatId);
+      await this.cmdWithdrawInfo(chatId, user);
+      return;
+    }
+    if (norm.includes("ጋብዝ") || norm.includes("አጋር") || norm.includes("referral")) {
+      this.userState.delete(chatId);
+      await this.cmdReferralInfo(chatId, user);
+      return;
+    }
+    if (norm.includes("promoter") || norm.includes("ፕሮሞተር")) {
+      this.userState.delete(chatId);
+      await this.cmdPromoterInfo(chatId, user);
+      return;
+    }
+    if (norm.includes("እርዳታ") || norm === "help" || norm.includes("ድጋፍ")) {
+      this.userState.delete(chatId);
+      await this.cmdHelp(chatId, false);
+      return;
+    }
+    if (norm.includes("ደንቦች") || norm === "rules" || norm.includes("ህጎች")) {
+      this.userState.delete(chatId);
+      await this.cmdRules(chatId);
+      return;
+    }
+
+    // 4. Step 1 -> Target selection (🎮 ዋናው ጨዋታ / 💎 VIP ክፍል)
+    // Triggered when in deposit_target state OR explicitly clicking game buttons
+    if (
+      (state?.step === "deposit_target" && (norm.includes("ዋና") || norm.includes("vip") || norm.includes("ቪአይፒ") || norm.includes("game"))) ||
+      norm.includes("ዋናው ጨዋታ") || norm.includes("ዋና ጨዋታ") || norm.includes("ዋና ሂሳብ")
+    ) {
+      const target = (norm.includes("vip") || norm.includes("ቪአይፒ")) ? "💎 VIP Room" : "🎮 Main Game";
+      await this.cmdDepositAmountPrompt(chatId, target);
+      return;
+    }
+
+    // If VIP button clicked from main menu when NOT in deposit_target state
+    if (norm.includes("vip") || norm.includes("ቪአይፒ")) {
+      this.userState.delete(chatId);
+      await this.sendMessage(chatId, "💎 <b>VIP ክፍል</b>\n\nለ VIP ተጫዋቾች የተዘጋጀ ልዩ ክፍል! በቅርቡ ክፍት ይሆናል።", { reply_markup: this.getMainKeyboard() });
+      return;
+    }
+
+    // 5. Step 2 -> Player types amount (state is deposit_amount)
     if (state?.step === "deposit_amount") {
       const match = text.match(/([0-9]+(?:\.[0-9]{1,2})?)/);
-      const amount = match ? Number(match[1]) : 100;
+      const amount = match ? Number(match[1]) : 0;
       if (amount <= 0 || isNaN(amount)) {
         await this.sendMessage(chatId, "⚠️ <b>ትክክለኛ የብር መጠን ያስገቡ</b> (ለምሳሌ፡ 100):", {
           reply_markup: { force_reply: true, input_field_placeholder: "የብር መጠን ያስገቡ..." }
@@ -501,52 +569,25 @@ class TelegramBingoService {
       return;
     }
 
-    // 3. Deposit Step 3 confirmation or user typing "1"
-    if (state?.step === "deposit_confirm" || text === "1" || (state?.step === "deposit_method" && text === "1")) {
-      await this.cmdDepositComplete(chatId, user, text);
-      return;
-    }
-
-    // 3. Deposit Step 1 -> Target selection (🎮 ዋናው ጨዋታ / 💎 VIP ክፍል)
-    if (state?.step === "deposit_target" || norm.includes("ዋናው ጨዋታ") || norm.includes("ዋና ጨዋታ") || norm.includes("ዋና ሂሳብ") || norm.includes("vip ክፍል") || norm.includes("vip ሽልማት")) {
-      const target = (norm.includes("vip") || norm.includes("ቪአይፒ")) ? "💎 VIP Room" : "🎮 Main Game";
-      await this.cmdDepositAmountPrompt(chatId, target);
-      return;
-    }
-
-    // 4. Deposit Step 2 -> Method selection
-    if (norm === "telebirr" || norm.includes("telebirr") ||
-        norm === "cbe birr" || norm.includes("cbe") ||
-        norm === "mpesa" || norm.includes("mpesa") || norm.includes("m-pesa") ||
-        norm === "e-birr" || norm.includes("ebirr") || norm.includes("e-birr")) {
+    // 6. Step 3 -> Payment method selection (TeleBirr, CBE Birr, MPesa, E-Birr)
+    if (
+      (state?.step === "deposit_method" && (norm.includes("tele") || norm.includes("cbe") || norm.includes("mpesa") || norm.includes("pesa") || norm.includes("ebirr") || norm.includes("e-birr") || norm.includes("birr"))) ||
+      norm === "telebirr" || norm.includes("telebirr") ||
+      norm === "cbe birr" || norm.includes("cbe") ||
+      norm === "mpesa" || norm.includes("mpesa") || norm.includes("m-pesa") ||
+      norm === "e-birr" || norm.includes("ebirr") || norm.includes("e-birr")
+    ) {
       const method = (norm.includes("cbe")) ? "CBE Birr" :
-                     (norm.includes("mpesa") || norm.includes("m-pesa")) ? "MPesa" :
+                     (norm.includes("mpesa") || norm.includes("m-pesa") || norm.includes("pesa")) ? "MPesa" :
                      (norm.includes("ebirr") || norm.includes("e-birr")) ? "E-Birr" : "TeleBirr";
       await this.cmdDepositInstruction(chatId, user, method);
       return;
     }
 
-    // 5. Main menu buttons
-    if (norm.includes("ይጫወቱ") || norm.includes("play")) {
-      await this.cmdJoinGame(chatId, user);
-    } else if (norm.includes("ሂሳብ") || norm.includes("አሸን") || norm.includes("balance") || norm.includes("ቀሪ")) {
-      await this.cmdBalance(chatId, user);
-    } else if (norm.includes("ገቢ ለማድረግ") || norm.includes("በላኩት") || norm.includes("deposit") || norm === "ገቢ") {
-      await this.cmdDepositStep1(chatId, user);
-    } else if (norm.includes("ወጪ ለማድረግ") || norm.includes("ወጪ")) {
-      await this.cmdWithdrawInfo(chatId, user);
-    } else if (norm.includes("ጋብዝ") || norm.includes("አጋር") || norm.includes("referral")) {
-      await this.cmdReferralInfo(chatId, user);
-    } else if (norm.includes("vip") || norm.includes("ቪአይፒ")) {
-      await this.sendMessage(chatId, "💎 <b>VIP ክፍል</b>\n\nለ VIP ተጫዋቾች የተዘጋጀ ልዩ ክፍል! በቅርቡ ክፍት ይሆናል።", { reply_markup: this.getMainKeyboard() });
-    } else if (norm.includes("promoter") || norm.includes("ፕሮሞተር")) {
-      await this.cmdPromoterInfo(chatId, user);
-    } else if (norm.includes("እርዳታ") || norm.includes("help") || norm.includes("ድጋፍ")) {
-      await this.cmdHelp(chatId, false);
-    } else if (norm.includes("ደንቦች") || norm.includes("rules") || norm.includes("ህጎች")) {
-      await this.cmdRules(chatId);
-    } else if (state?.step === "deposit_confirm") {
+    // 7. Step 4 -> Confirmation: User selects "1" or pastes SMS/Txn ID
+    if (state?.step === "deposit_confirm" || text === "1" || (state?.step === "deposit_method" && text === "1")) {
       await this.cmdDepositComplete(chatId, user, text);
+      return;
     }
   }
 
