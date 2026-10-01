@@ -293,7 +293,7 @@ class TelegramBingoService {
   getDepositTargetKeyboard() {
     return {
       keyboard: [
-        [{ text: "🎮 ዋና ሂሳብ" }, { text: "💎 VIP ሽልማት" }],
+        [{ text: "🎮 ዋናው ጨዋታ" }, { text: "💎 VIP ክፍል" }],
         [{ text: "አቋርጥ" }]
       ],
       resize_keyboard: true,
@@ -326,15 +326,7 @@ class TelegramBingoService {
 
   async cmdDepositStep1(chatId, user) {
     this.userState.set(chatId, { step: "deposit_target" });
-    const mainBal = user ? Number(user.main_balance || 0).toFixed(2) : "0.00";
-    const vipBal = user ? Number(user.vip_balance || 0).toFixed(2) : "0.00";
-
-    const text = `🎯 <b>ከየትኛው ሂሳብ ገቢ ማድረግ ይፈልጋሉ?</b>\n` +
-      `<i>From which wallet do you want to deposit?</i>\n\n` +
-      `🎮 <b>ዋና ሂሳብ (Main): ${mainBal} ETB</b>\n` +
-      `💎 <b>VIP ሽልማት (VIP Win): ${vipBal} ETB</b>\n\n` +
-      `<i>ማሳሰቢያ: ገቢ ማድረግ የሚፈልጉትን ሂሳብ ይምረጡ::</i>`;
-
+    const text = `📥 <b>ገንዘብ ማስገቢያ (Deposit Fund)</b>\n\nእባክዎ የሚፈልጉትን የጨዋታ አይነት ይምረጡ:`;
     await this.sendMessage(chatId, text, { reply_markup: this.getDepositTargetKeyboard() });
   }
 
@@ -351,7 +343,7 @@ class TelegramBingoService {
 
   async cmdDepositStep2(chatId, target = "🎮 Main Game", amount = 100) {
     this.userState.set(chatId, { step: "deposit_method", target, amount });
-    const text = `💳 <b>የክፍያ ዘዴ ይምረጡ (Select Payment Method)</b>\n\nየተመረጠ መጠን: <b>${amount} ETB</b>\n\nገንዘብ ገቢ (Deposit) ለማድረግ የሚፈልጉትን የክፍያ አማራጭ ይምረጡ:`;
+    const text = `💳 <b>የክፍያ ዘዴ ይምረጡ (Select Payment Method)</b>\n\nገንዘብ ገቢ (Deposit) ለማድረግ የሚፈልጉትን የክፍያ አማራጭ ይምረጡ:`;
     await this.sendMessage(chatId, text, { reply_markup: this.getDepositMethodKeyboard() });
   }
 
@@ -365,9 +357,10 @@ class TelegramBingoService {
     const name = "Tirualem";
 
     const text = `🔄 <b>ክፍያ መመሪያ</b>\n\n` +
-      `1, deposite yadereginewun ETB በ ${method} ወደዚህ ይላኩ፡ <b>${phone} (${name})</b>\n` +
-      `2, ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n` +
-      `3, የመልክቱን ID (sms ሙሉውን) እዚህ ጋር ይለጥፉ (past)`;
+      `1. Depisite yaderegutin birrETB በ ${method} ወደዚህ ይላኩ:\n` +
+      `<b>${phone}(${name})</b>\n\n` +
+      `2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n\n` +
+      `3. የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):`;
 
     await this.sendMessage(chatId, text, { reply_markup: this.getDepositConfirmKeyboard() });
   }
