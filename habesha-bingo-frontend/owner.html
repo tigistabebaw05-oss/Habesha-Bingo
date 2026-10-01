@@ -205,6 +205,11 @@
       </div>
     </div>
 
+    <!-- Deposit Chat State for step-by-step deposit flow (above keyboards) -->
+    <div class="telegram-chat-state" id="telegramDepositChatState" hidden>
+      <div id="depositChatMessages" style="display: flex; flex-direction: column; gap: 8px;"></div>
+    </div>
+
     <!-- Deposit Step 1 Keyboard (Image 1: 🎮 ዋናው ጨዋታ | 💎 VIP ክፍል | አቋርጥ) -->
     <div class="telegram-keyboard tg-deposit-keyboard" id="telegramDepositTypeKeyboard" hidden>
       <div class="keyboard-row">
@@ -228,6 +233,16 @@
       </div>
       <div class="keyboard-row">
         <button class="keyboard-btn full-width" id="btnDepositCancel2">አቋርጥ</button>
+      </div>
+    </div>
+
+    <!-- Deposit Step 3 Keyboard: [ 1 ] and [ አቋርጥ ] -->
+    <div class="telegram-keyboard tg-deposit-keyboard" id="telegramDepositConfirmKeyboard" hidden>
+      <div class="keyboard-row">
+        <button class="keyboard-btn full-width" id="btnDepositConfirm1" style="font-size: 18px; font-weight: bold;">1</button>
+      </div>
+      <div class="keyboard-row">
+        <button class="keyboard-btn full-width" id="btnDepositCancel3">አቋርጥ</button>
       </div>
     </div>
     
