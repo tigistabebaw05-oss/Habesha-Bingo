@@ -442,6 +442,25 @@ window.openDepositTypeKeyboard = function() {
   if ($("telegramKeyboard")) $("telegramKeyboard").hidden = true;
   if ($("telegramChatState")) $("telegramChatState").hidden = true;
   if ($("telegramDepositMethodKeyboard")) $("telegramDepositMethodKeyboard").hidden = true;
+  if ($("telegramDepositConfirmKeyboard")) $("telegramDepositConfirmKeyboard").hidden = true;
+  
+  const chatContainer = $("telegramDepositChatState");
+  const msgBox = $("depositChatMessages");
+  if (chatContainer && msgBox) {
+    chatContainer.hidden = false;
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    msgBox.innerHTML = `
+      <div class="chat-message bot-message" style="text-align: left; line-height: 1.6;">
+        <div class="bot-msg-title" style="font-weight: bold; font-size: 15px;">📥 ገንዘብ ማስገቢያ (Deposit Fund)</div>
+        <div class="bot-msg-text" style="margin-top: 6px;">
+          እባክዎ የሚፈልጉትን የጨዋታ አይነት ይምረጡ:
+        </div>
+        <small class="msg-time">${now}</small>
+      </div>
+    `;
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
   if ($("telegramDepositTypeKeyboard")) $("telegramDepositTypeKeyboard").hidden = false;
   if ($("menuToggleBtn")) $("menuToggleBtn").innerHTML = "✕ Menu";
 };
@@ -570,39 +589,72 @@ if($("menuBtnBalance")) {
 }
 
 // 3. 📥 በላኩት / Deposit Fund! flow
-window.openDepositAmountPrompt = function() {
-  const amountStr = prompt("💸 ገቢ ለማድረግ (Deposit)\n\nእባክዎን ገቢ ማድረግ የሚፈልጉትን የብር መጠን ያስገቡ (ለምሳሌ፡ 100):", "100");
-  if (!amountStr) return;
-  const amount = parseFloat(amountStr) || 100;
-  window.currentDepositAmount = amount;
-  window.currentDepositTarget = "🎮 Main Game";
-  openDepositMethodKeyboard();
+window.openDepositAmountPrompt = function(target = "🎮 Main Game") {
+  window.currentDepositTarget = target;
+  const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const chatContainer = $("telegramDepositChatState");
+  const msgBox = $("depositChatMessages");
+  if (chatContainer && msgBox) {
+    chatContainer.hidden = false;
+    msgBox.innerHTML += `
+      <div class="chat-message user-message" style="align-self: flex-end;">
+        ${escapeHtml(target)} <small class="msg-time">${now} <span style="color: #4caf50;">✓✓</span></small>
+      </div>
+    `;
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  setTimeout(() => {
+    const amountStr = prompt("💸 ገቢ ለማድረግ (Deposit)\n\nእባክዎን ገቢ ማድረግ የሚፈልጉትን የብር መጠን ያስገቡ (ለምሳሌ፡ 100):", "100");
+    if (!amountStr) {
+      cancelDepositFlow();
+      return;
+    }
+    const amount = parseFloat(amountStr) || 100;
+    window.currentDepositAmount = amount;
+
+    if (chatContainer && msgBox) {
+      msgBox.innerHTML += `
+        <div class="chat-message user-message" style="align-self: flex-end;">
+          ${amount} ETB <small class="msg-time">${now} <span style="color: #4caf50;">✓✓</span></small>
+        </div>
+        <div class="chat-message bot-message" style="text-align: left; line-height: 1.6;">
+          <div class="bot-msg-title" style="font-weight: bold; font-size: 15px;">💳 የክፍያ ዘዴ ይምረጡ (Select Payment Method)</div>
+          <div class="bot-msg-text" style="margin-top: 6px;">
+            ገንዘብ ገቢ (Deposit) ለማድረግ የሚፈልጉትን የክፍያ አማራጭ ይምረጡ:
+          </div>
+          <small class="msg-time">${now}</small>
+        </div>
+      `;
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    openDepositMethodKeyboard();
+  }, 100);
 };
 
 if ($("menuDepositFundBtn")) {
   $("menuDepositFundBtn").addEventListener("click", () => {
-    openDepositAmountPrompt();
+    openDepositTypeKeyboard();
   });
 }
 
 if ($("menuBtnDeposit")) {
   $("menuBtnDeposit").addEventListener("click", () => {
-    openDepositAmountPrompt();
+    openDepositTypeKeyboard();
   });
 }
 
 // Deposit Step 1 Listeners (🎮 ዋናው ጨዋታ | 💎 VIP ክፍል | አቋርጥ)
 if ($("btnDepositMainGame")) {
   $("btnDepositMainGame").addEventListener("click", () => {
-    window.currentDepositTarget = "🎮 Main Game";
-    openDepositAmountPrompt();
+    openDepositAmountPrompt("🎮 Main Game");
   });
 }
 
 if ($("btnDepositVip")) {
   $("btnDepositVip").addEventListener("click", () => {
-    window.currentDepositTarget = "💎 VIP ክፍል";
-    openDepositAmountPrompt();
+    openDepositAmountPrompt("💎 VIP ክፍል");
   });
 }
 
@@ -634,14 +686,46 @@ window.openDepositInstructionFlow = function(method = "TeleBirr") {
   if (chatContainer && msgBox) {
     chatContainer.hidden = false;
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    msgBox.innerHTML = `
+
+    let instructionBody = "";
+    if (method === "CBE Birr") {
+      instructionBody = `
+        1. Deposite yadereginewun ETB በ CBE Birr ወደዚህ ይላኩ፡<br>
+        <b>0951666750 (Abrham)</b><br><br>
+        2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።<br><br>
+        3. የ መልክቱን ID (sms ሙሉውን) እዚህ ጋር ይለጥፉ (past)
+      `;
+    } else if (method === "MPesa" || method === "M-Pesa") {
+      instructionBody = `
+        1. Depisite yadereginewun ETB በ MPesa ወደዚህ ይላኩ:<br>
+        <b>0726666750 (Abrham)</b><br><br>
+        2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።<br><br>
+        3. የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):
+      `;
+    } else if (method === "E-Birr") {
+      instructionBody = `
+        1. Deposite yetederegew ETB በ E-Birr ወደዚህ ይላኩ:<br>
+        <b>0919307468(Abdu)</b><br><br>
+        2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።<br><br>
+        3. የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):
+      `;
+    } else {
+      instructionBody = `
+        Depisite yaderegutin birrETB በ TeleBirr ወደዚህ ይላኩ:<br>
+        <b>0951666750(Tirualem)</b><br><br>
+        ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።<br><br>
+        የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):
+      `;
+    }
+
+    msgBox.innerHTML += `
+      <div class="chat-message user-message" style="align-self: flex-end;">
+        ${escapeHtml(method)} <small class="msg-time">${now} <span style="color: #4caf50;">✓✓</span></small>
+      </div>
       <div class="chat-message bot-message" style="text-align: left; line-height: 1.6;">
-        <div class="bot-msg-title">🔄 ክፍያ መመሪያ</div>
-        <div class="bot-msg-text">
-          1. Depisite yaderegutin birrETB በ ${escapeHtml(method)} ወደዚህ ይላኩ:<br>
-          <b>0951666750(Tirualem)</b><br><br>
-          2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።<br><br>
-          3. የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):
+        <div class="bot-msg-title" style="font-weight: bold; font-size: 15px;">🔄 ክፍያ መመሪያ</div>
+        <div class="bot-msg-text" style="margin-top: 6px;">
+          ${instructionBody}
         </div>
         <small class="msg-time">${now}</small>
       </div>
