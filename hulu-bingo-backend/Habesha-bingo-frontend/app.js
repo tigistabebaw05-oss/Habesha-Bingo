@@ -909,7 +909,7 @@ function syncHuluWebApp(overrideNum, overrideList) {
   const bingoBtn = $("tgBingoBtn");
 
   const roundNum = g?.id ? String(g.id).padStart(6, '0') : "221453";
-  const players = (takenCards && takenCards.size > 0) ? (takenCards.size + selectedCardNumbers.size) : (g?.players || 72);
+  const players = (takenCards && takenCards.size > 0) ? (takenCards.size + selectedCardNumbers.size) : (selectedCardNumbers.size > 0 ? selectedCardNumbers.size : (g?.players || 0));
   const prize = players * 10;
   const currentNum = overrideNum || g?.current_number || 6;
   const calledList = (overrideList && overrideList.length > 0)
@@ -968,19 +968,54 @@ let selectedCardNumbers = new Set();
 let takenCards = new Set();
 let cardCountdownInterval = null;
 let cardCountdownSeconds = 39;
-let rapidCounterInterval = null;
 let liveGameInterval = null;
+let derashAnimFrame = null;
+
+function animateDerashPrize(targetAmount) {
+  const selPrizeEl = $("tgCardSelPrize");
+  const livePrizeEl = $("tgPrizePool");
+  if (!selPrizeEl && !livePrizeEl) return;
+
+  const currentText = selPrizeEl?.textContent || "0";
+  const startAmount = parseInt(currentText.replace(/[^\d]/g, ""), 10) || 0;
+
+  if (derashAnimFrame) cancelAnimationFrame(derashAnimFrame);
+
+  const duration = 250;
+  const startTime = performance.now();
+
+  const derashBox = document.querySelector(".derash-box");
+  if (derashBox) {
+    derashBox.classList.remove("derash-pulse");
+    void derashBox.offsetWidth;
+    derashBox.classList.add("derash-pulse");
+  }
+
+  function step(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 2);
+    const val = Math.round(startAmount + (targetAmount - startAmount) * ease);
+
+    if (selPrizeEl) selPrizeEl.textContent = `${val} ETB`;
+    if (livePrizeEl) livePrizeEl.textContent = `${val} ETB`;
+
+    if (progress < 1) {
+      derashAnimFrame = requestAnimationFrame(step);
+    } else {
+      if (selPrizeEl) selPrizeEl.textContent = `${targetAmount} ETB`;
+      if (livePrizeEl) livePrizeEl.textContent = `${targetAmount} ETB`;
+    }
+  }
+  derashAnimFrame = requestAnimationFrame(step);
+}
 
 function updateDerashPrize() {
   const totalCards = takenCards.size + selectedCardNumbers.size;
   const entryPrice = 10;
   const totalDerash = totalCards * entryPrice;
 
-  const selPrizeEl = $("tgCardSelPrize");
-  if (selPrizeEl) selPrizeEl.textContent = `${totalDerash} ETB`;
-
-  const livePrizeEl = $("tgPrizePool");
-  if (livePrizeEl) livePrizeEl.textContent = `${totalDerash} ETB`;
+  animateDerashPrize(totalDerash);
 
   const playersEl = $("tgLivePlayers");
   if (playersEl) playersEl.textContent = `LIVE - ${totalCards} PLAYERS`;
@@ -988,39 +1023,11 @@ function updateDerashPrize() {
 
 function startCardCountdown() {
   if (cardCountdownInterval) clearInterval(cardCountdownInterval);
-  if (rapidCounterInterval) clearInterval(rapidCounterInterval);
   if (liveGameInterval) clearInterval(liveGameInterval);
 
   cardCountdownSeconds = 39;
   const digitsEl = $("tgCardCountdown");
   if (digitsEl) digitsEl.textContent = "00:39";
-
-  // Rapidly count up from the beginning and put on derash amount
-  const targetCards = 72;
-  rapidCounterInterval = setInterval(() => {
-    if (takenCards.size < targetCards) {
-      const batch = Math.min(2, targetCards - takenCards.size);
-      const available = [];
-      for (let i = 1; i <= 80; i++) {
-        if (!takenCards.has(i) && !selectedCardNumbers.has(i)) {
-          available.push(i);
-        }
-      }
-      for (let b = 0; b < batch && available.length > 0; b++) {
-        const idx = Math.floor(Math.random() * available.length);
-        const cardNum = available.splice(idx, 1)[0];
-        takenCards.add(cardNum);
-        const cell = document.querySelector(`#tgCardPickGrid .card-cell[data-card="${cardNum}"]`);
-        if (cell) {
-          cell.classList.remove("available");
-          cell.classList.add("taken");
-        }
-      }
-      updateDerashPrize();
-    } else {
-      clearInterval(rapidCounterInterval);
-    }
-  }, 180);
 
   cardCountdownInterval = setInterval(() => {
     if (cardCountdownSeconds > 0) {
@@ -1029,7 +1036,6 @@ function startCardCountdown() {
       if (digitsEl) digitsEl.textContent = `00:${secStr}`;
     } else {
       clearInterval(cardCountdownInterval);
-      clearInterval(rapidCounterInterval);
       toast("ጨዋታው ተጀምሯል!");
       switchToLiveGameView();
     }
@@ -1096,6 +1102,7 @@ function switchToCardSelectionView() {
   
   takenCards = new Set();
   selectedCardNumbers.clear();
+  updateCardSelectionTotals();
   renderCardSelectionGrid();
   startCardCountdown();
 }

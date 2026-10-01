@@ -260,12 +260,84 @@ class TelegramBingoService {
 
     if (data === "cmd_deposit") {
       await this.cmdDepositStep1(chatId, user);
+    } else if (data.startsWith("dep_target:")) {
+      const targetKey = data.split(":")[1];
+      const target = targetKey === "vip" ? "💎 VIP Room" : "🎮 Main Game";
+      await this.cmdDepositStep2_Amount(chatId, target);
+    } else if (data.startsWith("dep_amt:")) {
+      const amtStr = data.split(":")[1];
+      const currentState = this.userState.get(chatId) || {};
+      const target = currentState.target || "🎮 Main Game";
+      if (amtStr === "custom") {
+        this.userState.set(chatId, { step: "deposit_amount", target });
+        await this.sendMessage(chatId, `💸 <b>ገቢ ለማድረግ (Deposit)</b>\n🎯 Target: <b>${target}</b>\n\nእባክዎን ማስገባት የሚፈልጉትን የብር መጠን እዚህ ጽፈው ይላኩ (ለምሳሌ፡ 350):`, {
+          reply_markup: {
+            inline_keyboard: [[{ text: "❌ አቋርጥ (Cancel)", callback_data: "cmd_cancel" }]]
+          }
+        });
+      } else {
+        const amount = Number(amtStr) || 100;
+        await this.cmdDepositStep3_Method(chatId, target, amount);
+      }
+    } else if (data.startsWith("dep_method:")) {
+      const methodKey = data.split(":")[1];
+      const methodMap = {
+        telebirr: "TeleBirr",
+        cbe: "CBE Birr",
+        mpesa: "MPesa",
+        ebirr: "E-Birr"
+      };
+      const method = methodMap[methodKey] || "TeleBirr";
+      await this.cmdDepositStep4_Instruction(chatId, user, method);
+    } else if (data === "dep_confirm") {
+      await this.sendMessage(chatId, `📲 <b>የግብይት ቁጥር (Txn ID) ያስገቡ</b>\n\nከባንክ የደረሰዎትን የክፍያ ማረጋገጫ ቁጥር (Txn ID) ወይም ሙሉውን SMS እዚህ መልሰው ይላኩ/ይለጥፉ:`, {
+        reply_markup: {
+          inline_keyboard: [[{ text: "❌ አቋርጥ (Cancel)", callback_data: "cmd_cancel" }]]
+        }
+      });
     } else if (data === "cmd_withdraw") {
-      await this.cmdWithdrawInfo(chatId, user);
+      await this.cmdWithdrawStep1(chatId, user);
+    } else if (data.startsWith("with_method:")) {
+      const methodKey = data.split(":")[1];
+      const method = methodKey === "cbe" ? "CBE Birr" : "TeleBirr";
+      await this.cmdWithdrawStep2_Amount(chatId, user, method);
+    } else if (data.startsWith("with_amt:")) {
+      const amtStr = data.split(":")[1];
+      const currentState = this.userState.get(chatId) || {};
+      const method = currentState.withdrawMethod || "TeleBirr";
+      const balRow = (await this.pool.query("SELECT main_balance FROM wallets WHERE user_id = $1", [user?.id || 0])).rows[0];
+      const balance = Number(balRow?.main_balance || 0);
+
+      if (amtStr === "custom") {
+        this.userState.set(chatId, { step: "withdraw_amount", withdrawMethod: method });
+        await this.sendMessage(chatId, `📤 <b>የማውጫ መጠን ያስገቡ</b>\n💰 ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n\nማውጣት የሚፈልጉትን የብር መጠን እዚህ ጽፈው ይላኩ (ቢያንስ 100 ETB):`, {
+          reply_markup: {
+            inline_keyboard: [[{ text: "❌ አቋርጥ (Cancel)", callback_data: "cmd_cancel" }]]
+          }
+        });
+      } else {
+        let amount = amtStr === "all" ? Math.floor(balance) : Number(amtStr);
+        if (amount < 100) amount = 100;
+        await this.cmdWithdrawStep3_AccountPrompt(chatId, user, method, amount);
+      }
+    } else if (data === "cmd_balance") {
+      await this.cmdBalance(chatId, user);
+    } else if (data === "cmd_play") {
+      await this.cmdJoinOrPlayPrompt(chatId, user);
+    } else if (data === "cmd_buy") {
+      await this.cmdJoinGame(chatId, user);
+    } else if (data === "cmd_status") {
+      await this.cmdGameStatus(chatId);
+    } else if (data === "cmd_vip") {
+      await this.cmdVIPRoom(chatId, user);
     } else if (data === "cmd_support") {
       await this.cmdSupport(chatId);
     } else if (data === "cmd_language") {
       await this.cmdLanguage(chatId, user);
+    } else if (data === "cmd_rules") {
+      await this.cmdRules(chatId);
+    } else if (data === "cmd_cancel") {
+      await this.cmdCancel(chatId);
     } else if (data === "lang_am") {
       await this.sendMessage(chatId, "✅ <b>ቋንቋ ወደ አማርኛ ተቀይሯል!</b>", { reply_markup: this.getMainKeyboard() });
     } else if (data === "lang_en") {
@@ -291,7 +363,11 @@ class TelegramBingoService {
         await this.cmdDepositStep1(chatId, user);
         break;
       case "/withdraw":
-        await this.cmdWithdrawInfo(chatId, user);
+        await this.cmdWithdrawStep1(chatId, user);
+        break;
+      case "/balance":
+      case "/wallet":
+        await this.cmdBalance(chatId, user);
         break;
       case "/support":
         await this.cmdSupport(chatId);
@@ -306,10 +382,6 @@ class TelegramBingoService {
       case "/status":
         await this.cmdGameStatus(chatId);
         break;
-      case "/balance":
-      case "/wallet":
-        await this.cmdBalance(chatId, user);
-        break;
       case "/card":
       case "/ticket":
         await this.cmdMyCard(chatId, user);
@@ -317,7 +389,7 @@ class TelegramBingoService {
       case "/play":
       case "/join":
       case "/buy":
-        await this.cmdJoinGame(chatId, user);
+        await this.cmdJoinOrPlayPrompt(chatId, user);
         break;
       case "/bingo":
       case "/claim":
@@ -327,7 +399,6 @@ class TelegramBingoService {
         await this.cmdLinkAccount(chatId, user, parts[1], parts[2]);
         break;
       default:
-        // Unknown command
         break;
     }
   }
@@ -347,101 +418,114 @@ class TelegramBingoService {
     };
   }
 
-  getDepositTargetKeyboard() {
-    return {
-      keyboard: [
-        [{ text: "🎮 ዋናው ጨዋታ" }, { text: "💎 VIP ክፍል" }],
-        [{ text: "አቋርጥ" }]
-      ],
-      resize_keyboard: true,
-      one_time_keyboard: false
-    };
-  }
-
-  getDepositMethodKeyboard() {
-    return {
-      keyboard: [
-        [{ text: "TeleBirr" }, { text: "CBE Birr" }],
-        [{ text: "MPesa" }, { text: "E-Birr" }],
-        [{ text: "አቋርጥ" }]
-      ],
-      resize_keyboard: true,
-      one_time_keyboard: false
-    };
-  }
-
-  getDepositConfirmKeyboard() {
-    return {
-      keyboard: [
-        [{ text: "1" }],
-        [{ text: "አቋርጥ" }]
-      ],
-      resize_keyboard: true,
-      one_time_keyboard: false
-    };
-  }
-
-  async cmdDepositStep1(chatId) {
+  // DEPOSIT FLOW: Step 1 (Game selection)
+  async cmdDepositStep1(chatId, user) {
     this.userState.set(chatId, { step: "deposit_target" });
     const text = `📥 <b>ገንዘብ ማስገቢያ (Deposit Fund)</b>\n\nእባክዎ የሚፈልጉትን የጨዋታ አይነት ይምረጡ:`;
-    await this.sendMessage(chatId, text, { reply_markup: this.getDepositTargetKeyboard() });
-  }
-
-  async cmdDepositAmountPrompt(chatId, target = "🎮 Main Game") {
-    this.userState.set(chatId, { step: "deposit_amount", target });
-    const text = `💸 <b>ገቢ ለማድረግ (Deposit)</b>\n\nእባክዎን ገቢ ማድረግ የሚፈልጉትን የብር መጠን ያስገቡ (ለምሳሌ፡ 100):`;
     await this.sendMessage(chatId, text, {
       reply_markup: {
-        force_reply: true,
-        input_field_placeholder: "የብር መጠን ያስገቡ (ለምሳሌ፡ 100)..."
+        inline_keyboard: [
+          [
+            { text: "🎮 ዋናው ጨዋታ (Main Game)", callback_data: "dep_target:main" },
+            { text: "💎 VIP ክፍል (VIP Room)", callback_data: "dep_target:vip" }
+          ],
+          [{ text: "❌ አቋርጥ (Cancel)", callback_data: "cmd_cancel" }]
+        ]
       }
     });
   }
 
-  async cmdDepositStep2(chatId, target = "🎮 Main Game", amount = 100) {
-    this.userState.set(chatId, { step: "deposit_method", target, amount });
-    const text = `💳 <b>የክፍያ ዘዴ ይምረጡ (Select Payment Method)</b>\n\nገንዘብ ገቢ (Deposit) ለማድረግ የሚፈልጉትን የክፍያ አማራጭ ይምረጡ:`;
-    await this.sendMessage(chatId, text, { reply_markup: this.getDepositMethodKeyboard() });
+  // DEPOSIT FLOW: Step 2 (Amount selection)
+  async cmdDepositStep2_Amount(chatId, target = "🎮 Main Game") {
+    this.userState.set(chatId, { step: "deposit_amount", target });
+    const text = `💸 <b>ገቢ የሚደረገው መጠን (Deposit Amount)</b>\n🎯 Target: <b>${target}</b>\n\nእባክዎ ገቢ ማድረግ የሚፈልጉትን የብር መጠን ይምረጡ ወይም እዚህ ይጻፉ:`;
+    await this.sendMessage(chatId, text, {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "50 ETB", callback_data: "dep_amt:50" },
+            { text: "100 ETB", callback_data: "dep_amt:100" },
+            { text: "200 ETB", callback_data: "dep_amt:200" }
+          ],
+          [
+            { text: "500 ETB", callback_data: "dep_amt:500" },
+            { text: "1000 ETB", callback_data: "dep_amt:1000" },
+            { text: "2000 ETB", callback_data: "dep_amt:2000" }
+          ],
+          [
+            { text: "✏️ ሌላ መጠን ጻፍ (Custom)", callback_data: "dep_amt:custom" }
+          ],
+          [
+            { text: "⬅️ ተመለስ", callback_data: "cmd_deposit" },
+            { text: "❌ አቋርጥ", callback_data: "cmd_cancel" }
+          ]
+        ]
+      }
+    });
   }
 
-  async cmdDepositInstruction(chatId, user, method = "TeleBirr") {
+  // DEPOSIT FLOW: Step 3 (Payment Method selection)
+  async cmdDepositStep3_Method(chatId, target = "🎮 Main Game", amount = 100) {
+    this.userState.set(chatId, { step: "deposit_method", target, amount });
+    const text = `💳 <b>የክፍያ ዘዴ ይምረጡ (Select Payment Method)</b>\n💰 መጠን: <b>${amount} ETB</b>\n🎯 Target: <b>${target}</b>\n\nገንዘብ ገቢ (Deposit) ለማድረግ የሚፈልጉትን የክፍያ አማራጭ ይምረጡ:`;
+    await this.sendMessage(chatId, text, {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "📱 TeleBirr", callback_data: "dep_method:telebirr" },
+            { text: "🏦 CBE Birr", callback_data: "dep_method:cbe" }
+          ],
+          [
+            { text: "🟢 MPesa", callback_data: "dep_method:mpesa" },
+            { text: "🟡 E-Birr", callback_data: "dep_method:ebirr" }
+          ],
+          [
+            { text: "⬅️ መጠን ቀይር", callback_data: "dep_target:" + (target.includes("VIP") ? "vip" : "main") },
+            { text: "❌ አቋርጥ", callback_data: "cmd_cancel" }
+          ]
+        ]
+      }
+    });
+  }
+
+  // DEPOSIT FLOW: Step 4 (Transfer Instructions)
+  async cmdDepositStep4_Instruction(chatId, user, method = "TeleBirr") {
     const currentState = this.userState.get(chatId) || {};
     const target = currentState.target || "🎮 Main Game";
     const amount = currentState.amount || 100;
     this.userState.set(chatId, { step: "deposit_confirm", target, method, amount });
 
-    let text = "";
+    let receiverName = "Tirualem";
+    let receiverPhone = "0951666750";
 
     if (method === "CBE Birr") {
-      text = `🔄 <b>ክፍያ መመሪያ</b>\n\n` +
-        `1. Deposite yadereginewun ETB በ CBE Birr ወደዚህ ይላኩ፡\n` +
-        `<b>0951666750 (Abrham)</b>\n\n` +
-        `2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n\n` +
-        `3. የ መልክቱን ID (sms ሙሉውን) እዚህ ጋር ይለጥፉ (past)`;
+      receiverName = "Abrham";
+      receiverPhone = "0951666750";
     } else if (method === "MPesa") {
-      text = `🔄 <b>ክፍያ መመሪያ</b>\n\n` +
-        `1. Depisite yadereginewun ETB በ MPesa ወደዚህ ይላኩ:\n` +
-        `<b>0726666750 (Abrham)</b>\n\n` +
-        `2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n\n` +
-        `3. የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):`;
+      receiverName = "Abrham";
+      receiverPhone = "0726666750";
     } else if (method === "E-Birr") {
-      text = `🔄 <b>ክፍያ መመሪያ</b>\n\n` +
-        `1. Deposite yetederegew ETB በ E-Birr ወደዚህ ይላኩ:\n` +
-        `<b>0919307468(Abdu)</b>\n\n` +
-        `2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n\n` +
-        `3. የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):`;
-    } else {
-      // Default: TeleBirr
-      text = `🔄 <b>ክፍያ መመሪያ</b>\n\n` +
-        `Depisite yaderegutin birrETB በ TeleBirr ወደዚህ ይላኩ:\n` +
-        `<b>0951666750(Tirualem)</b>\n\n` +
-        `ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n\n` +
-        `የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):`;
+      receiverName = "Abdu";
+      receiverPhone = "0919307468";
     }
 
-    await this.sendMessage(chatId, text, { reply_markup: this.getDepositConfirmKeyboard() });
+    const text = `🔄 <b>የክፍያ መመሪያ (${method})</b>\n\n` +
+      `1️⃣ <b>${amount} ETB</b> በ ${method} ወደዚህ ቁጥር ይላኩ:\n` +
+      `👉 <code>${receiverPhone}</code> (<b>${receiverName}</b>)\n\n` +
+      `2️⃣ ክፍያውን ከፈጸሙ በኋላ ከባንክ የሚደርስዎትን <b>Txn ID</b> ኮፒ ያድርጉ።\n\n` +
+      `3️⃣ የደረሰዎትን <b>Transaction ID</b> (ወይም ሙሉውን SMS) እዚህ ጋር ጽፈው ይላኩ/ይለጥፉ:`;
+
+    await this.sendMessage(chatId, text, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "✅ ከፍያለሁ / አረጋግጥ (Confirm)", callback_data: "dep_confirm" }],
+          [{ text: "❌ አቋርጥ (Cancel)", callback_data: "cmd_cancel" }]
+        ]
+      }
+    });
   }
 
+  // DEPOSIT FLOW: Step 5 (Complete & Record Transaction)
   async cmdDepositComplete(chatId, user, inputMessage) {
     const currentState = this.userState.get(chatId) || {};
     const target = currentState.target || "🎮 Main Game";
@@ -450,12 +534,11 @@ class TelegramBingoService {
     let txnId = "—";
 
     const trimmed = (inputMessage || "").trim();
-    if (trimmed !== "1") {
+    if (trimmed !== "1" && trimmed !== "dep_confirm") {
       const amtMatch = trimmed.match(/(?:ETB|Birr|ብር|\$)\s*([0-9]+(?:\.[0-9]{1,2})?)/i) ||
                        trimmed.match(/([0-9]+(?:\.[0-9]{1,2})?)\s*(?:ETB|Birr|ብር)/i);
-      if (amtMatch) {
-        amount = Number(amtMatch[1]);
-      }
+      if (amtMatch) amount = Number(amtMatch[1]);
+
       const txnMatch = trimmed.match(/(?:Txn\s*ID|Transaction\s*ID|የግብይት\s*ቁጥር|ቁጥር|Txn|Ref)[:\s]*([A-Za-z0-9]+)/i);
       if (txnMatch) {
         txnId = txnMatch[1];
@@ -495,14 +578,189 @@ class TelegramBingoService {
 
     this.userState.delete(chatId);
 
-    const confirmationText = `✅ <b>ጥያቄዎ ተልኳል!</b>\n\n` +
-      `መጠን: <b>${amount} ETB</b>\n` +
-      `Txn ID: <b>${txnId}</b>\n\n` +
-      `አድሚን እንዳረጋገጠው ገቢ ይደረጋል።\n` +
+    const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+    const confirmationText = `✅ <b>የገቢ ጥያቄዎ በተሳካ ሁኔታ ተልኳል!</b>\n\n` +
+      `💰 መጠን: <b>${amount} ETB</b>\n` +
+      `💳 ዘዴ: <b>${method}</b>\n` +
+      `🔢 Txn ID: <b>${txnId}</b>\n` +
       `🎯 Target: <b>${target}</b>\n\n` +
-      `⏳ <i>Waiting for network confirmation...</i>`;
+      `⏳ <i>አድሚን ክፍያውን እንደተቀበለ በደቂቃዎች ውስጥ ወደ ሂሳብዎ ይገባል!</i>`;
 
-    await this.sendMessage(chatId, confirmationText, { reply_markup: this.getMainKeyboard() });
+    await this.sendMessage(chatId, confirmationText, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🎮 ጨዋታውን ይክፈቱ (Play)", web_app: { url: webAppUrl } }],
+          [{ text: "💰 ሂሳብ ይመልከቱ (Balance)", callback_data: "cmd_balance" }]
+        ]
+      }
+    });
+  }
+
+  // WITHDRAW FLOW: Step 1 (Method selection & balance check)
+  async cmdWithdrawStep1(chatId, user) {
+    if (!user) {
+      await this.sendMessage(chatId, "⚠️ እባክዎ መጀመሪያ /start በማድረግ አካውንትዎን ያግብሩ።");
+      return;
+    }
+
+    let balance = 0;
+    try {
+      const balRow = (await this.pool.query("SELECT main_balance FROM wallets WHERE user_id = $1", [user.id])).rows[0];
+      balance = Number(balRow?.main_balance || 0);
+    } catch (e) {
+      balance = Number(user.main_balance || 0);
+    }
+
+    if (balance < 100) {
+      const text = `📤 <b>ወጪ ለማድረግ (Withdraw)</b>\n\n` +
+        `👤 ተጠቃሚ: <b>${user.name}</b>\n` +
+        `💰 ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n\n` +
+        `⚠️ <b>ዝቅተኛው የማውጫ መጠን 100 ETB ነው።</b>\n` +
+        `ያሸነፉትን ገንዘብ ወጪ ለማድረግ ቢያንስ 100 ETB ሊኖርዎት ይገባል።\n\n` +
+        `ለመጫወት እና ለማሸነፍ ሂሳብዎን ይሙሉ:`;
+      await this.sendMessage(chatId, text, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "📥 ሂሳብ ገቢ አድርግ (Deposit)", callback_data: "cmd_deposit" }],
+            [{ text: "🎮 ጨዋታውን ይክፈቱ", callback_data: "cmd_play" }]
+          ]
+        }
+      });
+      return;
+    }
+
+    this.userState.set(chatId, { step: "withdraw_method", maxBalance: balance });
+    const text = `📤 <b>ወጪ ለማድረግ (Withdraw Fund)</b>\n\n` +
+      `👤 ተጠቃሚ: <b>${user.name}</b>\n` +
+      `💰 ሊወጣ የሚችል ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n\n` +
+      `ገንዘብዎ እንዲላክ የሚፈልጉበትን የክፍያ ዘዴ ይምረጡ:`;
+
+    await this.sendMessage(chatId, text, {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "📱 TeleBirr", callback_data: "with_method:telebirr" },
+            { text: "🏦 CBE Birr", callback_data: "with_method:cbe" }
+          ],
+          [{ text: "❌ አቋርጥ (Cancel)", callback_data: "cmd_cancel" }]
+        ]
+      }
+    });
+  }
+
+  // WITHDRAW FLOW: Step 2 (Amount selection)
+  async cmdWithdrawStep2_Amount(chatId, user, method = "TeleBirr") {
+    let balance = 0;
+    try {
+      const balRow = (await this.pool.query("SELECT main_balance FROM wallets WHERE user_id = $1", [user.id])).rows[0];
+      balance = Number(balRow?.main_balance || 0);
+    } catch (e) {
+      balance = Number(user.main_balance || 0);
+    }
+
+    this.userState.set(chatId, { step: "withdraw_amount", withdrawMethod: method, maxBalance: balance });
+    const text = `💸 <b>የማውጫ መጠን ይምረጡ (Withdrawal Amount)</b>\n\n` +
+      `💳 ዘዴ: <b>${method}</b>\n` +
+      `💰 ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n\n` +
+      `ማውጣት የሚፈልጉትን የብር መጠን ይምረጡ ወይም ጽፈው ይላኩ:`;
+
+    const buttons = [];
+    const row1 = [{ text: "100 ETB", callback_data: "with_amt:100" }];
+    if (balance >= 200) row1.push({ text: "200 ETB", callback_data: "with_amt:200" });
+    if (balance >= 500) row1.push({ text: "500 ETB", callback_data: "with_amt:500" });
+    buttons.push(row1);
+
+    buttons.push([
+      { text: `💰 ሙሉውን (${balance.toFixed(0)} ETB)`, callback_data: "with_amt:all" },
+      { text: "✏️ ሌላ መጠን ጻፍ", callback_data: "with_amt:custom" }
+    ]);
+    buttons.push([
+      { text: "⬅️ ተመለስ", callback_data: "cmd_withdraw" },
+      { text: "❌ አቋርጥ", callback_data: "cmd_cancel" }
+    ]);
+
+    await this.sendMessage(chatId, text, {
+      reply_markup: { inline_keyboard: buttons }
+    });
+  }
+
+  // WITHDRAW FLOW: Step 3 (Recipient Account prompt)
+  async cmdWithdrawStep3_AccountPrompt(chatId, user, method = "TeleBirr", amount = 100) {
+    this.userState.set(chatId, { step: "withdraw_account", withdrawMethod: method, withdrawAmount: amount });
+    const text = `📱 <b>የተቀባይ መረጃ ያስገቡ</b>\n\n` +
+      `💰 የወጣ መጠን: <b>${amount} ETB</b>\n` +
+      `💳 ዘዴ: <b>${method}</b>\n\n` +
+      `ገንዘቡ እንዲገባ የሚፈልጉትን የ <b>${method} ስልክ ወይም አካውንት ቁጥር</b> እዚህ ጽፈው ይላኩ:`;
+
+    await this.sendMessage(chatId, text, {
+      reply_markup: {
+        inline_keyboard: [[{ text: "❌ አቋርጥ (Cancel)", callback_data: "cmd_cancel" }]]
+      }
+    });
+  }
+
+  // WITHDRAW FLOW: Step 4 (Execute & Save to DB)
+  async cmdWithdrawComplete(chatId, user, account) {
+    const currentState = this.userState.get(chatId) || {};
+    const method = currentState.withdrawMethod || "TeleBirr";
+    const amount = Number(currentState.withdrawAmount) || 100;
+    const cleanAccount = (account || "").trim();
+
+    if (!cleanAccount || cleanAccount.length < 5) {
+      await this.sendMessage(chatId, "⚠️ <b>ትክክለኛ የስልክ ወይም የአካውንት ቁጥር ያስገቡ:</b>", {
+        reply_markup: { inline_keyboard: [[{ text: "❌ አቋርጥ", callback_data: "cmd_cancel" }]] }
+      });
+      return;
+    }
+
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const wRow = (await client.query("SELECT main_balance FROM wallets WHERE user_id=$1 FOR UPDATE", [user.id])).rows[0];
+      const before = Number(wRow?.main_balance || 0);
+
+      if (before < amount) {
+        await client.query("ROLLBACK");
+        await this.sendMessage(chatId, `❌ <b>ቀሪ ሂሳብዎ በቂ አይደለም!</b>\nየእርስዎ ሂሳብ: <b>${before.toFixed(2)} ETB</b>\nየጠየቁት መጠን: <b>${amount} ETB</b>`);
+        this.userState.delete(chatId);
+        return;
+      }
+
+      const after = Math.round((before - amount) * 100) / 100;
+      await client.query("UPDATE wallets SET main_balance=$1, updated_at=now() WHERE user_id=$2", [after, user.id]);
+
+      const tx = await client.query(
+        `INSERT INTO transactions (user_id, type, wallet, amount, balance_before, balance_after, status, method, reference, provider)
+         VALUES ($1, 'withdrawal', 'main', $2, $3, $4, 'pending', $5, $6, $7) RETURNING id`,
+        [user.id, -amount, before, after, method, cleanAccount, method]
+      );
+      await client.query("COMMIT");
+
+      this.userState.delete(chatId);
+
+      const text = `✅ <b>የገንዘብ ማውጣት ጥያቄዎ በተሳካ ሁኔታ ተመዝግቧል!</b>\n\n` +
+        `💰 የወጣ መጠን: <b>${amount} ETB</b>\n` +
+        `💳 ዘዴ: <b>${method}</b>\n` +
+        `📞 ተቀባይ ቁጥር: <b>${cleanAccount}</b>\n` +
+        `💵 አዲሱ ቀሪ ሂሳብ: <b>${after.toFixed(2)} ETB</b>\n` +
+        `📋 ሁኔታ: <b>በመጠባበቅ ላይ (Pending)</b>\n\n` +
+        `⏳ <i>አድሚን ጥያቄውን አይቶ ገንዘቡን በ ${method} በደቂቃዎች ውስጥ ይልክልዎታል!</i>`;
+
+      await this.sendMessage(chatId, text, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "💰 ቀሪ ሂሳብ (Balance)", callback_data: "cmd_balance" }],
+            [{ text: "🎮 ጨዋታውን ይክፈቱ (Play)", callback_data: "cmd_play" }]
+          ]
+        }
+      });
+    } catch (e) {
+      await client.query("ROLLBACK");
+      console.error("[Telegram] Withdraw error:", e.message);
+      await this.sendMessage(chatId, "⚠️ የገንዘብ ማውጣት ጥያቄውን ማከናወን አልተቻለም: " + e.message);
+    } finally {
+      client.release();
+    }
   }
 
   async cmdCancel(chatId) {
@@ -511,15 +769,108 @@ class TelegramBingoService {
     await this.sendMessage(chatId, text, { reply_markup: this.getMainKeyboard() });
   }
 
-  async cmdWithdrawInfo(chatId, user) {
-    const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
-    const text = `📤 <b>ወጪ ለማድረግ (Withdraw)</b>\n\n` +
-      `👤 ተጠቃሚ: <b>${user ? user.name : "ተጫዋች"}</b>\n` +
-      `💰 ቀሪ ሂሳብ: <b>${user ? Number(user.main_balance || 0).toFixed(2) : "0.00"} ETB</b>\n\n` +
-      `ያሸነፉትን ገንዘብ በ TeleBirr ወይም CBE Birr ወጪ ለማድረግ ድረ-ገጹን ይጠቀሙ።`;
+  async cmdBalance(chatId, user) {
+    if (!user) {
+      await this.sendMessage(chatId, "⚠️ መጀመሪያ /start በማድረግ ይመዝገቡ።");
+      return;
+    }
+    const bal = (await this.pool.query("SELECT main_balance, vip_balance FROM wallets WHERE user_id = $1", [user.id])).rows[0];
+    const mainBal = Number(bal?.main_balance || 0).toFixed(2);
+    const vipBal = Number(bal?.vip_balance || 0).toFixed(2);
+
+    const text = `💰 <b>የእርስዎ የዋሌት መረጃ</b>\n\n` +
+      `👤 ተጠቃሚ: <b>${user.name}</b>\n` +
+      `💵 <b>ዋና ሂሳብ (Main):</b> <b>${mainBal} ETB</b>\n` +
+      `💎 <b>VIP ሂሳብ:</b> <b>${vipBal} ETB</b>\n\n` +
+      `ምን ማድረግ ይፈልጋሉ?`;
+
     await this.sendMessage(chatId, text, {
       reply_markup: {
-        inline_keyboard: [[{ text: "📤 ወጪ አድርግ (Withdraw)", web_app: { url: `${webAppUrl}?action=withdraw` } }]]
+        inline_keyboard: [
+          [
+            { text: "📥 ገቢ አድርግ (Deposit)", callback_data: "cmd_deposit" },
+            { text: "📤 ወጪ አድርግ (Withdraw)", callback_data: "cmd_withdraw" }
+          ],
+          [
+            { text: "🎮 አሁኑኑ ተጫወት (Play)", callback_data: "cmd_play" },
+            { text: "💎 VIP ክፍል", callback_data: "cmd_vip" }
+          ],
+          [
+            { text: "🔄 አድስ (Refresh)", callback_data: "cmd_balance" }
+          ]
+        ]
+      }
+    });
+  }
+
+  async cmdJoinOrPlayPrompt(chatId, user) {
+    const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+    let balance = 0;
+    try {
+      const balRow = (await this.pool.query("SELECT main_balance FROM wallets WHERE user_id = $1", [user?.id || 0])).rows[0];
+      balance = Number(balRow?.main_balance || 0);
+    } catch (e) {
+      balance = Number(user?.main_balance || 0);
+    }
+
+    if (balance < 10) {
+      const text = `⚠️ <b>ጨዋታ ለመጀመር ቀሪ ሂሳብዎ ዝቅተኛ ነው!</b>\n\n` +
+        `👤 ተጫዋች: <b>${user ? user.name : "ተጫዋች"}</b>\n` +
+        `💰 ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n` +
+        `🎟 የመግቢያ ክፍያ: <b>10.00 ETB</b>\n\n` +
+        `ትኬት ቆርጠው በሙሉ ዕድል ለመጫወት እባክዎ መጀመሪያ ሂሳብዎን ይሙሉ:`;
+      await this.sendMessage(chatId, text, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "💰 አሁኑኑ Deposit አድርግ (ገቢ)", callback_data: "cmd_deposit" }],
+            [{ text: "🎮 ጨዋታውን በ WebApp ክፈት", web_app: { url: webAppUrl } }]
+          ]
+        }
+      });
+      return;
+    }
+
+    const text = `🎉 <b>ሁሉ ቢንጎ ለመጫወት ዝግጁ ነዎት!</b>\n\n` +
+      `👤 ተጫዋች: <b>${user ? user.name : "ተጫዋች"}</b>\n` +
+      `💰 ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n` +
+      `🎟 የመግቢያ ክፍያ: <b>10.00 ETB</b>\n\n` +
+      `በ WebApp ውብ ገፅታ ለመጫወት ከታች ያለውን ይጫኑ ወይም እዚሁ ትኬት ይቁረጡ:`;
+
+    await this.sendMessage(chatId, text, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🎮 በ WebApp ክፈት (Open Game)", web_app: { url: webAppUrl } }],
+          [
+            { text: "🎟 እዚሁ ትኬት ቁረጥ (10 ETB)", callback_data: "cmd_buy" },
+            { text: "📊 የጨዋታ ሁኔታ (Status)", callback_data: "cmd_status" }
+          ]
+        ]
+      }
+    });
+  }
+
+  async cmdVIPRoom(chatId, user) {
+    const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+    let vipBalance = "0.00";
+    try {
+      const row = (await this.pool.query("SELECT vip_balance FROM wallets WHERE user_id = $1", [user?.id || 0])).rows[0];
+      vipBalance = Number(row?.vip_balance || 0).toFixed(2);
+    } catch (e) {}
+
+    const text = `💎 <b>VIP ክፍል (VIP Room)</b>\n\n` +
+      `🔥 ከፍተኛ ዕድል • 50 ETB ውርድ • ከፍተኛ 2 ካርዶች\n` +
+      `🎴 50 ልዩ ካርዶች — ለልዩ VIP ብቻ\n\n` +
+      `💰 VIP ሂሳብ: <b>${vipBalance} ETB</b>\n` +
+      `🏆 ጠቅላላ ያሸነፉት: <b>0.00 ETB</b>\n\n` +
+      `አሁኑኑ ይግቡ ወይም ሂሳብዎን ይሙሉ:`;
+
+    await this.sendMessage(chatId, text, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "💎 VIP ክፍል በ WebApp ክፈት", web_app: { url: `${webAppUrl}?view=vip` } }],
+          [{ text: "📥 ወደ VIP ሂሳብ አስገባ (Deposit)", callback_data: "dep_target:vip" }],
+          [{ text: "⬅️ ወደ ዋና ሜኑ", callback_data: "cmd_cancel" }]
+        ]
       }
     });
   }
@@ -547,7 +898,14 @@ class TelegramBingoService {
       `3. 5 ቁጥሮች በአግድም፣ በቁም ወይም በሰያፍ የሞላ የመጀመሪያው ተጫዋች አሸናፊ ይሆናል።\n` +
       `4. መስመር እንደሞላዎት ወዲያውኑ <b>/bingo</b> ይበሉ!\n` +
       `5. የውሸት ቢንጎ ማለት ጨዋታውን ያቋርጥብዎታል፤ እባክዎ በትክክል ያረጋግጡ።`;
-    await this.sendMessage(chatId, text, { reply_markup: this.getMainKeyboard() });
+    await this.sendMessage(chatId, text, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🎮 ጨዋታ ጀምር (Play)", callback_data: "cmd_play" }],
+          [{ text: "💰 ሂሳብ ገቢ አድርግ (Deposit)", callback_data: "cmd_deposit" }]
+        ]
+      }
+    });
   }
 
   async cmdLanguage(chatId, user) {
@@ -572,7 +930,7 @@ class TelegramBingoService {
     const state = this.userState.get(chatId);
     const norm = text.toLowerCase();
 
-    // 0. If user is in support message mode, accept and confirm message
+    // 0. Support message mode
     if (state?.step === "support") {
       this.userState.delete(chatId);
       await this.sendMessage(
@@ -583,137 +941,133 @@ class TelegramBingoService {
       return;
     }
 
-    // 1. Cancel - always takes precedence
+    // 1. Cancel
     if (norm.includes("አቋርጥ") || norm === "cancel" || norm.includes("ተሰርዟል")) {
       await this.cmdCancel(chatId);
       return;
     }
 
-    // 1.1 Language toggle
+    // 1.1 Language
     if (norm.includes("language") || norm.includes("ቋንቋ") || norm.includes("english") || norm.includes("አማርኛ")) {
-      this.userState.delete(chatId);
       await this.cmdLanguage(chatId, user);
       return;
     }
 
-    // 2. Deposit Button clicked from Main Menu:
-    // ALWAYS start Step 1 (show game selection) and reset state, regardless of any previous state
-    if (
-      norm.includes("ገቢ ለማድረግ") ||
-      norm.includes("📥 ገቢ") ||
-      norm.includes("በላኩት") ||
-      norm === "deposit" ||
-      norm === "ገቢ"
-    ) {
-      await this.cmdDepositStep1(chatId);
+    // 2. Main Menu keyboard clicks
+    if (norm.includes("ገቢ ለማድረግ") || norm.includes("📥 ገቢ") || norm === "deposit" || norm === "ገቢ") {
+      await this.cmdDepositStep1(chatId, user);
       return;
     }
-
-    // 3. Main Menu buttons (if clicked, clear deposit state and handle command)
-    if (norm.includes("ይጫወቱ") || norm === "play" || norm.includes("join")) {
-      this.userState.delete(chatId);
-      await this.cmdJoinGame(chatId, user);
+    if (norm.includes("ወጪ ለማድረግ") || (norm.includes("ወጪ") && !norm.includes("ገቢ")) || norm === "withdraw") {
+      await this.cmdWithdrawStep1(chatId, user);
       return;
     }
-    if (norm.includes("ሂሳብ") || norm.includes("አሸን") || norm.includes("balance") || norm.includes("ቀሪ")) {
-      this.userState.delete(chatId);
+    if (norm.includes("ይጫወቱ") || norm === "play" || norm.includes("join") || norm.includes("ጨዋታውን ይክፈቱ")) {
+      await this.cmdJoinOrPlayPrompt(chatId, user);
+      return;
+    }
+    if (norm.includes("ሂሳብ") || norm.includes("balance") || norm.includes("ቀሪ")) {
       await this.cmdBalance(chatId, user);
       return;
     }
-    if (norm.includes("ወጪ ለማድረግ") || (norm.includes("ወጪ") && !norm.includes("ገቢ"))) {
-      this.userState.delete(chatId);
-      await this.cmdWithdrawInfo(chatId, user);
+    if (norm.includes("vip") || norm.includes("ቪአይፒ")) {
+      await this.cmdVIPRoom(chatId, user);
       return;
     }
     if (norm.includes("ጋብዝ") || norm.includes("አጋር") || norm.includes("referral")) {
-      this.userState.delete(chatId);
       await this.cmdReferralInfo(chatId, user);
       return;
     }
     if (norm.includes("promoter") || norm.includes("ፕሮሞተር")) {
-      this.userState.delete(chatId);
       await this.cmdPromoterInfo(chatId, user);
       return;
     }
     if (norm.includes("እርዳታ") || norm === "help" || norm.includes("ድጋፍ") || norm.includes("support")) {
-      this.userState.delete(chatId);
       await this.cmdSupport(chatId);
       return;
     }
     if (norm.includes("ደንቦች") || norm === "rules" || norm.includes("ህጎች")) {
-      this.userState.delete(chatId);
       await this.cmdRules(chatId);
       return;
     }
 
-    // 4. Step 1 -> Target selection (🎮 ዋናው ጨዋታ / 💎 VIP ክፍል)
-    // Triggered when in deposit_target state OR explicitly clicking game buttons
-    if (
-      (state?.step === "deposit_target" && (norm.includes("ዋና") || norm.includes("vip") || norm.includes("ቪአይፒ") || norm.includes("game"))) ||
-      norm.includes("ዋናው ጨዋታ") || norm.includes("ዋና ጨዋታ") || norm.includes("ዋና ሂሳብ")
-    ) {
-      const target = (norm.includes("vip") || norm.includes("ቪአይፒ")) ? "💎 VIP Room" : "🎮 Main Game";
-      await this.cmdDepositAmountPrompt(chatId, target);
-      return;
-    }
+    // 3. Ongoing state handling:
 
-    // If VIP button clicked from main menu when NOT in deposit_target state
-    if (norm.includes("vip") || norm.includes("ቪአይፒ")) {
-      this.userState.delete(chatId);
-      const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
-      const vipBalance = Number(user?.vip_balance || 0).toFixed(2);
-      const text = `💎 <b>VIP ክፍል</b>\n\n` +
-        `ከፍተኛ ዕድል • 50 ETB ውርድ • ከፍተኛ 2 ካርዶች\n` +
-        `🎴 50 ልዩ ካርዶች — ለልዩ VIP ብቻ\n\n` +
-        `💰 VIP ሂሳብ: <b>${vipBalance} ETB</b>\n` +
-        `🏆 ጠቅላላ ያሸነፉት: <b>0.00 ETB</b>\n\n` +
-        `ማስታወሻ: VIP ካርድ ለመግዛት የሚያስፈልገው ገንዘብ ከ አዲስ ገቢ ብቻ ነው።\n\n` +
-        `አሁኑኑ ይግቡ:`;
-
-      await this.sendMessage(chatId, text, {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "💎 VIP ክፍል ይግቡ", web_app: { url: `${webAppUrl}?view=vip` } }]
-          ]
-        }
-      });
-      return;
-    }
-
-    // 5. Step 2 -> Player types amount (state is deposit_amount)
+    // State: deposit_amount -> user typed a number
     if (state?.step === "deposit_amount") {
       const match = text.match(/([0-9]+(?:\.[0-9]{1,2})?)/);
       const amount = match ? Number(match[1]) : 0;
       if (amount <= 0 || isNaN(amount)) {
         await this.sendMessage(chatId, "⚠️ <b>ትክክለኛ የብር መጠን ያስገቡ</b> (ለምሳሌ፡ 100):", {
-          reply_markup: { force_reply: true, input_field_placeholder: "የብር መጠን ያስገቡ..." }
+          reply_markup: {
+            inline_keyboard: [[{ text: "❌ አቋርጥ", callback_data: "cmd_cancel" }]]
+          }
         });
         return;
       }
-      await this.cmdDepositStep2(chatId, state?.target || "🎮 Main Game", amount);
+      await this.cmdDepositStep3_Method(chatId, state?.target || "🎮 Main Game", amount);
       return;
     }
 
-    // 6. Step 3 -> Payment method selection (TeleBirr, CBE Birr, MPesa, E-Birr)
-    if (
-      (state?.step === "deposit_method" && (norm.includes("tele") || norm.includes("cbe") || norm.includes("mpesa") || norm.includes("pesa") || norm.includes("ebirr") || norm.includes("e-birr") || norm.includes("birr"))) ||
-      norm === "telebirr" || norm.includes("telebirr") ||
-      norm === "cbe birr" || norm.includes("cbe") ||
-      norm === "mpesa" || norm.includes("mpesa") || norm.includes("m-pesa") ||
-      norm === "e-birr" || norm.includes("ebirr") || norm.includes("e-birr")
-    ) {
-      const method = (norm.includes("cbe")) ? "CBE Birr" :
-                     (norm.includes("mpesa") || norm.includes("m-pesa") || norm.includes("pesa")) ? "MPesa" :
+    // State: deposit_method -> user typed a method name
+    if (state?.step === "deposit_method") {
+      const method = norm.includes("cbe") ? "CBE Birr" :
+                     (norm.includes("mpesa") || norm.includes("pesa")) ? "MPesa" :
                      (norm.includes("ebirr") || norm.includes("e-birr")) ? "E-Birr" : "TeleBirr";
-      await this.cmdDepositInstruction(chatId, user, method);
+      await this.cmdDepositStep4_Instruction(chatId, user, method);
       return;
     }
 
-    // 7. Step 4 -> Confirmation: User selects "1" or pastes SMS/Txn ID
-    if (state?.step === "deposit_confirm" || text === "1" || (state?.step === "deposit_method" && text === "1")) {
+    // State: deposit_confirm -> user typed/pasted Txn ID
+    if (state?.step === "deposit_confirm" || text === "1") {
       await this.cmdDepositComplete(chatId, user, text);
       return;
     }
+
+    // State: withdraw_amount -> user typed an amount to withdraw
+    if (state?.step === "withdraw_amount") {
+      const match = text.match(/([0-9]+(?:\.[0-9]{1,2})?)/);
+      const amount = match ? Number(match[1]) : 0;
+      const maxBal = state?.maxBalance || 0;
+
+      if (amount < 100 || isNaN(amount)) {
+        await this.sendMessage(chatId, "⚠️ <b>አነስተኛው የማውጫ መጠን 100 ETB ነው።</b> እባክዎ ከ 100 ETB ጀምሮ ያስገቡ:", {
+          reply_markup: { inline_keyboard: [[{ text: "❌ አቋርጥ", callback_data: "cmd_cancel" }]] }
+        });
+        return;
+      }
+      if (amount > maxBal) {
+        await this.sendMessage(chatId, `⚠️ <b>በቂ ቀሪ ሂሳብ የለዎትም!</b> የአሁኑ ቀሪ ሂሳብዎ: <b>${maxBal.toFixed(2)} ETB</b> ነው።`, {
+          reply_markup: { inline_keyboard: [[{ text: "❌ አቋርጥ", callback_data: "cmd_cancel" }]] }
+        });
+        return;
+      }
+      await this.cmdWithdrawStep3_AccountPrompt(chatId, user, state.withdrawMethod || "TeleBirr", amount);
+      return;
+    }
+
+    // State: withdraw_account -> user typed receiver phone/account number
+    if (state?.step === "withdraw_account") {
+      await this.cmdWithdrawComplete(chatId, user, text);
+      return;
+    }
+
+    // If user typed a random number and not in state, treat as deposit amount prompt
+    const standaloneNum = text.match(/^([0-9]{2,5})$/);
+    if (standaloneNum) {
+      const amt = Number(standaloneNum[1]);
+      if (amt >= 10) {
+        await this.cmdDepositStep3_Method(chatId, "🎮 Main Game", amt);
+        return;
+      }
+    }
+
+    // Fallback: Show Main Menu
+    await this.sendMessage(
+      chatId,
+      `👋 <b>እንደምን አደሩ/ዋሉ ${user ? user.name : "ተጫዋች"}!</b>\n\nከታች ያሉትን ቁልፎች በመጠቀም መጫወት፣ ሂሳብ መሙላት ወይም ወጪ ማድረግ ይችላሉ:`,
+      { reply_markup: this.getMainKeyboard() }
+    );
   }
 
   async getOrCreateTelegramUser(tgUser) {

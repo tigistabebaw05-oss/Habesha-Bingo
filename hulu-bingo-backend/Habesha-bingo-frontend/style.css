@@ -1880,6 +1880,17 @@ footer {
   font-size: 20px;
   font-weight: 950;
   margin-top: 2px;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.derash-pulse {
+  animation: derashPulseAnim 0.3s ease-out;
+}
+
+@keyframes derashPulseAnim {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
 }
 
 .balls-pyramid-container {
