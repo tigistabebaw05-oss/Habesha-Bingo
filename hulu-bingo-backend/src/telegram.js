@@ -344,10 +344,11 @@ class TelegramBingoService {
     const phone = "0951666750";
     const name = "Tirualem";
 
-    const text = `ክፍያ መመሪያ\n` +
-      `1,deposite yadereginewun ETB   በ ${method} ወደዚህ ይላኩ፡ <b>${phone} (${name})</b>\n` +
-      `2, ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n` +
-      `3,የመልክቱን ID (sms ሙሉውን)እዚህ ጋር ይለጥፉ(past)`;
+    const text = `🔄 <b>ክፍያ መመሪያ</b>\n\n` +
+      `1. Depisite yaderegutin birrETB በ ${method} ወደዚህ ይላኩ:\n` +
+      `<b>${phone}(${name})</b>\n\n` +
+      `2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።\n\n` +
+      `3. የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):`;
 
     await this.sendMessage(chatId, text, { reply_markup: this.getDepositConfirmKeyboard() });
   }
@@ -358,7 +359,7 @@ class TelegramBingoService {
     const method = currentState.method || "TeleBirr";
 
     let amount = 100;
-    let txnId = "-";
+    let txnId = "—";
 
     const trimmed = (inputMessage || "").trim();
     if (trimmed !== "1") {

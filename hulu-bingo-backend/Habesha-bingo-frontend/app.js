@@ -627,11 +627,12 @@ window.openDepositInstructionFlow = function(method = "TeleBirr") {
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     msgBox.innerHTML = `
       <div class="chat-message bot-message" style="text-align: left; line-height: 1.6;">
-        <div class="bot-msg-title">📋 ክፍያ መመሪያ</div>
+        <div class="bot-msg-title">🔄 ክፍያ መመሪያ</div>
         <div class="bot-msg-text">
-          1, deposite ያደረጉትን ETB በ ${escapeHtml(method)} ወደዚህ ይላኩ፡ <b>0951666750 (Tirualem)</b><br>
-          2, ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።<br>
-          3, የመልክቱን ID (sms ሙሉውን) እዚህ ጋር ይለጥፉ(past)
+          1. Depisite yaderegutin birrETB በ ${escapeHtml(method)} ወደዚህ ይላኩ:<br>
+          <b>0951666750(Tirualem)</b><br><br>
+          2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።<br><br>
+          3. የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):
         </div>
         <small class="msg-time">${now}</small>
       </div>
@@ -657,7 +658,7 @@ window.confirmDepositFlow1 = async function() {
       </div>
       <div class="chat-message bot-message" style="text-align: left; line-height: 1.6;">
         <div style="font-weight: bold; color: #4caf50; font-size: 15px;">✅ ጥያቄዎ ተልኳል!</div>
-        <div style="margin-top: 8px;">መጠን: <b>100 ETB</b><br>Txn ID: <b>-</b></div>
+        <div style="margin-top: 8px;">መጠን: <b>100 ETB</b><br>Txn ID: <b>—</b></div>
         <div style="margin-top: 8px;">አድሚን እንዳረጋገጠው ገቢ ይደረጋል።<br>🎯 Target: <b>${escapeHtml(target)}</b></div>
         <div style="margin-top: 8px; color: #94a3b8; font-style: italic;">⏳ Waiting for network confirmation...</div>
         <small class="msg-time">${now}</small>
