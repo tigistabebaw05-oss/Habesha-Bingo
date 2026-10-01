@@ -157,7 +157,7 @@
         <span>START PLAYING HULU BINGO GAME!</span>
         <small>/start</small>
       </button>
-      <button class="menu-item" onclick="document.getElementById('wallet').scrollIntoView(); document.getElementById('floatingMenuPopup').hidden=true;">
+      <button class="menu-item" id="menuDepositFundBtn">
         <span>Deposit Fund!</span>
         <small>/deposit</small>
       </button>
@@ -198,6 +198,32 @@
       </div>
       <div class="keyboard-row">
         <button class="keyboard-btn full-width" id="menuBtnRewards">🎁 የተለያዩ ማስታወቂያ</button>
+      </div>
+    </div>
+
+    <!-- Deposit Step 1 Keyboard (Image 1: 🎮 ዋናው ጨዋታ | 💎 VIP ክፍል | አቋርጥ) -->
+    <div class="telegram-keyboard tg-deposit-keyboard" id="telegramDepositTypeKeyboard" hidden>
+      <div class="keyboard-row">
+        <button class="keyboard-btn" id="btnDepositMainGame">🎮 ዋናው ጨዋታ</button>
+        <button class="keyboard-btn" id="btnDepositVip">💎 VIP ክፍል</button>
+      </div>
+      <div class="keyboard-row">
+        <button class="keyboard-btn full-width" id="btnDepositCancel1">አቋርጥ</button>
+      </div>
+    </div>
+
+    <!-- Deposit Step 2 Keyboard (Image 2: TeleBirr, CBE Birr, MPesa, E-Birr, አቋርጥ) -->
+    <div class="telegram-keyboard tg-deposit-keyboard" id="telegramDepositMethodKeyboard" hidden>
+      <div class="keyboard-row">
+        <button class="keyboard-btn" id="btnMethodTelebirr" data-method="TeleBirr">TeleBirr</button>
+        <button class="keyboard-btn" id="btnMethodCbe" data-method="CBE Birr">CBE Birr</button>
+      </div>
+      <div class="keyboard-row">
+        <button class="keyboard-btn" id="btnMethodMpesa" data-method="M-Pesa">MPesa</button>
+        <button class="keyboard-btn" id="btnMethodEbirr" data-method="E-Birr">E-Birr</button>
+      </div>
+      <div class="keyboard-row">
+        <button class="keyboard-btn full-width" id="btnDepositCancel2">አቋርጥ</button>
       </div>
     </div>
     
@@ -376,8 +402,8 @@
         <div style="font-size: 28px; font-weight: 900; color: #ffd700; margin-bottom: 5px;">10,000+ ETB</div>
         <small style="color: #94a3b8;">የመግቢያ ዋጋ: 50 ETB | አነስተኛ ተጫዋች: 20</small>
       </div>
-      <button class="btn btn-gold full" style="margin-bottom: 10px;" onclick="toast('VIP ክፍል በቅርቡ ይከፈታል!')">ክፍሉን ተቀላቀል (Join VIP)</button>
-      <button class="btn btn-outline full modal-bottom-back-btn" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
+      <button class="btn btn-gold full" id="btnJoinVipModal" type="button" style="margin-bottom: 10px; font-weight: 800; font-size: 16px; padding: 14px; cursor: pointer;" onclick="window.switchToVipRoomView();">ክፍሉን ተቀላቀል (Join VIP)</button>
+      <button class="btn btn-outline full modal-bottom-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
     </div>
   </div>
 

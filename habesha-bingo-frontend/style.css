@@ -2444,11 +2444,22 @@ footer {
 .hulu-vip-room-view {
   background: #080a10;
   color: #f8fafc;
-  min-height: 100%;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 10px 12px 85px 12px;
+  padding: 10px 12px 90px 12px;
   box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.hulu-vip-room-view[hidden] {
+  display: none !important;
+}
+
+.vip-bottom-action-bar[hidden] {
+  display: none !important;
 }
 
 .vip-header-bar {

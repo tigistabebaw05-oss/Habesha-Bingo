@@ -13,7 +13,13 @@ if (window.Telegram && window.Telegram.WebApp) {
       const modal = $("huluBingoWebAppModal");
       if (modal) {
         modal.hidden = false;
-        switchToCardSelectionView();
+        const s = (window.location.search || "") + " " + (window.location.hash || "") + " " + (window.location.href || "");
+        const tgStart = window.Telegram?.WebApp?.initDataUnsafe?.start_param || "";
+        if (s.includes("view=vip") || s.includes("action=vip") || tgStart === "vip") {
+          window.switchToVipRoomView();
+        } else {
+          switchToCardSelectionView();
+        }
       }
     };
     if (document.readyState === "loading") {
@@ -504,7 +510,10 @@ window.closeAllTelegramModals = function() {
     const el = document.getElementById(id);
     if (el) el.hidden = true;
   });
+  if ($("vipModal")) $("vipModal").hidden = true;
   if ($("huluBingoWebAppModal")) $("huluBingoWebAppModal").hidden = true;
+  if ($("huluVipRoomView")) $("huluVipRoomView").hidden = true;
+  if ($("telegramVipChatState")) $("telegramVipChatState").hidden = true;
   if ($("telegramDepositTypeKeyboard")) $("telegramDepositTypeKeyboard").hidden = true;
   if ($("telegramDepositMethodKeyboard")) $("telegramDepositMethodKeyboard").hidden = true;
   if ($("telegramDepositConfirmKeyboard")) $("telegramDepositConfirmKeyboard").hidden = true;
@@ -513,6 +522,7 @@ window.closeAllTelegramModals = function() {
   if ($("floatingMenuPopup")) $("floatingMenuPopup").hidden = true;
   if ($("telegramChatState")) $("telegramChatState").hidden = true;
   if ($("menuToggleBtn")) $("menuToggleBtn").innerHTML = "✕ Menu";
+  document.querySelectorAll(".hulu-bottom-bar").forEach(el => el.hidden = false);
 };
 
 // Universal listener for all top and bottom Back buttons
@@ -1076,6 +1086,8 @@ function switchToCardSelectionView() {
   if ($("huluLiveGameView")) $("huluLiveGameView").hidden = true;
   if ($("huluWinnersCelebrationView")) $("huluWinnersCelebrationView").hidden = true;
   if ($("huluGrandWinnerView")) $("huluGrandWinnerView").hidden = true;
+  if ($("huluVipRoomView")) $("huluVipRoomView").hidden = true;
+  document.querySelectorAll(".hulu-bottom-bar").forEach(el => el.hidden = false);
   if ($("tgTotalBetBtn")) $("tgTotalBetBtn").hidden = false;
   if ($("tgBingoBtn")) $("tgBingoBtn").hidden = true;
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
@@ -1096,6 +1108,8 @@ function switchToLiveGameView() {
   if ($("huluLiveGameView")) $("huluLiveGameView").hidden = false;
   if ($("huluWinnersCelebrationView")) $("huluWinnersCelebrationView").hidden = true;
   if ($("huluGrandWinnerView")) $("huluGrandWinnerView").hidden = true;
+  if ($("huluVipRoomView")) $("huluVipRoomView").hidden = true;
+  document.querySelectorAll(".hulu-bottom-bar").forEach(el => el.hidden = false);
   if ($("tgTotalBetBtn")) $("tgTotalBetBtn").hidden = true;
   if ($("tgBingoBtn")) $("tgBingoBtn").hidden = false;
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
@@ -1448,16 +1462,44 @@ window.switchToVipRoomView = function() {
     clearTimeout(winnersAutoRestartTimeout);
     winnersAutoRestartTimeout = null;
   }
+  
+  // 1. Hide modal backdrop immediately
+  if ($("vipModal")) $("vipModal").hidden = true;
+  telegramModalIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.hidden = true;
+  });
+  if ($("telegramKeyboard")) $("telegramKeyboard").hidden = true;
+  if ($("telegramChatState")) $("telegramChatState").hidden = true;
+  if ($("telegramVipChatState")) $("telegramVipChatState").hidden = true;
+  if ($("telegramDepositChatState")) $("telegramDepositChatState").hidden = true;
+  if ($("telegramDepositTypeKeyboard")) $("telegramDepositTypeKeyboard").hidden = true;
+  if ($("telegramDepositMethodKeyboard")) $("telegramDepositMethodKeyboard").hidden = true;
+  if ($("telegramDepositConfirmKeyboard")) $("telegramDepositConfirmKeyboard").hidden = true;
+  if ($("floatingMenuPopup")) $("floatingMenuPopup").hidden = true;
+
+  // 2. Hide other game views
   if ($("huluCardSelectionView")) $("huluCardSelectionView").hidden = true;
   if ($("huluLiveGameView")) $("huluLiveGameView").hidden = true;
   if ($("huluWinnersCelebrationView")) $("huluWinnersCelebrationView").hidden = true;
   if ($("huluGrandWinnerView")) $("huluGrandWinnerView").hidden = true;
   if ($("huluWaitingView")) $("huluWaitingView").hidden = true;
-  if ($("huluVipRoomView")) $("huluVipRoomView").hidden = false;
-  if ($("huluBingoWebAppModal")) $("huluBingoWebAppModal").hidden = false;
   if ($("tgTotalBetBtn")) $("tgTotalBetBtn").hidden = true;
   if ($("tgBingoBtn")) $("tgBingoBtn").hidden = true;
 
+  // Hide the regular bottom bar for clean VIP room
+  document.querySelectorAll(".hulu-bottom-bar").forEach(el => el.hidden = true);
+
+  // 3. Show WebApp Modal and VIP Room
+  const modal = $("huluBingoWebAppModal");
+  if (modal) modal.hidden = false;
+
+  const vipRoom = $("huluVipRoomView");
+  if (vipRoom) vipRoom.hidden = false;
+
+  if ($("playerApp")) $("playerApp").hidden = false;
+
+  // 4. Initialize cards, timer, totals
   vipSelectedCards.clear();
   renderVipCardsGrid();
   startVipCountdown();
@@ -1466,6 +1508,7 @@ window.switchToVipRoomView = function() {
   // Populate balances from wallet
   const vipBal = state.wallet?.vip_balance ? Number(state.wallet.vip_balance).toFixed(2) + " ETB" : "0.00 ETB";
   if ($("vipPlayBalance")) $("vipPlayBalance").textContent = vipBal;
+  document.querySelectorAll(".val-vip-chat").forEach(el => el.textContent = vipBal);
 };
 
 function renderVipCardsGrid() {
@@ -1525,11 +1568,11 @@ function startVipCountdown() {
     if (numEl) numEl.textContent = seconds;
     if (secEl) secEl.textContent = `${seconds} ሴ`;
     if (progEl) {
-      const offset = totalLength - (seconds / 40) * totalLength;
+      const offset = totalLength - (seconds / 38) * totalLength;
       progEl.style.strokeDashoffset = offset;
     }
     if (seconds <= 0) {
-      seconds = 40;
+      seconds = 38;
     } else {
       seconds--;
     }
@@ -1540,8 +1583,16 @@ function startVipCountdown() {
 
 // VIP listeners
 function initVipListeners() {
+  document.querySelectorAll("#btnJoinVipModal, .btn-join-vip, #btnEnterVipRoom").forEach(btn => {
+    btn.onclick = function(e) {
+      if (e) e.preventDefault();
+      window.switchToVipRoomView();
+    };
+  });
+
   if ($("vipBackArrowBtn")) {
-    $("vipBackArrowBtn").onclick = function() {
+    $("vipBackArrowBtn").onclick = function(e) {
+      if (e) e.preventDefault();
       if (typeof switchToCardSelectionView === "function") {
         switchToCardSelectionView();
       }
@@ -1549,7 +1600,8 @@ function initVipListeners() {
   }
 
   if ($("vipDepositQuickBtn")) {
-    $("vipDepositQuickBtn").onclick = function() {
+    $("vipDepositQuickBtn").onclick = function(e) {
+      if (e) e.preventDefault();
       if (typeof openDepositTypeKeyboard === "function") {
         closeAllTelegramModals();
         openDepositTypeKeyboard();
@@ -1558,7 +1610,8 @@ function initVipListeners() {
   }
 
   if ($("vipPlaySubmitBtn")) {
-    $("vipPlaySubmitBtn").onclick = function() {
+    $("vipPlaySubmitBtn").onclick = function(e) {
+      if (e) e.preventDefault();
       if (vipSelectedCards.size === 0) {
         toast("እባክዎ መጀመሪያ VIP ካርቴላ ይምረጡ!");
         return;

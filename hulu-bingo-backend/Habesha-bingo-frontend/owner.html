@@ -261,6 +261,25 @@
       </div>
     </div>
 
+    <!-- VIP Chat State (Matching Screenshot 1) -->
+    <div class="telegram-chat-state" id="telegramVipChatState" hidden>
+      <div class="chat-message user-message">
+        💎 VIP ክፍል
+        <small class="msg-time">2:51 PM <span style="color: #4caf50;">✓✓</span></small>
+      </div>
+      <div class="chat-message bot-message" style="line-height: 1.5; font-size: 13.5px;">
+        <div style="font-weight: 800; font-size: 15px; margin-bottom: 6px; color: #0284c7;">💎 VIP ክፍል</div>
+        <div style="margin-bottom: 8px;">ከፍተኛ ዕድል • 50 ETB ውርድ • ከፍተኛ 2 ካርዶች<br>🎴 50 ልዩ ካርዶች — ለልዩ VIP ብቻ</div>
+        <div style="margin-bottom: 8px;">💰 VIP ሂሳብ: <b class="val-vip-chat">0.00 ETB</b><br>🏆 ጠቅላላ ያሸነፉት: <b>0.00 ETB</b></div>
+        <div style="font-size: 12px; color: #64748b; font-style: italic; margin-bottom: 8px;">ማስታወሻ: VIP ካርድ ለመግዛት የሚያስፈልገው ገንዘብ ከ አዲስ ገቢ ብቻ ነው።</div>
+        <div style="margin-bottom: 6px; font-weight: 600;">አሁኑኑ ይግቡ:</div>
+        <button class="keyboard-btn full-width" id="btnEnterVipRoom" type="button" style="margin-top: 4px; background: #0284c7; color: #ffffff; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; font-size: 14px; border: none; cursor: pointer;" onclick="window.switchToVipRoomView();">
+          💎 VIP ክፍል ይግቡ
+        </button>
+        <button class="keyboard-btn full-width" id="vipChatBackBtn" type="button" style="margin-top: 6px; background: #f1f5f9; color: #1e293b; font-size: 13px; border-radius: 8px;" onclick="closeAllTelegramModals();">⬅️ ተመለስ (Back)</button>
+      </div>
+    </div>
+
     <div class="floating-menu-bar">
       <button class="menu-toggle-btn" id="menuToggleBtn">
         ✕ Menu
@@ -421,8 +440,8 @@
         <div style="font-size: 28px; font-weight: 900; color: #ffd700; margin-bottom: 5px;">10,000+ ETB</div>
         <small style="color: #94a3b8;">የመግቢያ ዋጋ: 50 ETB | አነስተኛ ተጫዋች: 20</small>
       </div>
-      <button class="btn btn-gold full" style="margin-bottom: 10px;" onclick="closeAllTelegramModals(); window.switchToVipRoomView();">ክፍሉን ተቀላቀል (Join VIP)</button>
-      <button class="btn btn-outline full modal-bottom-back-btn" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
+      <button class="btn btn-gold full" id="btnJoinVipModal" type="button" style="margin-bottom: 10px; font-weight: 800; font-size: 16px; padding: 14px; cursor: pointer;" onclick="window.switchToVipRoomView();">ክፍሉን ተቀላቀል (Join VIP)</button>
+      <button class="btn btn-outline full modal-bottom-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
     </div>
   </div>
 
