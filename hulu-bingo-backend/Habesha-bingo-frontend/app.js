@@ -1438,3 +1438,149 @@ try {
 } catch (e) {
   console.warn("Error checking urlParams:", e);
 }
+
+// VIP Room State & Logic
+let vipSelectedCards = new Set();
+let vipCountdownInterval = null;
+
+window.switchToVipRoomView = function() {
+  if (typeof winnersAutoRestartTimeout !== "undefined" && winnersAutoRestartTimeout) {
+    clearTimeout(winnersAutoRestartTimeout);
+    winnersAutoRestartTimeout = null;
+  }
+  if ($("huluCardSelectionView")) $("huluCardSelectionView").hidden = true;
+  if ($("huluLiveGameView")) $("huluLiveGameView").hidden = true;
+  if ($("huluWinnersCelebrationView")) $("huluWinnersCelebrationView").hidden = true;
+  if ($("huluGrandWinnerView")) $("huluGrandWinnerView").hidden = true;
+  if ($("huluWaitingView")) $("huluWaitingView").hidden = true;
+  if ($("huluVipRoomView")) $("huluVipRoomView").hidden = false;
+  if ($("huluBingoWebAppModal")) $("huluBingoWebAppModal").hidden = false;
+  if ($("tgTotalBetBtn")) $("tgTotalBetBtn").hidden = true;
+  if ($("tgBingoBtn")) $("tgBingoBtn").hidden = true;
+
+  vipSelectedCards.clear();
+  renderVipCardsGrid();
+  startVipCountdown();
+  updateVipTotals();
+
+  // Populate balances from wallet
+  const vipBal = state.wallet?.vip_balance ? Number(state.wallet.vip_balance).toFixed(2) + " ETB" : "0.00 ETB";
+  if ($("vipPlayBalance")) $("vipPlayBalance").textContent = vipBal;
+};
+
+function renderVipCardsGrid() {
+  const grid = $("vipCardsGrid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  for (let i = 1; i <= 50; i++) {
+    const card = document.createElement("div");
+    card.className = "vip-card-box" + (vipSelectedCards.has(i) ? " selected" : "");
+    card.setAttribute("data-num", i);
+    card.innerHTML = `<span class="vip-card-num">${i}</span>`;
+    card.addEventListener("click", () => toggleVipCard(i, card));
+    grid.appendChild(card);
+  }
+}
+
+function toggleVipCard(num, el) {
+  if (vipSelectedCards.has(num)) {
+    vipSelectedCards.delete(num);
+    el.classList.remove("selected");
+  } else {
+    if (vipSelectedCards.size >= 2) {
+      toast("ከፍተኛ 2 ካርዶች ብቻ ነው መምረጥ የሚቻለው (Max 2 cards)!");
+      return;
+    }
+    vipSelectedCards.add(num);
+    el.classList.add("selected");
+  }
+  updateVipTotals();
+}
+
+function updateVipTotals() {
+  const bar = $("vipBottomActionBar");
+  const countText = $("vipSelectedCountText");
+  const betText = $("vipTotalBetText");
+  const size = vipSelectedCards.size;
+  if (bar) {
+    bar.hidden = (size === 0);
+  }
+  if (countText) {
+    countText.textContent = size === 1 ? "1 ካርድ ተመርጧል" : `${size} ካርዶች ተመርጠዋል`;
+  }
+  if (betText) {
+    betText.textContent = `${size * 50} ETB`;
+  }
+}
+
+function startVipCountdown() {
+  if (vipCountdownInterval) clearInterval(vipCountdownInterval);
+  let seconds = 38;
+  const numEl = $("vipCountdownNum");
+  const secEl = $("vipSecondsLeft");
+  const progEl = $("vipTimerProgress");
+  const totalLength = 119;
+
+  const update = () => {
+    if (numEl) numEl.textContent = seconds;
+    if (secEl) secEl.textContent = `${seconds} ሴ`;
+    if (progEl) {
+      const offset = totalLength - (seconds / 40) * totalLength;
+      progEl.style.strokeDashoffset = offset;
+    }
+    if (seconds <= 0) {
+      seconds = 40;
+    } else {
+      seconds--;
+    }
+  };
+  update();
+  vipCountdownInterval = setInterval(update, 1000);
+}
+
+// VIP listeners
+function initVipListeners() {
+  if ($("vipBackArrowBtn")) {
+    $("vipBackArrowBtn").onclick = function() {
+      if (typeof switchToCardSelectionView === "function") {
+        switchToCardSelectionView();
+      }
+    };
+  }
+
+  if ($("vipDepositQuickBtn")) {
+    $("vipDepositQuickBtn").onclick = function() {
+      if (typeof openDepositTypeKeyboard === "function") {
+        closeAllTelegramModals();
+        openDepositTypeKeyboard();
+      }
+    };
+  }
+
+  if ($("vipPlaySubmitBtn")) {
+    $("vipPlaySubmitBtn").onclick = function() {
+      if (vipSelectedCards.size === 0) {
+        toast("እባክዎ መጀመሪያ VIP ካርቴላ ይምረጡ!");
+        return;
+      }
+      toast(`VIP ካርቴላዎች ተመርጠዋል! ድምር: ${vipSelectedCards.size * 50} ETB`);
+      setTimeout(switchToLiveGameView, 600);
+    };
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initVipListeners);
+} else {
+  initVipListeners();
+}
+
+// Initial check for VIP query param
+try {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("view") === "vip" || urlParams.get("action") === "vip") {
+    setTimeout(() => {
+      window.switchToVipRoomView();
+    }, 300);
+  }
+} catch (e) {}

@@ -421,7 +421,7 @@
         <div style="font-size: 28px; font-weight: 900; color: #ffd700; margin-bottom: 5px;">10,000+ ETB</div>
         <small style="color: #94a3b8;">የመግቢያ ዋጋ: 50 ETB | አነስተኛ ተጫዋች: 20</small>
       </div>
-      <button class="btn btn-gold full" style="margin-bottom: 10px;" onclick="toast('VIP ክፍል በቅርቡ ይከፈታል!')">ክፍሉን ተቀላቀል (Join VIP)</button>
+      <button class="btn btn-gold full" style="margin-bottom: 10px;" onclick="closeAllTelegramModals(); window.switchToVipRoomView();">ክፍሉን ተቀላቀል (Join VIP)</button>
       <button class="btn btn-outline full modal-bottom-back-btn" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
     </div>
   </div>
@@ -868,6 +868,102 @@
         <!-- Status Footnote -->
         <div class="grand-footer-status">
           <span>ሽልማት ገቢ እየተደረገ ነው...</span>
+        </div>
+      </div>
+
+      <!-- VIEW 5: VIP Room View (Matching Screenshot 2) -->
+      <div class="hulu-vip-room-view" id="huluVipRoomView" hidden>
+        <!-- VIP Header -->
+        <div class="vip-header-bar">
+          <button class="vip-back-arrow-btn" id="vipBackArrowBtn" type="button" title="Back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          
+          <div class="vip-title-pill">
+            <div class="vip-crown-box">👑</div>
+            <div class="vip-title-col">
+              <span class="vip-title-main">ሁሉ ቢንጎ <b class="vip-gold-text">VIP ክፍል</b></span>
+              <span class="vip-round-num" id="vipGameRound">#101408</span>
+            </div>
+          </div>
+
+          <div class="vip-header-actions">
+            <div class="vip-lang-pill">
+              <span class="lang-opt">EN</span>
+              <span class="lang-opt active">አማ</span>
+            </div>
+            <button class="vip-sound-btn" type="button" aria-label="Sound">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- VIP Stats Banner -->
+        <div class="vip-stats-banner">
+          <div class="vip-stat-col">
+            <span class="vip-stat-lbl">VIP መጫወቻ</span>
+            <span class="vip-stat-val" id="vipPlayBalance">0 ETB</span>
+          </div>
+
+          <div class="vip-stat-col">
+            <span class="vip-stat-lbl">🚩 VIP ሽልማት:</span>
+            <span class="vip-stat-val" id="vipPrizeAmount">0 ETB</span>
+          </div>
+
+          <!-- Circular Countdown Timer -->
+          <div class="vip-timer-circle">
+            <svg class="vip-timer-svg" width="46" height="46" viewBox="0 0 46 46">
+              <circle cx="23" cy="23" r="19" class="timer-bg-circle"></circle>
+              <circle cx="23" cy="23" r="19" class="timer-progress-circle" id="vipTimerProgress"></circle>
+            </svg>
+            <span class="vip-timer-digit" id="vipCountdownNum">38</span>
+          </div>
+
+          <div class="vip-stat-col">
+            <span class="vip-stat-lbl">💎 አጠቃላይ ድምር</span>
+            <span class="vip-stat-val" id="vipTotalVolume">0 ETB</span>
+          </div>
+        </div>
+
+        <!-- VIP Status Bar -->
+        <div class="vip-status-strip">
+          <div class="vip-status-left">
+            <span class="status-dot-gold">●</span>
+            <span id="vipWaitingText">ተጫዋቾች በመጠበቅ ላይ • <b id="vipSecondsLeft">38 ሴ</b></span>
+          </div>
+          <div class="vip-status-right">
+            <span id="vipPlayersJoined">0/50</span> • <span class="vip-price-tag">50 ETB</span>
+          </div>
+        </div>
+
+        <!-- VIP Notice Banner -->
+        <div class="vip-notice-banner">
+          <div class="vip-notice-left">
+            <span class="bulb-icon">💡</span>
+            <span>VIP ለመጫወት ተጨማሪ ሂሳብ ያስፈልጋል?</span>
+          </div>
+          <button class="vip-deposit-btn" id="vipDepositQuickBtn" type="button">ገቢ ያድርጉ</button>
+        </div>
+
+        <!-- VIP Cards Section Header -->
+        <div class="vip-cards-header">
+          <div class="vip-cards-title">
+            <span class="brand-hulu">ሁሉ ቢንጎ</span> <span class="cards-lbl">VIP ካርዶች</span>
+            <span class="card-price-hint">የአንዱ ካርቴላ ዋጋ <b class="gold-price">50 ETB</b></span>
+          </div>
+          <div class="vip-pick-limit">PICK UP TO 2</div>
+        </div>
+
+        <!-- VIP 50 Cards Grid (5x10) -->
+        <div class="vip-cards-grid" id="vipCardsGrid"></div>
+
+        <!-- VIP Bottom Floating Action Bar -->
+        <div class="vip-bottom-action-bar" id="vipBottomActionBar" hidden>
+          <div class="vip-selected-info">
+            <span id="vipSelectedCountText">1 ካርድ ተመርጧል</span>
+            <b class="vip-total-bet" id="vipTotalBetText">50 ETB</b>
+          </div>
+          <button class="btn btn-gold vip-play-submit-btn" id="vipPlaySubmitBtn" type="button">💎 VIP ተጫወት (Play VIP)</button>
         </div>
       </div>
 

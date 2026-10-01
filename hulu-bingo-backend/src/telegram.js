@@ -571,7 +571,23 @@ class TelegramBingoService {
     // If VIP button clicked from main menu when NOT in deposit_target state
     if (norm.includes("vip") || norm.includes("ቪአይፒ")) {
       this.userState.delete(chatId);
-      await this.sendMessage(chatId, "💎 <b>VIP ክፍል</b>\n\nለ VIP ተጫዋቾች የተዘጋጀ ልዩ ክፍል! በቅርቡ ክፍት ይሆናል።", { reply_markup: this.getMainKeyboard() });
+      const webAppUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+      const vipBalance = Number(user?.vip_balance || 0).toFixed(2);
+      const text = `💎 <b>VIP ክፍል</b>\n\n` +
+        `ከፍተኛ ዕድል • 50 ETB ውርድ • ከፍተኛ 2 ካርዶች\n` +
+        `🎴 50 ልዩ ካርዶች — ለልዩ VIP ብቻ\n\n` +
+        `💰 VIP ሂሳብ: <b>${vipBalance} ETB</b>\n` +
+        `🏆 ጠቅላላ ያሸነፉት: <b>0.00 ETB</b>\n\n` +
+        `ማስታወሻ: VIP ካርድ ለመግዛት የሚያስፈልገው ገንዘብ ከ አዲስ ገቢ ብቻ ነው።\n\n` +
+        `አሁኑኑ ይግቡ:`;
+
+      await this.sendMessage(chatId, text, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "💎 VIP ክፍል ይግቡ", web_app: { url: `${webAppUrl}?view=vip` } }]
+          ]
+        }
+      });
       return;
     }
 

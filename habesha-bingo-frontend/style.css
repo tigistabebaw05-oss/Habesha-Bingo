@@ -2437,3 +2437,367 @@ footer {
     margin-bottom: 75px;
   }
 }
+
+/* ==========================================================================
+   Hulu Bingo VIP Room View (Matching Screenshot 2)
+   ========================================================================== */
+.hulu-vip-room-view {
+  background: #080a10;
+  color: #f8fafc;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 85px 12px;
+  box-sizing: border-box;
+}
+
+.vip-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.vip-back-arrow-btn {
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vip-title-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #141722;
+  border: 1px solid #232838;
+  border-radius: 999px;
+  padding: 4px 14px 4px 4px;
+}
+
+.vip-crown-box {
+  background: linear-gradient(135deg, #f5b716, #ffd747);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #0b0e14;
+}
+
+.vip-title-col {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.vip-gold-text {
+  color: #f5b716;
+}
+
+.vip-round-num {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vip-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vip-lang-pill {
+  display: flex;
+  background: #141722;
+  border: 1px solid #282e42;
+  border-radius: 999px;
+  padding: 3px 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  gap: 4px;
+}
+
+.vip-lang-pill .lang-opt {
+  color: #64748b;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.vip-lang-pill .lang-opt.active {
+  background: #f5b716;
+  color: #0b0e14;
+}
+
+.vip-sound-btn {
+  background: #141722;
+  border: 1px solid #282e42;
+  color: #cbd5e1;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Stats Banner */
+.vip-stats-banner {
+  background: #11141e;
+  border: 1px solid #202636;
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.vip-stat-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.vip-stat-lbl {
+  font-size: 10.5px;
+  color: #8b9bb4;
+  font-weight: 600;
+}
+
+.vip-stat-val {
+  font-size: 13px;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.vip-timer-circle {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vip-timer-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: rotate(-90deg);
+}
+
+.timer-bg-circle {
+  fill: none;
+  stroke: #1e2433;
+  stroke-width: 3.5;
+}
+
+.timer-progress-circle {
+  fill: none;
+  stroke: #f5b716;
+  stroke-width: 3.5;
+  stroke-dasharray: 119;
+  stroke-dashoffset: 30;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.vip-timer-digit {
+  font-size: 15px;
+  font-weight: 900;
+  color: #f8fafc;
+  z-index: 2;
+}
+
+/* Status Strip */
+.vip-status-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  font-size: 11.5px;
+  color: #8b9bb4;
+  margin-bottom: 8px;
+}
+
+.status-dot-gold {
+  color: #f5b716;
+  margin-right: 4px;
+}
+
+.vip-price-tag {
+  color: #f5b716;
+  font-weight: 800;
+}
+
+/* Notice Banner */
+.vip-notice-banner {
+  background: #151924;
+  border: 1px solid #2a3144;
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.vip-notice-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #e2e8f0;
+}
+
+.bulb-icon {
+  font-size: 14px;
+}
+
+.vip-deposit-btn {
+  background: #f5b716;
+  color: #0b0e14;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Cards Section Header */
+.vip-cards-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.vip-cards-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.brand-hulu {
+  color: #f8fafc;
+}
+
+.cards-lbl {
+  color: #e2e8f0;
+}
+
+.card-price-hint {
+  font-size: 11px;
+  color: #8b9bb4;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.gold-price {
+  color: #f5b716;
+}
+
+.vip-pick-limit {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: #8b9bb4;
+  font-weight: 800;
+}
+
+/* VIP 50 Cards Grid */
+.vip-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 7px;
+  overflow-y: auto;
+  padding-bottom: 10px;
+}
+
+.vip-card-box {
+  background: #141722;
+  border: 1px solid #232838;
+  border-radius: 10px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.vip-card-num {
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #f1f5f9;
+  letter-spacing: 0.5px;
+}
+
+.vip-card-box:hover {
+  border-color: #f5b716;
+  background: #1a1e2c;
+}
+
+.vip-card-box.selected {
+  background: linear-gradient(135deg, #2b220d, #1a1708);
+  border: 2px solid #f5b716;
+  box-shadow: 0 0 12px rgba(245, 183, 22, 0.4);
+}
+
+.vip-card-box.selected .vip-card-num {
+  color: #f5b716;
+}
+
+.vip-bottom-action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(14, 18, 27, 0.96);
+  border-top: 1px solid #f5b716;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+
+.vip-selected-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.vip-total-bet {
+  font-size: 16px;
+  font-weight: 900;
+  color: #f5b716;
+}
+
+.vip-play-submit-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 800;
+  border-radius: 999px;
+}
