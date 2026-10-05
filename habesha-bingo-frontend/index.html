@@ -20,6 +20,7 @@
       <a href="#wallet">Wallet</a>
       <a href="#winners">Winners</a>
       <a href="#account" data-i18n="navAccount">Account</a>
+      <button class="btn btn-outline" id="openHuluAppBtn" style="border-color:var(--habesha-gold);color:var(--habesha-gold);">📱 Hulu Bingo App</button>
       <button class="btn btn-outline" id="langBtn">🌐 AM</button>
       <button class="btn btn-outline" id="ownerDashBtn" hidden style="border-color:var(--habesha-gold);color:var(--habesha-gold);">👑 Owner Suite</button>
       <button class="btn btn-outline" id="adminDashBtn" hidden>Admin Dashboard</button>
@@ -66,18 +67,81 @@
           <div class="balls" id="calledNumbers"><span class="empty">No numbers called yet</span></div>
           <h3>Number Board</h3>
           <div class="number-board" id="numberBoard"></div>
+
+          <!-- Desktop Cartela Selection Box -->
+          <div class="card-selection-box desk-card-selection-box" style="margin-top: 24px;">
+            <div class="selection-box-header">
+              <h3>ካርቴላ ይምረጡ (10 ብር)</h3>
+              <div class="selection-counter"><span class="cnt-cur" id="deskSelectedCount">0</span> <span class="cnt-max">/ 4</span></div>
+            </div>
+            <div class="card-range-tabs">
+              <button type="button" class="range-tab-btn active" data-start="401" data-end="500" id="deskRangeTab401">401 - 500</button>
+              <button type="button" class="range-tab-btn" data-start="1" data-end="100" id="deskRangeTab1">1 - 100</button>
+              <button type="button" class="range-tab-btn" data-start="101" data-end="200" id="deskRangeTab101">101 - 200</button>
+              <button type="button" class="range-tab-btn" data-start="201" data-end="300" id="deskRangeTab201">201 - 300</button>
+              <button type="button" class="range-tab-btn" data-start="301" data-end="400" id="deskRangeTab301">301 - 400</button>
+              <button type="button" class="range-tab-btn" data-start="501" data-end="600" id="deskRangeTab501">501 - 600</button>
+              <button type="button" class="range-tab-btn" data-start="1" data-end="600" id="deskRangeTabAll">1 - 600 (ሁሉም)</button>
+            </div>
+            <div class="card-pick-grid" id="deskCardPickGrid"></div>
+          </div>
+
+          <!-- Desktop Selected Cartelas ("የመረጡት ካርቴላዎች") Preview Section -->
+          <div class="selected-cartelas-container" id="deskSelectedCartelasContainer" style="display: none; margin-top: 14px;">
+            <div class="selected-cartelas-header">
+              <div class="sc-header-left">
+                <span class="sc-sparkle">❖</span>
+                <h4 class="selected-cartelas-title">የመረጡት ካርቴላዎች</h4>
+              </div>
+              <span class="sc-count-badge" id="deskSelectedCartelasBadge">0 ካርቴላ</span>
+            </div>
+            <div class="selected-cartelas-list" id="deskSelectedCartelasList"></div>
+          </div>
         </div>
 
         <aside class="panel ticket-panel">
           <div class="panel-head simple">
             <div><small>MY BINGO TICKET</small><h3>Player Card</h3></div>
-            <span class="ticket-badge">5 × 5</span>
+            <span class="ticket-badge" id="deskTicketBadge">#468 (5 × 5)</span>
           </div>
           <div class="hulu-switch-toggle" style="margin: 8px 0 10px; justify-content: flex-start;">
             <button class="switch-opt active" id="deskModeAuto" type="button">AUTO</button>
             <button class="switch-opt" id="deskModeManual" type="button">MANUAL</button>
           </div>
-          <div class="ticket" id="ticket"></div>
+          <div class="desk-bingo-header">
+            <span class="desk-col col-b">B</span>
+            <span class="desk-col col-i">I</span>
+            <span class="desk-col col-n">N</span>
+            <span class="desk-col col-g">G</span>
+            <span class="desk-col col-o">O</span>
+          </div>
+          <div class="ticket" id="ticket" data-card-key="8,18,34,54,67;15,28,40,60,68;4,17,FREE,55,61;5,21,42,57,72;3,23,35,51,74">
+            <div data-r="0" data-c="0" data-val="8">8</div>
+            <div data-r="0" data-c="1" data-val="18">18</div>
+            <div data-r="0" data-c="2" data-val="34">34</div>
+            <div data-r="0" data-c="3" data-val="54">54</div>
+            <div data-r="0" data-c="4" data-val="67">67</div>
+            <div data-r="1" data-c="0" data-val="15">15</div>
+            <div data-r="1" data-c="1" data-val="28">28</div>
+            <div data-r="1" data-c="2" data-val="40">40</div>
+            <div data-r="1" data-c="3" data-val="60">60</div>
+            <div data-r="1" data-c="4" data-val="68">68</div>
+            <div data-r="2" data-c="0" data-val="4">4</div>
+            <div data-r="2" data-c="1" data-val="17">17</div>
+            <div data-r="2" data-c="2" data-val="FREE" class="free-cell marked"><span class="free-star">★</span><span class="free-text">FREE</span></div>
+            <div data-r="2" data-c="3" data-val="55">55</div>
+            <div data-r="2" data-c="4" data-val="61">61</div>
+            <div data-r="3" data-c="0" data-val="5">5</div>
+            <div data-r="3" data-c="1" data-val="21">21</div>
+            <div data-r="3" data-c="2" data-val="42">42</div>
+            <div data-r="3" data-c="3" data-val="57">57</div>
+            <div data-r="3" data-c="4" data-val="72">72</div>
+            <div data-r="4" data-c="0" data-val="3">3</div>
+            <div data-r="4" data-c="1" data-val="23">23</div>
+            <div data-r="4" data-c="2" data-val="35">35</div>
+            <div data-r="4" data-c="3" data-val="51">51</div>
+            <div data-r="4" data-c="4" data-val="74">74</div>
+          </div>
           <button class="btn btn-gold full" id="joinBtn">Join Game — 10 ETB</button>
           <p class="hint">A row, column or diagonal completes Bingo in this demo.</p>
         </aside>
@@ -641,13 +705,34 @@
           </div>
         </div>
 
-        <!-- Card Selection 1-80 Grid Container -->
+        <!-- Card Selection Grid Container -->
         <div class="card-selection-box">
           <div class="selection-box-header">
             <h3>ካርቴላ ይምረጡ (10 ብር)</h3>
             <div class="selection-counter"><span class="cnt-cur" id="tgSelectedCount">0</span> <span class="cnt-max">/ 4</span></div>
           </div>
+          <div class="card-range-tabs">
+            <button type="button" class="range-tab-btn active" data-start="401" data-end="500" id="rangeTab401">401 - 500</button>
+            <button type="button" class="range-tab-btn" data-start="1" data-end="100" id="rangeTab1">1 - 100</button>
+            <button type="button" class="range-tab-btn" data-start="101" data-end="200" id="rangeTab101">101 - 200</button>
+            <button type="button" class="range-tab-btn" data-start="201" data-end="300" id="rangeTab201">201 - 300</button>
+            <button type="button" class="range-tab-btn" data-start="301" data-end="400" id="rangeTab301">301 - 400</button>
+            <button type="button" class="range-tab-btn" data-start="501" data-end="600" id="rangeTab501">501 - 600</button>
+            <button type="button" class="range-tab-btn" data-start="1" data-end="600" id="rangeTabAll">1 - 600 (ሁሉም)</button>
+          </div>
           <div class="card-pick-grid" id="tgCardPickGrid"></div>
+        </div>
+
+        <!-- Selected Cartelas ("የመረጡት ካርቴላዎች") Preview Section -->
+        <div class="selected-cartelas-container" id="tgSelectedCartelasContainer" style="display: none;">
+          <div class="selected-cartelas-header">
+            <div class="sc-header-left">
+              <span class="sc-sparkle">❖</span>
+              <h4 class="selected-cartelas-title">የመረጡት ካርቴላዎች</h4>
+            </div>
+            <span class="sc-count-badge" id="tgSelectedCartelasBadge">0 ካርቴላ</span>
+          </div>
+          <div class="selected-cartelas-list" id="tgSelectedCartelasList"></div>
         </div>
       </div>
 
@@ -728,16 +813,9 @@
             <div class="bingo-table-grid" id="tgBingoTableGrid"></div>
           </div>
 
-          <!-- Player 5x5 Bingo Card (In-Game) -->
+          <!-- 4-Slots Live Game Area (Matching Image 3 & Image 4) -->
           <div class="hulu-player-card-view" id="huluPlayerCardView">
-            <div class="bingo-table-header" style="margin-bottom: 4px;">
-              <span class="col-head col-b">B</span>
-              <span class="col-head col-i">I</span>
-              <span class="col-head col-n">N</span>
-              <span class="col-head col-g">G</span>
-              <span class="col-head col-o">O</span>
-            </div>
-            <div class="ticket" id="tgTicketGrid" style="margin: 4px 0 8px;"></div>
+            <div class="hulu-slots-grid" id="tgSlotsGrid"></div>
           </div>
 
           <!-- Waiting State Screen -->
@@ -1038,13 +1116,13 @@
           </button>
           <button class="bottom-nav-item" id="tgNavBoard">
             <span class="nav-icon">💳</span>
-            <span class="nav-label">ቦርድ</span>
+            <span class="nav-label">ቦርሳ</span>
           </button>
         </nav>
 
         <!-- Dynamic Action: Total Bet Button (on Card Select) or BINGO! Button (on Live Game) -->
         <button class="total-bet-card" id="tgTotalBetBtn">
-          <span class="bet-label">አጠቃላይ የመደቡት</span>
+          <span class="bet-label">አጠቃላይ የመረጡት</span>
           <span class="bet-amount" id="tgTotalBetAmount">0 ETB</span>
           <span class="bet-live-status"><i class="live-dot"></i> LIVE</span>
         </button>
@@ -1087,9 +1165,42 @@
           <div class="balance-card"><span>Current demo pool</span><strong id="currentPrizePool">0 ETB</strong></div>
           <div class="balance-card"><span>Completed games</span><strong id="completedGameCount">0</strong></div>
           <div class="balance-card"><span>Pending transactions</span><strong id="pendingCount">0</strong></div>
+          <div class="balance-card"><span>Pending withdrawals</span><strong id="pendingWithdrawalsCount" style="color:var(--gold,#f5b716);">0</strong></div>
           <div class="balance-card"><span>Winners</span><strong id="winnerCount">0</strong></div>
         </div>
         <div class="admin-grid">
+          <section class="panel admin-section wide" id="withdrawalsSection">
+            <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+              <h2>💸 Withdrawal Requests</h2>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <select id="withdrawalStatusFilter" class="status-select">
+                  <option value="">All Statuses</option>
+                  <option value="pending" selected>Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="completed">Completed</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <button class="btn btn-outline" id="refreshWithdrawalsBtn" style="padding:5px 10px;font-size:11px;">Refresh</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Player Name</th>
+                    <th>Phone</th>
+                    <th>Wallet</th>
+                    <th>Amount</th>
+                    <th>Payment Method & Account</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="withdrawalsBody"></tbody>
+              </table>
+            </div>
+          </section>
           <section class="panel admin-section"><div class="section-title"><h2>Users</h2><input class="admin-search" id="userSearch" placeholder="Search name or phone"></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="usersBody"></tbody></table></div></section>
           <section class="panel admin-section"><div class="section-title"><h2>Wallets</h2></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Main</th><th>VIP</th></tr></thead><tbody id="walletsBody"></tbody></table></div></section>
           <section class="panel admin-section wide"><div class="section-title"><h2>Games</h2></div><div class="table-wrap"><table><thead><tr><th>Game</th><th>Players</th><th>Pool</th><th>Status</th><th></th></tr></thead><tbody id="gamesBody"></tbody></table></div></section>

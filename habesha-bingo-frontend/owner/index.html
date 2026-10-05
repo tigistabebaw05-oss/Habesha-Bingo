@@ -71,9 +71,46 @@
         <aside class="panel ticket-panel">
           <div class="panel-head simple">
             <div><small>MY BINGO TICKET</small><h3>Player Card</h3></div>
-            <span class="ticket-badge">5 × 5</span>
+            <span class="ticket-badge" id="deskTicketBadge">#468 (5 × 5)</span>
           </div>
-          <div class="ticket" id="ticket"></div>
+          <div class="hulu-switch-toggle" style="margin: 8px 0 10px; justify-content: flex-start;">
+            <button class="switch-opt active" id="deskModeAuto" type="button">AUTO</button>
+            <button class="switch-opt" id="deskModeManual" type="button">MANUAL</button>
+          </div>
+          <div class="desk-bingo-header">
+            <span class="desk-col col-b">B</span>
+            <span class="desk-col col-i">I</span>
+            <span class="desk-col col-n">N</span>
+            <span class="desk-col col-g">G</span>
+            <span class="desk-col col-o">O</span>
+          </div>
+          <div class="ticket" id="ticket" data-card-key="8,18,34,54,67;15,28,40,60,68;4,17,FREE,55,61;5,21,42,57,72;3,23,35,51,74">
+            <div data-r="0" data-c="0" data-val="8">8</div>
+            <div data-r="0" data-c="1" data-val="18">18</div>
+            <div data-r="0" data-c="2" data-val="34">34</div>
+            <div data-r="0" data-c="3" data-val="54">54</div>
+            <div data-r="0" data-c="4" data-val="67">67</div>
+            <div data-r="1" data-c="0" data-val="15">15</div>
+            <div data-r="1" data-c="1" data-val="28">28</div>
+            <div data-r="1" data-c="2" data-val="40">40</div>
+            <div data-r="1" data-c="3" data-val="60">60</div>
+            <div data-r="1" data-c="4" data-val="68">68</div>
+            <div data-r="2" data-c="0" data-val="4">4</div>
+            <div data-r="2" data-c="1" data-val="17">17</div>
+            <div data-r="2" data-c="2" data-val="FREE" class="free-cell marked"><span class="free-star">★</span><span class="free-text">FREE</span></div>
+            <div data-r="2" data-c="3" data-val="55">55</div>
+            <div data-r="2" data-c="4" data-val="61">61</div>
+            <div data-r="3" data-c="0" data-val="5">5</div>
+            <div data-r="3" data-c="1" data-val="21">21</div>
+            <div data-r="3" data-c="2" data-val="42">42</div>
+            <div data-r="3" data-c="3" data-val="57">57</div>
+            <div data-r="3" data-c="4" data-val="72">72</div>
+            <div data-r="4" data-c="0" data-val="3">3</div>
+            <div data-r="4" data-c="1" data-val="23">23</div>
+            <div data-r="4" data-c="2" data-val="35">35</div>
+            <div data-r="4" data-c="3" data-val="51">51</div>
+            <div data-r="4" data-c="4" data-val="74">74</div>
+          </div>
           <button class="btn btn-gold full" id="joinBtn">Join Game — 10 ETB</button>
           <p class="hint">A row, column or diagonal completes Bingo in this demo.</p>
         </aside>
@@ -574,13 +611,34 @@
           </div>
         </div>
 
-        <!-- Card Selection 1-80 Grid Container -->
+        <!-- Card Selection Grid Container -->
         <div class="card-selection-box">
           <div class="selection-box-header">
             <h3>ካርቴላ ይምረጡ (10 ብር)</h3>
             <div class="selection-counter"><span class="cnt-cur" id="tgSelectedCount">0</span> <span class="cnt-max">/ 4</span></div>
           </div>
+          <div class="card-range-tabs">
+            <button type="button" class="range-tab-btn active" data-start="401" data-end="500" id="ownerIdxRangeTab401">401 - 500</button>
+            <button type="button" class="range-tab-btn" data-start="1" data-end="100" id="ownerIdxRangeTab1">1 - 100</button>
+            <button type="button" class="range-tab-btn" data-start="101" data-end="200" id="ownerIdxRangeTab101">101 - 200</button>
+            <button type="button" class="range-tab-btn" data-start="201" data-end="300" id="ownerIdxRangeTab201">201 - 300</button>
+            <button type="button" class="range-tab-btn" data-start="301" data-end="400" id="ownerIdxRangeTab301">301 - 400</button>
+            <button type="button" class="range-tab-btn" data-start="501" data-end="600" id="ownerIdxRangeTab501">501 - 600</button>
+            <button type="button" class="range-tab-btn" data-start="1" data-end="600" id="ownerIdxRangeTabAll">1 - 600 (ሁሉም)</button>
+          </div>
           <div class="card-pick-grid" id="tgCardPickGrid"></div>
+        </div>
+
+        <!-- Selected Cartelas ("የመረጡት ካርቴላዎች") Preview Section -->
+        <div class="selected-cartelas-container" id="tgSelectedCartelasContainer" style="display: none;">
+          <div class="selected-cartelas-header">
+            <div class="sc-header-left">
+              <span class="sc-sparkle">❖</span>
+              <h4 class="selected-cartelas-title">የመረጡት ካርቴላዎች</h4>
+            </div>
+            <span class="sc-count-badge" id="tgSelectedCartelasBadge">0 ካርቴላ</span>
+          </div>
+          <div class="selected-cartelas-list" id="tgSelectedCartelasList"></div>
         </div>
       </div>
 

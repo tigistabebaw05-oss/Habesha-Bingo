@@ -52,8 +52,9 @@ const rootFrontend=path.join(__dirname,"..","..","habesha-bingo-frontend");
 const backendFrontend=path.join(__dirname,"..","Habesha-bingo-frontend");
 const frontendDir=fs.existsSync(rootFrontend)?rootFrontend:backendFrontend;
 app.use(express.static(frontendDir));
-app.get(["/","/admin","/owner"],(req,res)=>res.sendFile(path.join(frontendDir,"index.html")));
-app.get(["/admin.html","/owner.html"],(req,res)=>res.redirect("/"));
+app.get("/admin.html", (req, res) => res.sendFile(path.join(frontendDir, "admin.html")));
+app.get("/owner.html", (req, res) => res.sendFile(path.join(frontendDir, "owner.html")));
+app.get(["/", "/admin", "/owner"], (req, res) => res.sendFile(path.join(frontendDir, "index.html")));
 
 async function init(){
   if(!SECRET||SECRET.length<32||SECRET==="replace-with-a-long-random-secret")throw new Error("JWT_SECRET must be a random value of at least 32 characters");
@@ -70,7 +71,7 @@ async function init(){
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
   CREATE TABLE IF NOT EXISTS games(
-    id BIGSERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL DEFAULT 'Main Game', entry NUMERIC(12,2) NOT NULL DEFAULT 10,
+    id BIGSERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL DEFAULT 'Main Game', entry NUMERIC(12,2) NOT NULL DEFAULT 2,
     status VARCHAR(20) NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting','running','finished','cancelled')),
     prize_pool NUMERIC(14,2) NOT NULL DEFAULT 0, platform_fee NUMERIC(14,2) NOT NULL DEFAULT 0,
     current_number INTEGER CHECK (current_number IS NULL OR current_number BETWEEN 1 AND 600),
@@ -136,7 +137,9 @@ async function init(){
   CREATE INDEX IF NOT EXISTS idx_support_status ON support_messages(status);`);
   await pool.query("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS balance_before NUMERIC(14,2), ADD COLUMN IF NOT EXISTS balance_after NUMERIC(14,2), ADD COLUMN IF NOT EXISTS provider VARCHAR(30), ADD COLUMN IF NOT EXISTS provider_reference VARCHAR(150), ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100), ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb, ADD COLUMN IF NOT EXISTS failure_reason TEXT, ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ");
   await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_idempotency ON transactions(user_id,idempotency_key) WHERE idempotency_key IS NOT NULL");
-  await pool.query("INSERT INTO app_settings(key,value) VALUES ('demo_mode','true'),('demo_entry_amount','10'),('demo_min_deposit','50'),('demo_min_withdrawal','100'),('demo_number_max','600') ON CONFLICT (key) DO NOTHING");
+  await pool.query("INSERT INTO app_settings(key,value) VALUES ('demo_mode','true'),('demo_entry_amount','2'),('demo_min_deposit','50'),('demo_min_withdrawal','100'),('demo_number_max','600') ON CONFLICT (key) DO NOTHING");
+  await pool.query("UPDATE app_settings SET value='2' WHERE key='demo_entry_amount'").catch(()=>{});
+  await pool.query("UPDATE games SET entry=2 WHERE (entry=10 OR entry IS NULL) AND status='waiting'").catch(()=>{});
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE, ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'PLAYER'");
   await pool.query("ALTER TABLE payment_accounts ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE");
   const telebirrAcc = (await pool.query("SELECT id FROM payment_accounts WHERE method = 'TeleBirr'")).rows[0];
@@ -282,13 +285,22 @@ function randomTicket(){
     for(let i=pool.length-1; i>0; i--){const j=crypto.randomInt(i+1); [pool[i],pool[j]]=[pool[j],pool[i]];}
     card.push(pool.slice(0,5));
   }
-  return [0,1,2,3,4].map(r => [card[0][r], card[1][r], card[2][r], card[3][r], card[4][r]]);
+  const grid = [0,1,2,3,4].map(r => [card[0][r], card[1][r], card[2][r], card[3][r], card[4][r]]);
+  grid[2][2] = "FREE";
+  return grid;
 }
 function validTicket(ticket){
-  return Array.isArray(ticket)&&ticket.length===5&&ticket.every(row=>Array.isArray(row)&&row.length===5&&row.every(n=>Number.isInteger(n)&&n>=1&&n<=600))&&new Set(ticket.flat()).size===25;
+  if (!Array.isArray(ticket) || ticket.length !== 5) return false;
+  return ticket.every((row, r) => Array.isArray(row) && row.length === 5 && row.every((n, c) => {
+    if (r === 2 && c === 2) return n === "FREE" || n === "F" || n === "★" || n === 0 || (Number.isInteger(n) && n >= 31 && n <= 45);
+    const min = [1, 16, 31, 46, 61][c];
+    const max = [15, 30, 45, 60, 75][c];
+    return Number.isInteger(Number(n)) && Number(n) >= min && Number(n) <= max;
+  }));
 }
 function isBingo(ticket,called){
-  const s=new Set(called),m=ticket.map(r=>r.map(n=>s.has(n)));
+  const s=new Set((called||[]).map(Number));
+  const m=ticket.map((r, ri)=>r.map((n, ci)=> (ri===2 && ci===2) || n==="FREE" || n==="F" || n==="★" || n===0 || s.has(Number(n))));
   for(let r=0;r<5;r++)if(m[r].every(Boolean))return true;
   for(let c=0;c<5;c++)if([0,1,2,3,4].every(r=>m[r][c]))return true;
   return [0,1,2,3,4].every(i=>m[i][i])||[0,1,2,3,4].every(i=>m[i][4-i]);
@@ -299,7 +311,7 @@ async function currentGame(){
     await client.query("SELECT pg_advisory_xact_lock($1)",[390711]);
     const r=await client.query("SELECT * FROM games WHERE status IN ('waiting','running') ORDER BY id DESC LIMIT 1");
     if(r.rows[0]){await client.query("COMMIT");return r.rows[0]}
-    const x=await client.query("INSERT INTO games(name) VALUES('Main Game') RETURNING *");
+    const x=await client.query("INSERT INTO games(name, entry) VALUES('Main Game', 2) RETURNING *");
     await client.query("COMMIT");return x.rows[0];
   }catch(error){await client.query("ROLLBACK");throw error}finally{client.release()}
 }
@@ -310,8 +322,9 @@ async function publicGame(g){
 async function recalc(gameId){
   const g=(await pool.query("SELECT * FROM games WHERE id=$1",[gameId])).rows[0];
   const p=Number((await pool.query("SELECT COUNT(*)::int AS count FROM tickets WHERE game_id=$1",[gameId])).rows[0].count);
-  const feePer=p>3?2:0, poolAmount=p*(Number(g.entry)-feePer);
-  await pool.query("UPDATE games SET prize_pool=$1,platform_fee=$2 WHERE id=$3",[poolAmount,p*feePer,gameId]);
+  const entryFee=Number(g?.entry || 2);
+  const poolAmount=p*entryFee;
+  await pool.query("UPDATE games SET prize_pool=$1,platform_fee=0 WHERE id=$2",[poolAmount,gameId]);
 }
 async function broadcast(id){
   const g=(await pool.query("SELECT * FROM games WHERE id=$1",[id])).rows[0];
@@ -568,9 +581,10 @@ app.post("/api/join",auth,async(req,res)=>{
     const lockedGame=(await client.query("SELECT * FROM games WHERE id=$1 FOR UPDATE",[g.id])).rows[0];
     if(lockedGame.status!=="waiting")throw new Error("started");
     if((await client.query("SELECT id FROM tickets WHERE game_id=$1 AND user_id=$2",[g.id,req.user.id])).rows[0])throw new Error("joined");
-    const ticket=randomTicket();
+    const ticket = (req.body?.ticket && validTicket(req.body.ticket)) ? req.body.ticket : randomTicket();
     if(!validTicket(ticket))throw new Error("ticket");
-    await changeBalance(client,{userId:req.user.id,wallet:"main",delta:-Number(g.entry),type:"game_entry",method:"game",reference:"Game #"+g.id});
+    const entryFee=Number(g.entry || 2);
+    await changeBalance(client,{userId:req.user.id,wallet:"main",delta:-entryFee,type:"game_entry",method:"game",reference:"Game #"+g.id});
     await client.query("INSERT INTO tickets(game_id,user_id,numbers) VALUES($1,$2,$3)",[g.id,req.user.id,JSON.stringify(ticket)]);
     const c=(await client.query("SELECT COUNT(*)::int AS count FROM tickets WHERE game_id=$1",[g.id])).rows[0].count;
     if(c>=1)await client.query("UPDATE games SET status='running' WHERE id=$1",[g.id]);
@@ -579,16 +593,18 @@ app.post("/api/join",auth,async(req,res)=>{
     if(c===1 && updatedGame){
       telegramService.notifyGameStarted(g.id, g.entry, updatedGame.prize_pool, c).catch(()=>{});
     }
-    res.json({ok:true});
+    const balRow = (await pool.query("SELECT main_balance FROM wallets WHERE user_id=$1",[req.user.id])).rows[0];
+    res.json({ok:true, balance: Number(balRow?.main_balance || 0), prize_pool: Number(updatedGame?.prize_pool || (c * entryFee)), players: c});
   }catch(e){await client.query("ROLLBACK");
-    const message=e.message==="joined"?"Already joined":e.message==="INSUFFICIENT_BALANCE"?"At least 10 ETB is required in the main wallet":"Could not join game";
+    const message=e.message==="joined"?"Already joined":e.message==="INSUFFICIENT_BALANCE"?"At least 2 ETB is required in the main wallet":"Could not join game";
     res.status(400).json({error:message});
   }finally{client.release()}
 });
 
 app.post("/api/wallet/deposit",auth,async(req,res)=>{
   const value=amount(req.body.amount),wallet=req.body.wallet||"main",method=providerMethod(req.body.method),reference=text(req.body.reference,150);
-  if(value===null||value<50)return res.status(400).json({error:"Minimum deposit is 50 ETB"});
+  const minAllowed = wallet === "vip" ? 50 : 2;
+  if(value===null||value<minAllowed)return res.status(400).json({error:`Minimum deposit is ${minAllowed} ETB`});
   if(!validWallet(wallet)||!method)return res.status(400).json({error:"Invalid wallet or payment provider"});
   const idempotencyKey=text(req.get("Idempotency-Key"),100)||crypto.randomUUID();
   const duplicate=(await pool.query("SELECT id,type,wallet,amount,method,status,provider_reference,metadata FROM transactions WHERE user_id=$1 AND idempotency_key=$2",[req.user.id,idempotencyKey])).rows[0];
@@ -662,41 +678,272 @@ app.get("/api/wallet/transactions",auth,async(req,res)=>{
   res.json({transactions:result.rows});
 });
 app.get("/api/admin/transactions",auth,requireRole("ADMIN"),async(req,res)=>{
-  const status=["pending","approved","rejected","completed"].includes(req.query.status)?req.query.status:null;
-  const result=await pool.query("SELECT t.id,t.user_id,u.name,u.phone,t.type,t.wallet,t.amount,t.status,t.method,t.reference,t.provider,t.provider_reference,t.failure_reason,t.processed_at,t.created_at FROM transactions t JOIN users u ON u.id=t.user_id WHERE ($1::varchar IS NULL OR t.status=$1) ORDER BY t.created_at ASC,t.id ASC LIMIT 200",[status]);
-  res.json({transactions:result.rows});
+  try {
+    const status=["pending","approved","rejected","completed"].includes(req.query.status)?req.query.status:null;
+    const result=await pool.query(
+      `SELECT t.id, t.user_id, COALESCE(u.name, 'Unknown') AS name, COALESCE(u.phone, '—') AS phone, 
+              t.type, t.wallet, ABS(t.amount) AS amount, t.status, COALESCE(t.method, 'TeleBirr') AS method, 
+              t.reference, t.provider, t.provider_reference, t.failure_reason, t.processed_at, t.created_at 
+       FROM transactions t 
+       LEFT JOIN users u ON u.id = t.user_id 
+       WHERE ($1::varchar IS NULL OR t.status = $1) 
+       ORDER BY t.created_at DESC, t.id DESC LIMIT 200`,
+      [status]
+    );
+    res.json({transactions:result.rows});
+  } catch (err) {
+    console.error("Admin transactions fetch error:", err.message);
+    res.status(500).json({ error: "Could not fetch transactions" });
+  }
 });
-app.post("/api/admin/transactions/:id/approve",auth,requireRole("ADMIN"),async(req,res)=>{
-  const transactionId=Number.parseInt(req.params.id,10);
-  if(!Number.isInteger(transactionId))return res.status(400).json({error:"Invalid transaction id"});
-  const client=await pool.connect();
-  try{await client.query("BEGIN");
-    const tx=(await client.query("SELECT * FROM transactions WHERE id=$1 FOR UPDATE",[transactionId])).rows[0];
-    if(!tx||tx.status!=="pending")throw new Error("NOT_PENDING");
-    if(tx.type==="deposit") {
-      await changeBalance(client,{userId:tx.user_id,wallet:tx.wallet,delta:Number(tx.amount),type:tx.type,status:"approved",method:tx.method,reference:tx.reference,transactionId});
-      telegramService.notifyDepositApproved(tx.user_id, Number(tx.amount), tx.method).catch(()=>{});
-    } else if(tx.type==="withdrawal")await client.query("UPDATE transactions SET status='completed' WHERE id=$1",[transactionId]);
-    else throw new Error("UNSUPPORTED");
-    await client.query("COMMIT");
-    await audit(req,"transaction.approved","transaction",transactionId,{type:tx.type,userId:tx.user_id});
-    res.json({ok:true});
-  }catch(e){await client.query("ROLLBACK");if(e.message==="NOT_PENDING")return res.status(409).json({error:"Transaction is no longer pending"});if(e.message==="UNSUPPORTED")return res.status(400).json({error:"Transaction type cannot be approved"});console.error(e);res.status(500).json({error:"Could not approve transaction"})}finally{client.release()}
+
+// Dedicated Withdrawal Requests listing
+app.get("/api/admin/withdrawals", auth, requireRole("ADMIN"), async (req, res) => {
+  try {
+    const status = ["pending", "approved", "rejected", "completed"].includes(req.query.status) ? req.query.status : null;
+    const result = await pool.query(
+      `SELECT 
+         t.id,
+         t.user_id,
+         COALESCE(u.name, 'Unknown Player') AS name,
+         COALESCE(u.phone, '—') AS phone,
+         t.type,
+         t.wallet,
+         ABS(t.amount) AS amount,
+         t.balance_before,
+         t.balance_after,
+         t.status,
+         COALESCE(t.method, 'TeleBirr') AS method,
+         t.reference,
+         t.provider,
+         t.provider_reference,
+         t.failure_reason,
+         t.processed_at,
+         t.created_at
+       FROM transactions t
+       LEFT JOIN users u ON u.id = t.user_id
+       WHERE t.type = 'withdrawal' AND ($1::varchar IS NULL OR t.status = $1)
+       ORDER BY 
+         CASE WHEN t.status = 'pending' THEN 1
+              WHEN t.status = 'approved' THEN 2
+              ELSE 3 END,
+         t.created_at DESC,
+         t.id DESC
+       LIMIT 300`,
+      [status]
+    );
+    res.json({ withdrawals: result.rows });
+  } catch (err) {
+    console.error("Error fetching withdrawal requests:", err.message);
+    res.status(500).json({ error: "Could not fetch withdrawal requests" });
+  }
 });
-app.post("/api/admin/transactions/:id/reject",auth,requireRole("ADMIN"),async(req,res)=>{
-  const transactionId=Number.parseInt(req.params.id,10);
-  if(!Number.isInteger(transactionId))return res.status(400).json({error:"Invalid transaction id"});
-  const client=await pool.connect();
-  try{await client.query("BEGIN");
-    const tx=(await client.query("SELECT * FROM transactions WHERE id=$1 FOR UPDATE",[transactionId])).rows[0];
-    if(!tx||tx.status!=="pending")throw new Error("NOT_PENDING");
-    if(tx.type==="withdrawal")await changeBalance(client,{userId:tx.user_id,wallet:tx.wallet,delta:Math.abs(Number(tx.amount)),type:"refund",method:"wallet",reference:"Rejected transaction #"+transactionId});
-    if(tx.type!=="deposit"&&tx.type!=="withdrawal")throw new Error("UNSUPPORTED");
-    await client.query("UPDATE transactions SET status='rejected' WHERE id=$1",[transactionId]);
+
+// Approve Withdrawal (Status becomes 'approved' - NEVER marks as completed/paid until verified)
+app.post("/api/admin/withdrawals/:id/approve", auth, requireRole("ADMIN"), async (req, res) => {
+  const transactionId = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(transactionId)) return res.status(400).json({ error: "Invalid withdrawal transaction id" });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const tx = (await client.query("SELECT * FROM transactions WHERE id = $1 FOR UPDATE", [transactionId])).rows[0];
+    if (!tx || tx.type !== "withdrawal") {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Withdrawal request not found" });
+    }
+    if (tx.status !== "pending") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: `Withdrawal is already ${tx.status} (only pending requests can be approved)` });
+    }
+
+    // Set status to approved (NOT completed - payout must be verified first)
+    await client.query("UPDATE transactions SET status = 'approved', processed_at = now() WHERE id = $1", [transactionId]);
     await client.query("COMMIT");
-    await audit(req,"transaction.rejected","transaction",transactionId,{type:tx.type,userId:tx.user_id});
-    res.json({ok:true});
-  }catch(e){await client.query("ROLLBACK");if(e.message==="NOT_PENDING")return res.status(409).json({error:"Transaction is no longer pending"});if(e.message==="UNSUPPORTED")return res.status(400).json({error:"Transaction type cannot be rejected"});console.error(e);res.status(500).json({error:"Could not reject transaction"})}finally{client.release()}
+    await audit(req, "withdrawal.approved", "transaction", transactionId, { userId: tx.user_id, amount: Math.abs(Number(tx.amount)) });
+    res.json({ ok: true, status: "approved", message: "Withdrawal approved. Awaiting payment verification before marking as paid." });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    console.error("Withdrawal approve error:", e.message);
+    res.status(500).json({ error: "Could not approve withdrawal" });
+  } finally {
+    client.release();
+  }
+});
+
+// Complete Withdrawal (Marks as paid/completed AFTER payment verification)
+app.post("/api/admin/withdrawals/:id/complete", auth, requireRole("ADMIN"), async (req, res) => {
+  const transactionId = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(transactionId)) return res.status(400).json({ error: "Invalid withdrawal transaction id" });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const tx = (await client.query("SELECT * FROM transactions WHERE id = $1 FOR UPDATE", [transactionId])).rows[0];
+    if (!tx || tx.type !== "withdrawal") {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Withdrawal request not found" });
+    }
+    if (tx.status !== "approved" && tx.status !== "pending") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: `Cannot complete withdrawal with status '${tx.status}'` });
+    }
+
+    // Verified and paid
+    await client.query("UPDATE transactions SET status = 'completed', processed_at = now() WHERE id = $1", [transactionId]);
+    await client.query("COMMIT");
+    await audit(req, "withdrawal.completed", "transaction", transactionId, { userId: tx.user_id, amount: Math.abs(Number(tx.amount)) });
+    res.json({ ok: true, status: "completed", message: "Withdrawal verified and marked as completed/paid." });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    console.error("Withdrawal complete error:", e.message);
+    res.status(500).json({ error: "Could not complete withdrawal" });
+  } finally {
+    client.release();
+  }
+});
+
+// Reject Withdrawal (Securely refunds player's wallet balance)
+app.post("/api/admin/withdrawals/:id/reject", auth, requireRole("ADMIN"), async (req, res) => {
+  const transactionId = Number.parseInt(req.params.id, 10);
+  const reason = text(req.body.reason, 200) || "Rejected by admin";
+  if (!Number.isInteger(transactionId)) return res.status(400).json({ error: "Invalid withdrawal transaction id" });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const tx = (await client.query("SELECT * FROM transactions WHERE id = $1 FOR UPDATE", [transactionId])).rows[0];
+    if (!tx || tx.type !== "withdrawal") {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Withdrawal request not found" });
+    }
+    if (tx.status !== "pending" && tx.status !== "approved") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: `Cannot reject withdrawal with status '${tx.status}'` });
+    }
+
+    // Securely refund player's wallet balance
+    const refundAmount = Math.abs(Number(tx.amount));
+    await changeBalance(client, {
+      userId: tx.user_id,
+      wallet: tx.wallet || "main",
+      delta: refundAmount,
+      type: "refund",
+      method: tx.method || "wallet",
+      reference: "Refund rejected withdrawal #" + transactionId
+    });
+
+    await client.query(
+      "UPDATE transactions SET status = 'rejected', failure_reason = $1, processed_at = now() WHERE id = $2",
+      [reason, transactionId]
+    );
+    await client.query("COMMIT");
+    await audit(req, "withdrawal.rejected", "transaction", transactionId, { userId: tx.user_id, amount: refundAmount, reason });
+    res.json({ ok: true, status: "rejected", message: "Withdrawal rejected and funds refunded to player wallet." });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    console.error("Withdrawal reject error:", e.message);
+    res.status(500).json({ error: "Could not reject withdrawal: " + e.message });
+  } finally {
+    client.release();
+  }
+});
+
+// General transaction approval / rejection backwards-compatibility
+app.post("/api/admin/transactions/:id/approve", auth, requireRole("ADMIN"), async (req, res) => {
+  const transactionId = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(transactionId)) return res.status(400).json({ error: "Invalid transaction id" });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const tx = (await client.query("SELECT * FROM transactions WHERE id = $1 FOR UPDATE", [transactionId])).rows[0];
+    if (!tx || tx.status !== "pending") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "Transaction is no longer pending" });
+    }
+    if (tx.type === "deposit") {
+      await changeBalance(client, {
+        userId: tx.user_id,
+        wallet: tx.wallet,
+        delta: Math.abs(Number(tx.amount)),
+        type: tx.type,
+        status: "completed",
+        method: tx.method,
+        reference: tx.reference,
+        transactionId
+      });
+      telegramService.notifyDepositApproved(tx.user_id, Math.abs(Number(tx.amount)), tx.method).catch(() => {});
+    } else if (tx.type === "withdrawal") {
+      // NEVER mark as paid until verified - set status to approved
+      await client.query("UPDATE transactions SET status = 'approved', processed_at = now() WHERE id = $1", [transactionId]);
+    } else {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Transaction type cannot be approved" });
+    }
+    await client.query("COMMIT");
+    await audit(req, "transaction.approved", "transaction", transactionId, { type: tx.type, userId: tx.user_id });
+    res.json({ ok: true, status: tx.type === "withdrawal" ? "approved" : "completed" });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    console.error(e);
+    res.status(500).json({ error: "Could not approve transaction: " + e.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post("/api/admin/transactions/:id/complete", auth, requireRole("ADMIN"), async (req, res) => {
+  const transactionId = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(transactionId)) return res.status(400).json({ error: "Invalid transaction id" });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const tx = (await client.query("SELECT * FROM transactions WHERE id = $1 FOR UPDATE", [transactionId])).rows[0];
+    if (!tx) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Transaction not found" });
+    }
+    await client.query("UPDATE transactions SET status = 'completed', processed_at = now() WHERE id = $1", [transactionId]);
+    await client.query("COMMIT");
+    await audit(req, "transaction.completed", "transaction", transactionId, { type: tx.type, userId: tx.user_id });
+    res.json({ ok: true, status: "completed" });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: "Could not complete transaction: " + e.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post("/api/admin/transactions/:id/reject", auth, requireRole("ADMIN"), async (req, res) => {
+  const transactionId = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(transactionId)) return res.status(400).json({ error: "Invalid transaction id" });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const tx = (await client.query("SELECT * FROM transactions WHERE id = $1 FOR UPDATE", [transactionId])).rows[0];
+    if (!tx || (tx.status !== "pending" && tx.status !== "approved")) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "Transaction is not pending or approved" });
+    }
+    if (tx.type === "withdrawal") {
+      await changeBalance(client, {
+        userId: tx.user_id,
+        wallet: tx.wallet,
+        delta: Math.abs(Number(tx.amount)),
+        type: "refund",
+        method: "wallet",
+        reference: "Refund rejected transaction #" + transactionId
+      });
+    }
+    await client.query("UPDATE transactions SET status = 'rejected', processed_at = now() WHERE id = $1", [transactionId]);
+    await client.query("COMMIT");
+    await audit(req, "transaction.rejected", "transaction", transactionId, { type: tx.type, userId: tx.user_id });
+    res.json({ ok: true, status: "rejected" });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    console.error(e);
+    res.status(500).json({ error: "Could not reject transaction: " + e.message });
+  } finally {
+    client.release();
+  }
 });
 app.get("/api/winners",auth,async(req,res)=>{
   const r=await pool.query("SELECT g.id,g.prize_pool AS pool,u.name FROM games g JOIN users u ON u.id=g.winner_id WHERE g.winner_id IS NOT NULL ORDER BY g.id DESC LIMIT 20");

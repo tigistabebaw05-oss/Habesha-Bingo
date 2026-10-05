@@ -18,14 +18,105 @@
     return `${Number(value || 0).toFixed(2)} ETB`;
   }
 
+  let cachedWithdrawals = [];
+
   async function api(path, options = {}) {
-    const token = storage.getItem("hulu_token");
+    const token = storage.getItem("hulu_token") || localStorage.getItem("hulu_token");
     const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
     if (token) headers.Authorization = `Bearer ${token}`;
-    const response = await fetch(API + path, { ...options, headers });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "Request failed");
+    let response;
+    try {
+      response = await fetch(API + path, { ...options, headers });
+    } catch (netErr) {
+      throw new Error("Network connection error: " + (netErr.message || "Failed to reach server"));
+    }
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      data = {};
+    }
+    if (!response.ok) {
+      const msg = data.error || data.message || (response.status === 401 ? "Authentication required" : response.status === 403 ? "Access denied" : `Request failed (${response.status}: ${response.statusText || 'Error'})`);
+      throw new Error(msg);
+    }
     return data;
+  }
+
+  function renderWithdrawals(withdrawals) {
+    if (Array.isArray(withdrawals)) {
+      cachedWithdrawals = withdrawals;
+    }
+    const filter = ($("withdrawalStatusFilter")?.value || $("ownerWithdrawalStatusFilter")?.value || "").toLowerCase();
+    const list = filter ? cachedWithdrawals.filter(w => (w.status || "").toLowerCase() === filter) : cachedWithdrawals;
+
+    const pendingCount = cachedWithdrawals.filter(w => (w.status || "").toLowerCase() === "pending").length;
+    if ($("pendingWithdrawalsCount")) $("pendingWithdrawalsCount").textContent = pendingCount;
+    if ($("ownerPendingWithdrawalsCount")) $("ownerPendingWithdrawalsCount").textContent = pendingCount;
+
+    const renderTable = (tbodyId) => {
+      const el = $(tbodyId);
+      if (!el) return;
+      if (!list.length) {
+        el.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted,#8e8ea0);">No ${filter ? filter + ' ' : ''}withdrawal requests found.</td></tr>`;
+        return;
+      }
+      el.innerHTML = list.map(w => {
+        const status = (w.status || "pending").toLowerCase();
+        let statusBadge = `<span class="status-badge ${status}">${escapeHtml(status.toUpperCase())}</span>`;
+        if (status === "approved") {
+          statusBadge = `<span class="status-badge approved" title="Approved for payout - awaiting payment verification">APPROVED (UNPAID)</span>`;
+        } else if (status === "completed") {
+          statusBadge = `<span class="status-badge completed" title="Payment verified & marked paid">PAID & VERIFIED</span>`;
+        }
+
+        let actionButtons = "—";
+        if (status === "pending") {
+          actionButtons = `
+            <button class="table-action primary withdrawal-action" data-action="approve" data-id="${w.id}" data-name="${escapeHtml(w.name)}" data-amount="${w.amount}" title="Approve this withdrawal (never marks as paid until verified)">Approve</button>
+            <button class="table-action danger withdrawal-action" data-action="reject" data-id="${w.id}" data-name="${escapeHtml(w.name)}" data-amount="${w.amount}">Reject</button>
+          `;
+        } else if (status === "approved") {
+          actionButtons = `
+            <button class="table-action success withdrawal-action" data-action="complete" data-id="${w.id}" data-name="${escapeHtml(w.name)}" data-amount="${w.amount}" data-method="${escapeHtml(w.method || 'TeleBirr')}" title="Verify payment sent and mark as completed">✓ Mark Paid</button>
+            <button class="table-action danger withdrawal-action" data-action="reject" data-id="${w.id}" data-name="${escapeHtml(w.name)}" data-amount="${w.amount}">Reject & Refund</button>
+          `;
+        } else if (status === "completed") {
+          actionButtons = `<span style="color:var(--habesha-green-light,#2ecc71);font-weight:600;font-size:12px;">✓ Completed</span>`;
+        } else if (status === "rejected") {
+          actionButtons = `<span style="color:var(--habesha-red-light,#e74c3c);font-size:12px;" title="${escapeHtml(w.failure_reason || 'Rejected')}">Refunded</span>`;
+        }
+
+        const walletType = (w.wallet || "main").toUpperCase();
+        const paymentInfo = `${escapeHtml(w.method || "TeleBirr")}${w.reference ? `<br><small style="color:var(--text-muted,#8e8ea0);font-family:monospace;">Ref: ${escapeHtml(w.reference)}</small>` : ''}`;
+        const createdDate = w.created_at ? new Date(w.created_at).toLocaleString() : "—";
+
+        return `<tr>
+          <td><strong>${escapeHtml(w.name || "Unknown Player")}</strong></td>
+          <td>${escapeHtml(w.phone || "—")}</td>
+          <td><span class="role-badge" style="background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px;font-size:11px;">${walletType}</span></td>
+          <td><strong style="color:var(--gold,#f5b716);font-size:14px;">${money(w.amount)}</strong></td>
+          <td>${paymentInfo}</td>
+          <td><small style="color:var(--text-muted,#8e8ea0);">${escapeHtml(createdDate)}</small></td>
+          <td>${statusBadge}</td>
+          <td style="white-space:nowrap;">${actionButtons}</td>
+        </tr>`;
+      }).join("");
+    };
+
+    renderTable("withdrawalsBody");
+    renderTable("ownerWithdrawalsBody");
+  }
+
+  async function loadWithdrawalsOnly() {
+    try {
+      const res = await api("/admin/withdrawals");
+      if (res && res.withdrawals) {
+        renderWithdrawals(res.withdrawals);
+      }
+    } catch (e) {
+      console.warn("Could not reload withdrawals:", e.message);
+    }
   }
 
   function showError(id, message) {
@@ -140,7 +231,19 @@
     clearError("dashboardError");
     try {
       const search = encodeURIComponent($("userSearch")?.value || "");
-      const [overview, users, wallets, games, transactions, winners, audit, settings, support, payments] = await Promise.all([
+      const [
+        overviewRes,
+        usersRes,
+        walletsRes,
+        gamesRes,
+        transactionsRes,
+        winnersRes,
+        auditRes,
+        settingsRes,
+        supportRes,
+        paymentsRes,
+        withdrawalsRes
+      ] = await Promise.allSettled([
         api("/admin/overview"),
         api(`/admin/users?search=${search}`),
         api("/admin/wallets"),
@@ -150,35 +253,62 @@
         api("/admin/audit-logs"),
         api("/admin/settings"),
         api("/admin/support"),
-        api("/admin/payment-accounts")
+        api("/admin/payment-accounts"),
+        api("/admin/withdrawals")
       ]);
 
-      renderUsers(users.users);
-      renderWallets(wallets.wallets);
-      renderGames(games.games);
-      renderTransactions(transactions.transactions);
-      renderWinners(winners.winners);
-      renderAudit(audit.logs);
-      renderOverview(overview);
-      renderSettings(settings.settings);
-      renderSupport(support.messages);
-      renderPaymentAccounts(payments.accounts);
+      if (overviewRes.status === "rejected") {
+        const err = overviewRes.reason;
+        if (err && (err.message.includes("Authentication required") || err.message.includes("Access denied"))) {
+          if ($("loginPanel")) $("loginPanel").hidden = false;
+          if ($("dashboard")) $("dashboard").hidden = true;
+          if ($("logoutBtn")) $("logoutBtn").hidden = true;
+          if (typeof window.navigateTo === "function") {
+            window.navigateTo("player", true);
+          }
+          return;
+        }
+        showError("dashboardError", err.message || "Failed to load admin overview");
+      } else if (overviewRes.value) {
+        renderOverview(overviewRes.value);
+        if ($("userCount")) $("userCount").textContent = overviewRes.value.users?.total || 0;
+      }
 
-      if ($("userCount")) $("userCount").textContent = overview.users.total;
-      if ($("gameCount")) $("gameCount").textContent = games.games.filter(game => ["waiting", "running"].includes(game.status)).length;
-      if ($("winnerCount")) $("winnerCount").textContent = winners.winners.length;
+      if (usersRes.status === "fulfilled" && usersRes.value?.users) renderUsers(usersRes.value.users);
+      if (walletsRes.status === "fulfilled" && walletsRes.value?.wallets) renderWallets(walletsRes.value.wallets);
+      if (gamesRes.status === "fulfilled" && gamesRes.value?.games) {
+        renderGames(gamesRes.value.games);
+        if ($("gameCount")) $("gameCount").textContent = gamesRes.value.games.filter(game => ["waiting", "running"].includes(game.status)).length;
+      }
+      if (transactionsRes.status === "fulfilled" && transactionsRes.value?.transactions) renderTransactions(transactionsRes.value.transactions);
+      if (winnersRes.status === "fulfilled" && winnersRes.value?.winners) {
+        renderWinners(winnersRes.value.winners);
+        if ($("winnerCount")) $("winnerCount").textContent = winnersRes.value.winners.length;
+      }
+      if (auditRes.status === "fulfilled" && auditRes.value?.logs) renderAudit(auditRes.value.logs);
+      if (settingsRes.status === "fulfilled" && settingsRes.value?.settings) renderSettings(settingsRes.value.settings);
+      if (supportRes.status === "fulfilled" && supportRes.value?.messages) renderSupport(supportRes.value.messages);
+      if (paymentsRes.status === "fulfilled" && paymentsRes.value?.accounts) renderPaymentAccounts(paymentsRes.value.accounts);
+      if (withdrawalsRes.status === "fulfilled" && withdrawalsRes.value?.withdrawals) {
+        renderWithdrawals(withdrawalsRes.value.withdrawals);
+      }
     } catch (error) {
       if (error.message === "Authentication required" || error.message === "Access denied") {
+        if ($("loginPanel")) $("loginPanel").hidden = false;
+        if ($("dashboard")) $("dashboard").hidden = true;
+        if ($("logoutBtn")) $("logoutBtn").hidden = true;
         if (typeof window.navigateTo === "function") {
           window.navigateTo("player", true);
         }
       }
-      showError("dashboardError", error.message);
+      showError("dashboardError", error.message || "Failed to load dashboard data");
     }
   }
 
   function showDashboard() {
+    if ($("loginPanel")) $("loginPanel").hidden = true;
     if ($("dashboard")) $("dashboard").hidden = false;
+    if ($("logoutBtn")) $("logoutBtn").hidden = false;
     if ($("adminLogoutBtn")) $("adminLogoutBtn").hidden = false;
     loadDashboard();
   }
@@ -188,6 +318,15 @@
     storage.removeItem("hulu_token");
     storage.removeItem("hulu_role");
     storage.removeItem("hulu_name");
+    try {
+      localStorage.removeItem("hulu_token");
+      localStorage.removeItem("hulu_role");
+      localStorage.removeItem("hulu_name");
+    } catch (_) {}
+    if ($("loginPanel")) $("loginPanel").hidden = false;
+    if ($("dashboard")) $("dashboard").hidden = true;
+    if ($("logoutBtn")) $("logoutBtn").hidden = true;
+    if ($("adminLogoutBtn")) $("adminLogoutBtn").hidden = true;
     if (typeof window.navigateTo === "function") {
       window.navigateTo("player", true);
     } else {
@@ -275,6 +414,74 @@
         }
       }
       return;
+    }
+
+    const withdrawalAction = event.target.closest(".withdrawal-action");
+    if (withdrawalAction) {
+      const id = withdrawalAction.dataset.id;
+      const action = withdrawalAction.dataset.action;
+      const name = withdrawalAction.dataset.name || "Player";
+      const amount = withdrawalAction.dataset.amount ? `${Number(withdrawalAction.dataset.amount).toFixed(2)} ETB` : "funds";
+
+      if (action === "approve") {
+        if (!confirm(`Approve withdrawal #${id} of ${amount} for ${name}?\n\nIMPORTANT: Approval sets status to APPROVED (Unpaid). It will NEVER be marked as paid until you verify payment and click "Mark Paid".`)) {
+          return;
+        }
+        try {
+          withdrawalAction.disabled = true;
+          withdrawalAction.textContent = "Approving...";
+          const res = await api(`/admin/withdrawals/${id}/approve`, { method: "POST" });
+          alert(res.message || "Withdrawal approved. Status is now Approved (Unpaid).");
+          await loadWithdrawalsOnly();
+          await loadDashboard();
+        } catch (err) {
+          alert("Approval failed: " + err.message);
+        } finally {
+          withdrawalAction.disabled = false;
+        }
+        return;
+      }
+
+      if (action === "complete") {
+        const method = withdrawalAction.dataset.method || "TeleBirr";
+        if (!confirm(`PAYMENT VERIFICATION REQUIRED:\n\nHave you verified that ${amount} has been successfully sent to ${name} via ${method}?\n\nClick OK ONLY if payment is verified. This will mark the withdrawal as completed and paid.`)) {
+          return;
+        }
+        try {
+          withdrawalAction.disabled = true;
+          withdrawalAction.textContent = "Completing...";
+          const res = await api(`/admin/withdrawals/${id}/complete`, { method: "POST" });
+          alert(res.message || "Withdrawal verified and marked as paid.");
+          await loadWithdrawalsOnly();
+          await loadDashboard();
+        } catch (err) {
+          alert("Mark paid failed: " + err.message);
+        } finally {
+          withdrawalAction.disabled = false;
+        }
+        return;
+      }
+
+      if (action === "reject") {
+        const reason = prompt(`Enter reason for rejecting withdrawal #${id} of ${amount} for ${name}:\n(The player's wallet will be refunded securely)`, "Details verification failed");
+        if (reason === null) return;
+        try {
+          withdrawalAction.disabled = true;
+          withdrawalAction.textContent = "Rejecting...";
+          const res = await api(`/admin/withdrawals/${id}/reject`, {
+            method: "POST",
+            body: JSON.stringify({ reason: reason.trim() || "Rejected by admin" })
+          });
+          alert(res.message || "Withdrawal rejected and funds refunded to player wallet.");
+          await loadWithdrawalsOnly();
+          await loadDashboard();
+        } catch (err) {
+          alert("Rejection failed: " + err.message);
+        } finally {
+          withdrawalAction.disabled = false;
+        }
+        return;
+      }
     }
 
     const transactionAction = event.target.closest(".transaction-action");
@@ -482,7 +689,19 @@
     clearError("ownerDashboardError");
     try {
       const search = encodeURIComponent($("ownerUserSearch")?.value || "");
-      const [reports, admins, settings, payments, games, transactions, users, winners, audit, tgStatus] = await Promise.all([
+      const [
+        reportsRes,
+        adminsRes,
+        settingsRes,
+        paymentsRes,
+        gamesRes,
+        transactionsRes,
+        usersRes,
+        winnersRes,
+        auditRes,
+        withdrawalsRes,
+        tgStatusRes
+      ] = await Promise.allSettled([
         api("/owner/reports"),
         api("/owner/admins"),
         api("/owner/settings"),
@@ -492,19 +711,37 @@
         api(`/admin/users?search=${search}`),
         api("/admin/winners"),
         api("/admin/audit-logs"),
-        api("/telegram/status").catch(() => null)
+        api("/admin/withdrawals"),
+        api("/telegram/status")
       ]);
 
-      renderOwnerReports(reports);
-      renderOwnerAdmins(admins.admins);
-      renderOwnerSettings(settings.settings);
-      renderOwnerPaymentAccounts(payments.accounts);
-      renderOwnerGames(games.games);
-      renderOwnerTransactions(transactions.transactions);
-      renderOwnerUsers(users.users);
-      renderOwnerWinners(winners.winners);
-      renderOwnerAudit(audit.logs);
-      if (tgStatus) renderOwnerTelegram(tgStatus);
+      if (reportsRes.status === "rejected") {
+        const err = reportsRes.reason;
+        if (err && (err.message.includes("Authentication required") || err.message.includes("Access denied"))) {
+          if (typeof window.openAuth === "function") {
+            window.openAuth("login");
+            if (document.getElementById("authPhone") && !document.getElementById("authPhone").value) {
+              document.getElementById("authPhone").value = "0951666750";
+            }
+          }
+        }
+        showError("ownerDashboardError", err.message || "Failed to load owner reports");
+      } else if (reportsRes.value) {
+        renderOwnerReports(reportsRes.value);
+      }
+
+      if (adminsRes.status === "fulfilled" && adminsRes.value?.admins) renderOwnerAdmins(adminsRes.value.admins);
+      if (settingsRes.status === "fulfilled" && settingsRes.value?.settings) renderOwnerSettings(settingsRes.value.settings);
+      if (paymentsRes.status === "fulfilled" && paymentsRes.value?.accounts) renderOwnerPaymentAccounts(paymentsRes.value.accounts);
+      if (gamesRes.status === "fulfilled" && gamesRes.value?.games) renderOwnerGames(gamesRes.value.games);
+      if (transactionsRes.status === "fulfilled" && transactionsRes.value?.transactions) renderOwnerTransactions(transactionsRes.value.transactions);
+      if (usersRes.status === "fulfilled" && usersRes.value?.users) renderOwnerUsers(usersRes.value.users);
+      if (winnersRes.status === "fulfilled" && winnersRes.value?.winners) renderOwnerWinners(winnersRes.value.winners);
+      if (auditRes.status === "fulfilled" && auditRes.value?.logs) renderOwnerAudit(auditRes.value.logs);
+      if (withdrawalsRes.status === "fulfilled" && withdrawalsRes.value?.withdrawals) {
+        renderWithdrawals(withdrawalsRes.value.withdrawals);
+      }
+      if (tgStatusRes.status === "fulfilled" && tgStatusRes.value) renderOwnerTelegram(tgStatusRes.value);
     } catch (error) {
       if (error.message === "Authentication required" || error.message === "Access denied") {
         if (typeof window.openAuth === "function") {
@@ -514,7 +751,7 @@
           }
         }
       }
-      showError("ownerDashboardError", error.message);
+      showError("ownerDashboardError", error.message || "Failed to load owner data");
     }
   }
 
@@ -681,21 +918,107 @@
     }
   });
 
+  // Withdrawal Filter & Refresh Listeners
+  if ($("withdrawalStatusFilter")) {
+    $("withdrawalStatusFilter").addEventListener("change", () => renderWithdrawals());
+  }
+  if ($("ownerWithdrawalStatusFilter")) {
+    $("ownerWithdrawalStatusFilter").addEventListener("change", () => renderWithdrawals());
+  }
+  if ($("refreshWithdrawalsBtn")) {
+    $("refreshWithdrawalsBtn").addEventListener("click", loadWithdrawalsOnly);
+  }
+  if ($("ownerRefreshWithdrawalsBtn")) {
+    $("ownerRefreshWithdrawalsBtn").addEventListener("click", loadWithdrawalsOnly);
+  }
+
+  // Direct Login Form on admin.html
+  if ($("loginForm")) {
+    $("loginForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      clearError("loginError");
+      const phoneInput = event.target.querySelector('[name="phone"]');
+      const passInput = event.target.querySelector('[name="password"]');
+      const submitBtn = event.target.querySelector("button");
+
+      const phone = phoneInput?.value?.trim();
+      const password = passInput?.value;
+
+      if (!phone || !password) {
+        showError("loginError", "Phone and password are required.");
+        return;
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Signing in...";
+      }
+
+      try {
+        const res = await api("/login", {
+          method: "POST",
+          body: JSON.stringify({ phone, password })
+        });
+
+        if (!res.token || !res.user) throw new Error("Invalid response from login server");
+        const role = String(res.user.role || "").toUpperCase();
+        if (role !== "ADMIN" && role !== "OWNER") {
+          throw new Error("Access denied: Administrator privileges required.");
+        }
+
+        storage.setItem("hulu_token", res.token);
+        storage.setItem("hulu_role", role);
+        storage.setItem("hulu_name", res.user.name || "Admin");
+        try {
+          localStorage.setItem("hulu_token", res.token);
+          localStorage.setItem("hulu_role", role);
+          localStorage.setItem("hulu_name", res.user.name || "Admin");
+        } catch (_) {}
+
+        if ($("loginPanel")) $("loginPanel").hidden = true;
+        if ($("dashboard")) $("dashboard").hidden = false;
+        if ($("logoutBtn")) $("logoutBtn").hidden = false;
+
+        await loadDashboard();
+      } catch (err) {
+        showError("loginError", err.message || "Login failed");
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Sign in";
+        }
+      }
+    });
+  }
+
+  // Logout Buttons
+  if ($("logoutBtn")) $("logoutBtn").addEventListener("click", () => handleAdminLogout(false));
+
   window.showDashboard = showDashboard;
   window.loadDashboard = loadDashboard;
   window.showOwnerDashboard = showOwnerDashboard;
   window.loadOwnerDashboard = loadOwnerDashboard;
 
   // Auto-init only if already on owner or admin route
-  const currentRole = String(storage.getItem("hulu_role") || "").toUpperCase();
-  const isPathOwner = window.location.pathname === "/owner" || window.location.pathname.endsWith("/owner") || window.location.hash === "#owner";
-  const isPathAdmin = window.location.pathname === "/admin" || window.location.pathname.endsWith("/admin") || window.location.hash === "#admin";
+  const currentToken = storage.getItem("hulu_token") || localStorage.getItem("hulu_token");
+  const currentRole = String(storage.getItem("hulu_role") || localStorage.getItem("hulu_role") || "").toUpperCase();
+  const isPathOwner = window.location.pathname === "/owner" || window.location.pathname.endsWith("/owner") || window.location.pathname.endsWith("/owner.html") || window.location.hash === "#owner";
+  const isPathAdmin = window.location.pathname === "/admin" || window.location.pathname.endsWith("/admin") || window.location.pathname.endsWith("/admin.html") || window.location.hash === "#admin";
 
-  if (storage.getItem("hulu_token")) {
+  if (currentToken && (currentRole === "ADMIN" || currentRole === "OWNER")) {
+    storage.setItem("hulu_token", currentToken);
+    storage.setItem("hulu_role", currentRole);
+
     if (currentRole === "OWNER" && (isPathOwner || ($("ownerApp") && !$("ownerApp").hidden))) {
       showOwnerDashboard();
-    } else if ((currentRole === "ADMIN" || currentRole === "OWNER") && (isPathAdmin || ($("adminApp") && !$("adminApp").hidden))) {
+    } else if (isPathAdmin || ($("adminApp") && !$("adminApp").hidden)) {
       showDashboard();
+    }
+  } else {
+    if ($("loginPanel") && !$("adminApp")) {
+      $("loginPanel").hidden = false;
+      if ($("dashboard")) $("dashboard").hidden = true;
+      if ($("logoutBtn")) $("logoutBtn").hidden = true;
     }
   }
 })();

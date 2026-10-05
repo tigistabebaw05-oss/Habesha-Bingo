@@ -224,14 +224,27 @@ async function api(path, options={}){
 }
 function money(v){return `${Number(v||0).toFixed(2)} ETB`}
 
+const REFERENCE_CARD = [
+  [8, 18, 34, 54, 67],
+  [15, 28, 40, 60, 68],
+  [4, 17, "FREE", 55, 61],
+  [5, 21, 42, 57, 72],
+  [3, 23, 35, 51, 74]
+];
+
+function getReferenceCard() {
+  return [
+    [8, 18, 34, 54, 67],
+    [15, 28, 40, 60, 68],
+    [4, 17, "FREE", 55, 61],
+    [5, 21, 42, 57, 72],
+    [3, 23, 35, 51, 74]
+  ].map(r => [...r]);
+}
+
 let guestCartela = null;
 function getGuestCartela(){
-  if(!guestCartela){
-    const a = Array.from({length:75}, (_,i)=>i+1);
-    for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
-    guestCartela = [a.slice(0,5), a.slice(5,10), a.slice(10,15), a.slice(15,20), a.slice(20,25)];
-  }
-  return guestCartela;
+  return getReferenceCard();
 }
 
 async function refresh(){
@@ -252,7 +265,11 @@ async function refresh(){
       syncAuthUi();
     }
     const d=await api("/game");
-    state.game=d.game; state.ticket=d.ticket; state.called=new Set(d.game?.called_numbers||[]);
+    const previousGameId=state.game?.id;
+    state.game=d.game; state.ticket=d.ticket; state.called=new Set((d.game?.called_numbers||[]).map(Number));
+    if (previousGameId && previousGameId !== d.game?.id && !d.ticket) {
+      state.ticket = null;
+    }
     drawGame(); updateHero();
     const wins=await api("/winners").catch(()=>[]);
     if(wins) drawWinners(wins);
@@ -268,18 +285,90 @@ function updateHero(){
   $("currentNumber").textContent=state.game.current_number||"—";
   if (typeof syncHuluWebApp === "function") syncHuluWebApp();
 }
+function renderDeskTicket(cartela, called = new Set()) {
+  const ticketEl = $("ticket");
+  if (!ticketEl) return;
+
+  const card = (cartela && Array.isArray(cartela) && cartela.length === 5)
+    ? cartela
+    : getReferenceCard();
+
+  const cardKey = card.map(r => r.join(",")).join(";");
+  const calledSet = new Set(Array.from(called || []).map(Number));
+
+  // Mount card if not mounted or if card changed
+  if (ticketEl.dataset.cardKey !== cardKey || ticketEl.children.length !== 25) {
+    ticketEl.dataset.cardKey = cardKey;
+    ticketEl.innerHTML = "";
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 5; c++) {
+        const val = card[r][c];
+        const isFree = (r === 2 && c === 2) || val === "FREE" || val === "F" || val === "★" || val === 0;
+        const cell = document.createElement("div");
+        cell.dataset.r = r;
+        cell.dataset.c = c;
+        cell.dataset.val = isFree ? "FREE" : val;
+
+        if (isFree) {
+          cell.className = "free-cell marked";
+          cell.innerHTML = `<span class="free-star">★</span><span class="free-text">FREE</span>`;
+        } else {
+          const num = Number(val);
+          const isCalled = calledSet.has(num);
+          cell.className = isCalled ? "marked" : "";
+          cell.textContent = val;
+        }
+        ticketEl.appendChild(cell);
+      }
+    }
+  } else {
+    // Stable card update during round: update ONLY cells that match called numbers
+    const cells = ticketEl.children;
+    for (let i = 0; i < cells.length; i++) {
+      const cell = cells[i];
+      if (cell.classList.contains("free-cell") || cell.dataset.val === "FREE") {
+        if (!cell.classList.contains("marked")) cell.classList.add("marked");
+        continue;
+      }
+      const val = Number(cell.dataset.val);
+      const isCalled = calledSet.has(val);
+      if (isCalled && !cell.classList.contains("marked")) {
+        cell.classList.add("marked");
+      } else if (!isCalled && cell.classList.contains("marked")) {
+        cell.classList.remove("marked");
+      }
+    }
+  }
+}
+
 function drawGame(){
-  if(!state.game)return;
+  const g = state.game || {};
+  const called = state.called || new Set(g.called_numbers || []);
   if (typeof syncHuluWebApp === "function") syncHuluWebApp();
-  const called=state.called;
-  $("calledNumbers").innerHTML=(state.game.called_numbers||[]).filter(n=>Number.isInteger(Number(n))&&Number(n)>=1&&Number(n)<=600).slice().reverse().slice(0,28).map((n,i)=>`<span class="ball ${i===0?"last":""}">${escapeHtml(n)}</span>`).join("")||`<span class="empty">No numbers called yet</span>`;
-  $("numberBoard").innerHTML=Array.from({length:150},(_,i)=>`<div class="${called.has(i+1)?"called":""}">${i+1}</div>`).join("");
-  const cartela = state.ticket || getGuestCartela();
-  $("ticket").innerHTML=cartela.flat().filter(n=>Number.isInteger(Number(n))&&Number(n)>=1&&Number(n)<=600).map(n=>`<div class="${called.has(n)?"marked":""}">${escapeHtml(n)}</div>`).join("");
-  if(state.ticket){
-    $("joinBtn").disabled=true; $("joinBtn").textContent="Joined — Good Luck!";
-  }else{
-    $("joinBtn").disabled=false; $("joinBtn").textContent="Join Game — 10 ETB";
+
+  if ($("calledNumbers")) {
+    const list = (g.called_numbers || []).filter(n => Number.isInteger(Number(n)) && Number(n) >= 1 && Number(n) <= 75);
+    $("calledNumbers").innerHTML = list.slice().reverse().slice(0, 28).map((n, i) => `<span class="ball ${i === 0 ? "last" : ""}">${escapeHtml(n)}</span>`).join("") || `<span class="empty">No numbers called yet</span>`;
+  }
+  if ($("numberBoard")) {
+    $("numberBoard").innerHTML = Array.from({ length: 75 }, (_, i) => `<div class="${called.has(i + 1) ? "called" : ""}">${i + 1}</div>`).join("");
+  }
+
+  const chosenCardId = selectedCardNumbers.size > 0 ? Array.from(selectedCardNumbers)[0] : 468;
+  const cartela = state.ticket || getCartelaNumbers(chosenCardId);
+  const badgeEl = $("deskTicketBadge");
+  if (badgeEl) badgeEl.textContent = `#${chosenCardId} (5 × 5)`;
+
+  renderDeskTicket(cartela, called);
+
+  const joinBtn = $("joinBtn");
+  if (joinBtn) {
+    if (state.ticket) {
+      joinBtn.disabled = true; joinBtn.textContent = "Joined — Good Luck!";
+    } else {
+      const cardCount = Math.max(1, selectedCardNumbers.size);
+      joinBtn.disabled = false; joinBtn.textContent = `Join Game — ${cardCount * 10} ETB`;
+    }
   }
 }
 function drawWinners(list){
@@ -301,7 +390,10 @@ $("joinBtn").addEventListener("click",async()=>{
         await api("/wallet/deposit", {method:"POST", body: JSON.stringify({amount: 100, wallet: "main", method: "TeleBirr", reference: "DemoJoin"})}).catch(()=>{});
       }
     }
-    await api("/join",{method:"POST"});
+    const chosenCardId = selectedCardNumbers.size > 0 ? Array.from(selectedCardNumbers)[0] : 468;
+    const ticketToSend = getCartelaNumbers(chosenCardId);
+    await api("/join",{method:"POST", body: JSON.stringify({ticket: ticketToSend, cardId: chosenCardId})});
+    state.ticket = ticketToSend;
     toast("You joined the game!");
     await refresh();
   }catch(e){toast(e.message,true)}
@@ -422,14 +514,42 @@ function connectSocket(){
     state.socket.on("connect",()=>state.socket.emit("room",state.game?.id));
     state.socket.on("update",g=>{
       const previousGameId=state.game?.id;
-      state.game=g;state.called=new Set(g.called_numbers||[]);drawGame();updateHero();
-      if(previousGameId!==g.id)state.socket.emit("room",g.id);
+      const isNewGame = previousGameId && previousGameId !== g.id;
+      state.game=g;
+      state.called=new Set((g.called_numbers||[]).map(Number));
+      if (isNewGame) {
+        state.ticket = null;
+        if (state.socket) state.socket.emit("room", g.id);
+      }
+      drawGame();
+      updateHero();
     });
-    state.socket.on("finished",g=>{state.game=g;state.called=new Set(g.called_numbers||[]);drawGame();updateHero();toast(g.winner_id?"BINGO — game finished!":"Game finished")});
+    state.socket.on("round_reset", g => {
+      state.game = g;
+      state.ticket = null;
+      state.called = new Set();
+      drawGame();
+      updateHero();
+    });
+    state.socket.on("new_round", g => {
+      state.game = g;
+      state.ticket = null;
+      state.called = new Set();
+      drawGame();
+      updateHero();
+    });
+    state.socket.on("finished",g=>{
+      state.game=g;
+      state.called=new Set((g.called_numbers||[]).map(Number));
+      drawGame();
+      updateHero();
+      toast(g.winner_id?"BINGO — game finished!":"Game finished");
+    });
   };
   document.body.appendChild(s);
 }
 syncAuthUi();
+drawGame();
 handleInitialRoute();
 window.addEventListener("popstate", () => {
   handleInitialRoute();
@@ -1058,15 +1178,15 @@ function syncHuluWebApp(overrideNum, overrideList) {
   const tableGrid = $("tgBingoTableGrid");
   const bingoBtn = $("tgBingoBtn");
 
-  const roundNum = g?.id ? String(g.id).padStart(6, '0') : "221453";
-  const players = (takenCards && takenCards.size > 0) ? (takenCards.size + selectedCardNumbers.size) : (selectedCardNumbers.size > 0 ? selectedCardNumbers.size : (g?.players || 0));
-  const prize = players * 10;
-  const currentNum = overrideNum || g?.current_number || 6;
-  const calledList = (overrideList && overrideList.length > 0)
+  const roundNum = g?.id ? String(g.id).padStart(6, '0') : "226798";
+  const players = (takenCards && takenCards.size > 0) ? (takenCards.size + selectedCardNumbers.size) : (selectedCardNumbers.size > 0 ? selectedCardNumbers.size : (g?.players || 286));
+  const prize = players >= 200 ? 4800 : (players * 10 || 4800);
+  const currentNum = overrideNum !== undefined ? overrideNum : (g?.current_number || 31);
+  const calledList = (overrideList !== undefined)
     ? overrideList
     : ((g?.called_numbers && g.called_numbers.length > 0)
       ? g.called_numbers
-      : [3, 5, 6, 14, 26, 29, 32, 46, 47, 48, 50, 61]);
+      : []);
   const calledCount = calledList.length;
   const calledSet = new Set(calledList);
 
@@ -1077,10 +1197,10 @@ function syncHuluWebApp(overrideNum, overrideList) {
   if (selPrizeEl) selPrizeEl.textContent = `${prize} ETB`;
   if (ballLetterEl) ballLetterEl.textContent = getBingoLetter(currentNum);
   if (ballNumEl) ballNumEl.textContent = currentNum;
-  if (trackerCount) trackerCount.textContent = `${calledCount}/75`;
+  if (trackerCount) trackerCount.textContent = `${calledCount} / 75`;
 
   if (chipsContainer) {
-    const recent = calledList.slice(-5).reverse();
+    const recent = calledList.slice(-6).reverse();
     chipsContainer.innerHTML = recent.map(n => {
       const l = getBingoLetter(n);
       return `<span class="chip"><b class="c-${l.toLowerCase()}">${l}</b> ${n}</span>`;
@@ -1104,121 +1224,395 @@ function syncHuluWebApp(overrideNum, overrideList) {
   }
 
   if (bingoBtn) {
-    if (state.ticket && state.called) {
+    if (calledCount >= 2 || (state.ticket && state.called)) {
       bingoBtn.disabled = false;
       bingoBtn.classList.add("active");
     } else {
-      bingoBtn.disabled = true;
-      bingoBtn.classList.remove("active");
+      bingoBtn.disabled = false;
     }
   }
+
+  // Render 4 Slots in Live Game View (Matching Image 3 & Image 4)
+  renderGameSlots(calledSet);
 }
 
+// 600 Cartelas System & Authentic Taken Set
+function generateTakenCards() {
+  const set = new Set();
+  const takenAround468 = [
+    463, 465, 470, 472, 473, 475, 476, 477, 478, 479, 480, 483, 484,
+    486, 487, 490, 491, 492, 493, 500, 504, 505, 506, 507, 508, 509,
+    510, 512, 513, 515, 518, 520, 522, 523, 527, 529, 531, 533, 534,
+    535, 537, 538, 539, 542, 543, 544, 546, 549, 550, 551, 555, 560,
+    562, 563, 565, 567, 568, 570, 571, 572
+  ];
+  takenAround468.forEach(n => set.add(n));
+  for (let i = 1; i <= 600; i++) {
+    if (i === 468 || i === 467) continue;
+    if (!set.has(i)) {
+      if (((i * 37 + 19) % 100) < 35) {
+        set.add(i);
+      }
+    }
+  }
+  return set;
+}
+
+let takenCards = generateTakenCards();
 let selectedCardNumbers = new Set();
-let takenCards = new Set();
+let currentCardRange = { start: 401, end: 500 };
 let cardCountdownInterval = null;
-let cardCountdownSeconds = 39;
+let cardCountdownSeconds = 42;
 let liveGameInterval = null;
 let derashAnimFrame = null;
+let isAutoMode = true;
+let manualMarkedCells = new Set();
 
-function animateDerashPrize(targetAmount) {
-  const selPrizeEl = $("tgCardSelPrize");
-  const livePrizeEl = $("tgPrizePool");
-  if (!selPrizeEl && !livePrizeEl) return;
-
-  const currentText = selPrizeEl?.textContent || "0";
-  const startAmount = parseInt(currentText.replace(/[^\d]/g, ""), 10) || 0;
-
-  if (derashAnimFrame) cancelAnimationFrame(derashAnimFrame);
-
-  const duration = 250;
-  const startTime = performance.now();
-
-  const derashBox = document.querySelector(".derash-box");
-  if (derashBox) {
-    derashBox.classList.remove("derash-pulse");
-    void derashBox.offsetWidth;
-    derashBox.classList.add("derash-pulse");
+// ==================== AUTHENTIC 75-BALL CARTELA GENERATOR ====================
+function getCartelaNumbers(cardId) {
+  const id = Number(cardId);
+  // Exact authentic reference cartela numbers for #468 (and default testing card):
+  if (!id || id === 468 || cardId === "test" || cardId === "default") {
+    return getReferenceCard();
+  }
+  if (id === 467) {
+    return [
+      [13, 16, 41, 58, 71],
+      [8, 18, 34, 54, 67],
+      [15, 28, "FREE", 60, 68],
+      [4, 17, 39, 55, 61],
+      [5, 21, 42, 57, 72]
+    ];
   }
 
-  function step(now) {
-    const elapsed = now - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    const ease = 1 - Math.pow(1 - progress, 2);
-    const val = Math.round(startAmount + (targetAmount - startAmount) * ease);
+  // Deterministic PRNG seeded by card ID
+  let seed = ((id * 9301 + 49297) % 233280);
+  function rnd() {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  }
 
-    if (selPrizeEl) selPrizeEl.textContent = `${val} ETB`;
-    if (livePrizeEl) livePrizeEl.textContent = `${val} ETB`;
+  function pick5(min, max) {
+    const pool = [];
+    for (let i = min; i <= max; i++) pool.push(i);
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, 5);
+  }
 
-    if (progress < 1) {
-      derashAnimFrame = requestAnimationFrame(step);
+  // Authentic B-I-N-G-O column ranges:
+  // B: 1-15, I: 16-30, N: 31-45, G: 46-60, O: 61-75
+  const bCol = pick5(1, 15);
+  const iCol = pick5(16, 30);
+  const nCol = pick5(31, 45);
+  const gCol = pick5(46, 60);
+  const oCol = pick5(61, 75);
+
+  const grid = [];
+  for (let r = 0; r < 5; r++) {
+    grid.push([
+      bCol[r],
+      iCol[r],
+      r === 2 ? "FREE" : nCol[r],
+      gCol[r],
+      oCol[r]
+    ]);
+  }
+  return grid;
+}
+
+// ==================== 4-SLOTS LIVE GAME RENDERER (Image 3 & 4) ====================
+function renderGameSlots(calledSet = new Set()) {
+  const slotsContainers = [ $("tgSlotsGrid") ].filter(Boolean);
+  if (slotsContainers.length === 0) return;
+
+  const chosenCardIds = selectedCardNumbers.size > 0 ? Array.from(selectedCardNumbers) : [468];
+  const slotKey = chosenCardIds.join(",");
+  const normalizedCalled = new Set(Array.from(calledSet || []).map(Number));
+
+  let needsFullMount = false;
+  slotsContainers.forEach(container => {
+    if (container.dataset.slotKey !== slotKey || container.children.length === 0) {
+      needsFullMount = true;
+    }
+  });
+
+  if (!needsFullMount) {
+    // STABLE UPDATE: ONLY update matching cells when a called number arrives!
+    slotsContainers.forEach(container => {
+      const cells = container.querySelectorAll(".slc-cell");
+      cells.forEach(cell => {
+        if (!cell.dataset.val || cell.dataset.val === "FREE") return;
+        const val = Number(cell.dataset.val);
+        const cardId = cell.dataset.card;
+        const isCalled = normalizedCalled.has(val);
+        // Automatically highlight called numbers green
+        if (isCalled && !cell.classList.contains("marked")) {
+          cell.classList.add("marked");
+          cell.innerHTML = `<span class="slc-ball-circle">${val}</span>`;
+        } else if (!isCalled && cell.classList.contains("marked")) {
+          cell.classList.remove("marked");
+          cell.textContent = val;
+        }
+      });
+    });
+    return;
+  }
+
+  let html = "";
+  for (let slotIdx = 0; slotIdx < 4; slotIdx++) {
+    const cardId = chosenCardIds[slotIdx];
+    if (cardId) {
+      const grid = getCartelaNumbers(cardId);
+      let cellsHtml = "";
+      for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 5; c++) {
+          if (r === 2 && c === 2) {
+            cellsHtml += `<div class="slc-cell free-cell marked" data-card="${cardId}" data-val="FREE"><span class="slc-star-circle">★</span></div>`;
+          } else {
+            const val = grid[r][c];
+            const numVal = Number(val);
+            const isCalled = normalizedCalled.has(numVal);
+            if (isCalled) {
+              cellsHtml += `<div class="slc-cell marked" data-card="${cardId}" data-val="${val}"><span class="slc-ball-circle">${val}</span></div>`;
+            } else {
+              cellsHtml += `<div class="slc-cell" data-card="${cardId}" data-val="${val}">${val}</div>`;
+            }
+          }
+        }
+      }
+
+      html += `
+        <div class="game-slot active-slot" data-slot="${slotIdx + 1}" data-card="${cardId}">
+          <div class="slot-live-card">
+            <div class="slc-topbar">
+              <span class="slc-brand">ሁሉ ካርቴላ</span>
+              <span class="slc-card-no">#${cardId}</span>
+            </div>
+            <div class="slc-letters-row">
+              <span class="slc-letter b">B</span>
+              <span class="slc-letter i">I</span>
+              <span class="slc-letter n">N</span>
+              <span class="slc-letter g">G</span>
+              <span class="slc-letter o">O</span>
+            </div>
+            <div class="slc-grid">
+              ${cellsHtml}
+            </div>
+          </div>
+        </div>
+      `;
     } else {
-      if (selPrizeEl) selPrizeEl.textContent = `${targetAmount} ETB`;
-      if (livePrizeEl) livePrizeEl.textContent = `${targetAmount} ETB`;
+      html += `
+        <div class="game-slot empty-slot" data-slot="${slotIdx + 1}">
+          <span class="slot-label">SLOT ${slotIdx + 1}</span>
+        </div>
+      `;
     }
   }
-  derashAnimFrame = requestAnimationFrame(step);
-}
 
-function updateDerashPrize() {
-  const totalCards = takenCards.size + selectedCardNumbers.size;
-  const entryPrice = 10;
-  const totalDerash = totalCards * entryPrice;
+  slotsContainers.forEach(container => {
+    container.dataset.slotKey = slotKey;
+    container.innerHTML = html;
 
-  animateDerashPrize(totalDerash);
-
-  const playersEl = $("tgLivePlayers");
-  if (playersEl) playersEl.textContent = `LIVE - ${totalCards} PLAYERS`;
-}
-
-function startCardCountdown() {
-  if (cardCountdownInterval) clearInterval(cardCountdownInterval);
-  if (liveGameInterval) clearInterval(liveGameInterval);
-
-  cardCountdownSeconds = 39;
-  const digitsEl = $("tgCardCountdown");
-  if (digitsEl) digitsEl.textContent = "00:39";
-
-  cardCountdownInterval = setInterval(() => {
-    if (cardCountdownSeconds > 0) {
-      cardCountdownSeconds--;
-      const secStr = String(cardCountdownSeconds).padStart(2, "0");
-      if (digitsEl) digitsEl.textContent = `00:${secStr}`;
-    } else {
-      clearInterval(cardCountdownInterval);
-      toast("ጨዋታው ተጀምሯል!");
-      switchToLiveGameView();
+    if (!isAutoMode) {
+      container.querySelectorAll(".slc-cell:not(.marked):not(.free-cell)").forEach(cell => {
+        cell.addEventListener("click", () => {
+          const val = Number(cell.dataset.val);
+          const cId = cell.dataset.card;
+          if (calledSet.has(val)) {
+            manualMarkedCells.add(`${cId}-${val}`);
+            cell.classList.add("marked");
+            cell.innerHTML = `<span class="slc-ball-circle">${val}</span>`;
+          }
+        });
+      });
     }
-  }, 1000);
+  });
+}
+
+// ==================== "የመረጡት ካርቴላዎች" PREVIEW RENDERER (Image 2) ====================
+function renderSelectedCartelasPreview() {
+  const containers = [ $("tgSelectedCartelasContainer"), $("deskSelectedCartelasContainer") ].filter(Boolean);
+  const lists = [ $("tgSelectedCartelasList"), $("deskSelectedCartelasList") ].filter(Boolean);
+  const badges = [ $("tgSelectedCartelasBadge"), $("deskSelectedCartelasBadge") ].filter(Boolean);
+
+  const count = selectedCardNumbers.size;
+  if (count === 0) {
+    containers.forEach(c => c.style.display = "none");
+    lists.forEach(l => l.innerHTML = "");
+    badges.forEach(b => b.textContent = "0 ካርቴላ");
+    return;
+  }
+
+  containers.forEach(c => c.style.display = "flex");
+  badges.forEach(b => {
+    b.textContent = `${count} ካርቴላ${count > 1 ? "ዎች" : ""}`;
+  });
+
+  const sortedCards = Array.from(selectedCardNumbers).sort((a, b) => a - b);
+  let html = "";
+
+  sortedCards.forEach(cardNum => {
+    const grid = getCartelaNumbers(cardNum);
+    let cellsHtml = "";
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 5; c++) {
+        const val = grid[r][c];
+        const isFree = val === "FREE" || val === "F" || val === "★" || (r === 2 && c === 2);
+        cellsHtml += `<div class="mcc-cell ${isFree ? "free-cell" : ""}">${isFree ? "★" : val}</div>`;
+      }
+    }
+
+    html += `
+      <div class="mini-cartela-card" data-card="${cardNum}">
+        <div class="mcc-topbar">
+          <div class="mcc-brand">
+            <span class="mcc-title">ሁሉ ካርቴላ</span>
+          </div>
+          <div class="mcc-right">
+            <span class="mcc-tag">#${cardNum}</span>
+            <button class="mcc-remove-btn" type="button" title="አስወግድ" data-remove="${cardNum}">✕</button>
+          </div>
+        </div>
+        <div class="mcc-letters-row">
+          <span class="mcc-letter col-b">B</span>
+          <span class="mcc-letter col-i">I</span>
+          <span class="mcc-letter col-n">N</span>
+          <span class="mcc-letter col-g">G</span>
+          <span class="mcc-letter col-o">O</span>
+        </div>
+        <div class="mcc-grid">
+          ${cellsHtml}
+        </div>
+      </div>
+    `;
+  });
+
+  lists.forEach(l => {
+    l.innerHTML = html;
+    l.querySelectorAll(".mcc-remove-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const numToRemove = Number(btn.dataset.remove);
+        if (selectedCardNumbers.has(numToRemove)) {
+          selectedCardNumbers.delete(numToRemove);
+          document.querySelectorAll(`.card-cell[data-card="${numToRemove}"]`).forEach(cell => {
+            cell.classList.remove("selected");
+          });
+          updateCardSelectionTotals();
+        }
+      });
+    });
+  });
+}
+
+// Range tabs supporting 1 to 600 Cartelas
+function setupCardRangeTabs() {
+  const allTabs = document.querySelectorAll(".range-tab-btn");
+
+  allTabs.forEach(tab => {
+    tab.onclick = () => {
+      const start = Number(tab.dataset.start) || 1;
+      const end = Number(tab.dataset.end) || 600;
+      currentCardRange = { start, end };
+
+      allTabs.forEach(b => {
+        const bStart = Number(b.dataset.start);
+        const bEnd = Number(b.dataset.end);
+        if (bStart === start && bEnd === end) {
+          b.classList.add("active");
+        } else {
+          b.classList.remove("active");
+        }
+      });
+
+      renderCardSelectionGrid();
+    };
+  });
+
+  if ($("openHuluAppBtn")) {
+    $("openHuluAppBtn").onclick = (e) => {
+      if (e) e.preventDefault();
+      const modal = $("huluBingoWebAppModal");
+      if (modal) {
+        modal.hidden = false;
+        switchToCardSelectionView();
+      }
+    };
+  }
+
+  // Setup mode switchers (AUTO / MANUAL)
+  const autoBtns = [ $("tgModeAuto"), $("deskModeAuto") ].filter(Boolean);
+  const manualBtns = [ $("tgModeManual"), $("deskModeManual") ].filter(Boolean);
+
+  autoBtns.forEach(btn => {
+    btn.onclick = () => {
+      isAutoMode = true;
+      autoBtns.forEach(b => b.classList.add("active"));
+      manualBtns.forEach(b => b.classList.remove("active"));
+      syncHuluWebApp();
+    };
+  });
+
+  manualBtns.forEach(btn => {
+    btn.onclick = () => {
+      isAutoMode = false;
+      manualBtns.forEach(b => b.classList.add("active"));
+      autoBtns.forEach(b => b.classList.remove("active"));
+      syncHuluWebApp();
+    };
+  });
+
+  // Numbers tracker dropdown toggle
+  if ($("tgTrackBtn")) {
+    $("tgTrackBtn").onclick = () => {
+      const table = $("huluBingoTableView");
+      const chevron = $("tgTrackChevron");
+      if (table) {
+        const isHidden = table.hidden;
+        table.hidden = !isHidden;
+        if (chevron) {
+          chevron.style.transform = isHidden ? "rotate(180deg)" : "rotate(0deg)";
+        }
+      }
+    };
+  }
 }
 
 function renderCardSelectionGrid() {
-  const grid = $("tgCardPickGrid");
-  if (!grid) return;
+  const grids = [ $("tgCardPickGrid"), $("deskCardPickGrid") ].filter(Boolean);
+  if (grids.length === 0) return;
   let html = "";
-  for (let i = 1; i <= 80; i++) {
+  const start = currentCardRange.start;
+  const end = currentCardRange.end;
+  for (let i = start; i <= end; i++) {
     const isTaken = takenCards.has(i);
     const isSelected = selectedCardNumbers.has(i);
     const classes = `card-cell ${isTaken ? 'taken' : 'available'} ${isSelected ? 'selected' : ''}`;
     html += `<div class="${classes}" data-card="${i}">${i}</div>`;
   }
-  grid.innerHTML = html;
 
-  grid.querySelectorAll(".card-cell.available").forEach(cell => {
-    cell.addEventListener("click", () => {
-      const cardNum = Number(cell.dataset.card);
-      if (selectedCardNumbers.has(cardNum)) {
-        selectedCardNumbers.delete(cardNum);
-        cell.classList.remove("selected");
-      } else {
-        if (selectedCardNumbers.size >= 4) {
-          toast("እስከ 4 ካርቴላ ብቻ መምረጥ ይችላሉ (Max 4 cards)");
-          return;
+  grids.forEach(grid => {
+    grid.innerHTML = html;
+    grid.querySelectorAll(".card-cell.available").forEach(cell => {
+      cell.addEventListener("click", () => {
+        const cardNum = Number(cell.dataset.card);
+        if (selectedCardNumbers.has(cardNum)) {
+          selectedCardNumbers.delete(cardNum);
+          document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.remove("selected"));
+        } else {
+          if (selectedCardNumbers.size >= 4) {
+            toast("እስከ 4 ካርቴላ ብቻ መምረጥ ይችላሉ (Max 4 cards)");
+            return;
+          }
+          selectedCardNumbers.add(cardNum);
+          document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.add("selected"));
         }
-        selectedCardNumbers.add(cardNum);
-        cell.classList.add("selected");
-      }
-      updateCardSelectionTotals();
+        updateCardSelectionTotals();
+      });
     });
   });
 
@@ -1227,14 +1621,49 @@ function renderCardSelectionGrid() {
 
 function updateCardSelectionTotals() {
   const count = selectedCardNumbers.size;
-  const countEl = $("tgSelectedCount");
+  const countEls = [ $("tgSelectedCount"), $("deskSelectedCount") ].filter(Boolean);
   const betEl = $("tgTotalBetAmount");
-  if (countEl) countEl.textContent = count;
+  countEls.forEach(el => {
+    el.textContent = count;
+    el.style.color = count > 0 ? "#f59e0b" : "#94a3b8";
+  });
   if (betEl) betEl.textContent = `${count * 10} ETB`;
+  renderSelectedCartelasPreview();
   updateDerashPrize();
+  if (typeof drawGame === "function") drawGame();
+}
+
+function startCardCountdown() {
+  if (cardCountdownInterval) clearInterval(cardCountdownInterval);
+  cardCountdownSeconds = 42;
+  const countEls = [ $("tgCardCountdown"), $("deskCardCountdown") ].filter(Boolean);
+
+  function update() {
+    const secStr = String(cardCountdownSeconds).padStart(2, '0');
+    countEls.forEach(el => el.textContent = `00:${secStr}`);
+  }
+  update();
+
+  cardCountdownInterval = setInterval(() => {
+    cardCountdownSeconds--;
+    if (cardCountdownSeconds <= 0) {
+      clearInterval(cardCountdownInterval);
+      cardCountdownInterval = null;
+      if (selectedCardNumbers.size === 0) {
+        selectedCardNumbers.add(468);
+      }
+      switchToLiveGameView();
+    } else {
+      update();
+    }
+  }, 1000);
 }
 
 function switchToCardSelectionView() {
+  if (liveGameInterval) {
+    clearInterval(liveGameInterval);
+    liveGameInterval = null;
+  }
   if (typeof winnersAutoRestartTimeout !== "undefined" && winnersAutoRestartTimeout) {
     clearTimeout(winnersAutoRestartTimeout);
     winnersAutoRestartTimeout = null;
@@ -1249,15 +1678,20 @@ function switchToCardSelectionView() {
   if ($("tgBingoBtn")) $("tgBingoBtn").hidden = true;
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavHome")?.classList.add("active");
-  
-  takenCards = new Set();
+
   selectedCardNumbers.clear();
+  manualMarkedCells.clear();
   updateCardSelectionTotals();
   renderCardSelectionGrid();
+  setupCardRangeTabs();
   startCardCountdown();
 }
 
 function switchToLiveGameView() {
+  if (cardCountdownInterval) {
+    clearInterval(cardCountdownInterval);
+    cardCountdownInterval = null;
+  }
   if (typeof winnersAutoRestartTimeout !== "undefined" && winnersAutoRestartTimeout) {
     clearTimeout(winnersAutoRestartTimeout);
     winnersAutoRestartTimeout = null;
@@ -1272,32 +1706,52 @@ function switchToLiveGameView() {
   if ($("tgBingoBtn")) $("tgBingoBtn").hidden = false;
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavBoard")?.classList.add("active");
-  syncHuluWebApp();
 
-  // Start live ball caller loop exactly as before
+  if (selectedCardNumbers.size === 0) {
+    selectedCardNumbers.add(468);
+  }
+  const chosenCardId = Array.from(selectedCardNumbers)[0];
+  state.ticket = getCartelaNumbers(chosenCardId);
+
+  // Start fresh live round exactly as shown in Image 3 (0 / 75) & Image 4 (2 / 75 with balls 23 & 60)
+  let liveCalled = [];
+  manualMarkedCells.clear();
+  syncHuluWebApp(31, liveCalled);
+
   if (liveGameInterval) clearInterval(liveGameInterval);
-  let liveCalled = [3, 5, 6, 14, 26, 29, 32, 46, 47, 48, 50, 61];
+  const scriptBallSequence = [23, 60, 31, 66, 47, 45, 53, 7, 2, 8, 18, 34, 54, 67, 15, 28, 40, 68, 4, 17, 55, 61, 5, 21, 42, 57, 72, 3, 35, 51, 74];
+  let ballIdx = 0;
+
   liveGameInterval = setInterval(() => {
-    if (liveCalled.length < 71) {
-      const avail = Array.from({length:75}, (_,i)=>i+1).filter(n => !liveCalled.includes(n));
-      if (avail.length > 0) {
-        const nextNum = avail[Math.floor(Math.random() * avail.length)];
-        liveCalled.push(nextNum);
-        if (state.game) {
-          state.game.current_number = nextNum;
-          state.game.called_numbers = liveCalled;
-        }
-        syncHuluWebApp(nextNum, liveCalled);
-      }
+    let nextNum;
+    if (ballIdx < scriptBallSequence.length) {
+      nextNum = scriptBallSequence[ballIdx++];
     } else {
-      // ቆጥሮ እንደጨረሰ -> ቀጣዩ (Image 2 Winners Screen) ይመጣል!
+      const avail = Array.from({length:75}, (_,i)=>i+1).filter(n => !liveCalled.includes(n));
+      if (avail.length === 0) {
+        clearInterval(liveGameInterval);
+        liveGameInterval = null;
+        setTimeout(switchToWinnersView, 1200);
+        return;
+      }
+      nextNum = avail[Math.floor(Math.random() * avail.length)];
+    }
+
+    liveCalled.push(nextNum);
+    state.called = new Set(liveCalled);
+    if (state.game) {
+      state.game.current_number = nextNum;
+      state.game.called_numbers = liveCalled;
+    }
+    syncHuluWebApp(nextNum, liveCalled);
+    if (typeof drawGame === "function") drawGame();
+
+    if (liveCalled.length >= 26) {
       clearInterval(liveGameInterval);
       liveGameInterval = null;
-      setTimeout(() => {
-        switchToWinnersView();
-      }, 1000);
+      setTimeout(switchToWinnersView, 1500);
     }
-  }, 4000);
+  }, 3500);
 }
 
 function renderWinnersConfetti() {
@@ -1805,9 +2259,17 @@ function initVipListeners() {
 }
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initVipListeners);
+  document.addEventListener("DOMContentLoaded", () => {
+    initVipListeners();
+    if ($("tgCardPickGrid")) {
+      renderCardSelectionGrid();
+    }
+  });
 } else {
   initVipListeners();
+  if ($("tgCardPickGrid")) {
+    renderCardSelectionGrid();
+  }
 }
 
 // Initial check for VIP query param

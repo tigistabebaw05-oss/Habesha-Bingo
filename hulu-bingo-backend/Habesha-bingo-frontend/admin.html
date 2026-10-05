@@ -35,9 +35,42 @@
         <div class="balance-card"><span>Current demo pool</span><strong id="currentPrizePool">0 ETB</strong></div>
         <div class="balance-card"><span>Completed games</span><strong id="completedGameCount">0</strong></div>
         <div class="balance-card"><span>Pending transactions</span><strong id="pendingCount">0</strong></div>
+        <div class="balance-card"><span>Pending withdrawals</span><strong id="pendingWithdrawalsCount" style="color:var(--gold,#f5b716);">0</strong></div>
         <div class="balance-card"><span>Winners</span><strong id="winnerCount">0</strong></div>
       </div>
       <div class="admin-grid">
+        <section class="panel admin-section wide" id="withdrawalsSection">
+          <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+            <h2>💸 Withdrawal Requests</h2>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="withdrawalStatusFilter" class="status-select">
+                <option value="">All Statuses</option>
+                <option value="pending" selected>Pending</option>
+                <option value="approved">Approved</option>
+                <option value="completed">Completed</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <button class="btn btn-outline" id="refreshWithdrawalsBtn" style="padding:5px 10px;font-size:11px;">Refresh</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Player Name</th>
+                  <th>Phone</th>
+                  <th>Wallet</th>
+                  <th>Amount</th>
+                  <th>Payment Method & Account</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="withdrawalsBody"></tbody>
+            </table>
+          </div>
+        </section>
         <section class="panel admin-section"><div class="section-title"><h2>Users</h2><input class="admin-search" id="userSearch" placeholder="Search name or phone"></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="usersBody"></tbody></table></div></section>
         <section class="panel admin-section"><div class="section-title"><h2>Wallets</h2></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Main</th><th>VIP</th></tr></thead><tbody id="walletsBody"></tbody></table></div></section>
         <section class="panel admin-section wide"><div class="section-title"><h2>Games</h2></div><div class="table-wrap"><table><thead><tr><th>Game</th><th>Players</th><th>Pool</th><th>Status</th><th></th></tr></thead><tbody id="gamesBody"></tbody></table></div></section>

@@ -599,11 +599,63 @@ nav a:hover::after {
 }
 
 .ticket div.marked {
-  background: linear-gradient(135deg, #1cc774 0%, #129255 100%);
-  color: #ffffff;
-  border-color: #2edbb4;
+  background: linear-gradient(135deg, #1cc774 0%, #129255 100%) !important;
+  color: #ffffff !important;
+  border-color: #2edbb4 !important;
   box-shadow: 0 0 14px var(--habesha-green-glow);
 }
+
+.ticket div.free-cell {
+  background: linear-gradient(135deg, #1cc774 0%, #129255 100%) !important;
+  color: #fcd34d !important;
+  border-color: #2edbb4 !important;
+  box-shadow: 0 0 14px var(--habesha-green-glow);
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 1px;
+}
+
+.ticket div.free-cell .free-star {
+  font-size: 16px;
+  color: #fcd34d;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+.ticket div.free-cell .free-text {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+}
+
+/* B I N G O Header for Desktop Ticket */
+.desk-bingo-header {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+.desk-col {
+  aspect-ratio: 1.5;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 950;
+  font-size: 15px;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.desk-col.col-b { background: #2563eb; }
+.desk-col.col-i { background: #dc2626; }
+.desk-col.col-n { background: #16a34a; }
+.desk-col.col-g { background: #f59e0b; }
+.desk-col.col-o { background: #0891b2; }
 
 .hint {
   display: block;
@@ -1685,10 +1737,163 @@ footer {
 
 .hulu-player-card-view {
   width: 100%;
-  background: rgba(11, 23, 40, 0.95);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  padding: 10px 8px;
+  background: transparent;
+  padding: 4px 0 10px;
+}
+
+/* 4-Slots Live Game Area (Matching Screenshots 2 & 3) */
+.hulu-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.game-slot {
+  background: #0b1320;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  min-height: 238px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+.game-slot.empty-slot {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 10px 12px;
+  background: #070e18;
+  border: 1px dashed rgba(255, 255, 255, 0.09);
+}
+
+.slot-label {
+  font-size: 11px;
+  font-weight: 900;
+  color: #3b506d;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+/* Slot Live Card (Active in Slot, matching Image 2 & 3) */
+.slot-live-card {
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.slc-topbar {
+  background: linear-gradient(135deg, #f59e0b, #eab308);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 8px;
+  font-weight: 950;
+  font-size: 11px;
+  letter-spacing: 0.2px;
+}
+
+.slc-brand {
+  color: #ffffff;
+  font-weight: 950;
+  font-size: 11px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.slc-card-no {
+  font-size: 11px;
+  font-weight: 950;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.slc-letters-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  background: #0f172a;
+}
+
+.slc-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 950;
+  color: #ffffff;
+  padding: 2.5px 0;
+}
+
+.slc-letter.b { background: #1d4ed8; }
+.slc-letter.i { background: #dc2626; }
+.slc-letter.n { background: #0284c7; }
+.slc-letter.g { background: #16a34a; }
+.slc-letter.o { background: #ea580c; }
+
+.slc-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  gap: 1px;
+  background: #cbd5e1;
+  padding: 1px;
+}
+
+.slc-cell {
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  font-weight: 850;
+  color: #0f172a;
+  position: relative;
+  min-height: 35px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Green 3D Sphere Marker (matching Image 4) */
+.slc-ball-circle {
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #34d399 0%, #10b981 50%, #047857 100%);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 950;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(16, 185, 129, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  animation: ballPopIn 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes ballPopIn {
+  from { transform: scale(0.3); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.slc-star-circle {
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #34d399 0%, #10b981 50%, #047857 100%);
+  color: #fcd34d;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(16, 185, 129, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.4);
 }
 
 .chip.latest-chip {
@@ -1963,44 +2168,314 @@ footer {
   font-weight: 950;
 }
 
+.card-range-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 9px;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.card-range-tabs::-webkit-scrollbar {
+  height: 3px;
+}
+
+.card-range-tabs::-webkit-scrollbar-thumb {
+  background: rgba(245, 183, 22, 0.3);
+  border-radius: 3px;
+}
+
+.range-tab-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  background: rgba(14, 28, 48, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: #94a3b8;
+  border-radius: 8px;
+  padding: 5px 11px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.range-tab-btn:hover {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.range-tab-btn.active {
+  background: rgba(245, 183, 22, 0.2);
+  border-color: var(--habesha-gold);
+  color: var(--habesha-gold);
+  box-shadow: 0 0 8px rgba(245, 183, 22, 0.35);
+}
+
 .card-pick-grid {
   display: grid;
-  grid-template-columns: repeat(9, 1fr);
+  grid-template-columns: repeat(11, 1fr);
   gap: 4px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
+.card-pick-grid::-webkit-scrollbar {
+  width: 4px;
+}
+
+.card-pick-grid::-webkit-scrollbar-thumb {
+  background: rgba(245, 183, 22, 0.28);
+  border-radius: 4px;
 }
 
 .card-cell {
   aspect-ratio: 1;
-  border-radius: 6px;
+  border-radius: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
-  color: var(--habesha-muted);
-  background: #081322;
-  border: 1px solid var(--line);
+  color: #cbd5e1;
+  background: #142033;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
   transition: all 0.15s ease;
+  user-select: none;
 }
 
 .card-cell:hover {
   border-color: var(--habesha-gold);
   color: #ffffff;
+  background: #1d2d48;
 }
 
 .card-cell.taken {
-  opacity: 0.3;
+  opacity: 0.28;
+  filter: blur(0.8px);
   cursor: not-allowed;
   pointer-events: none;
+  background: #0d1522;
+  border-color: rgba(255, 255, 255, 0.03);
+  color: #64748b;
 }
 
 .card-cell.selected {
-  background: linear-gradient(135deg, #ffd747, #f5b716) !important;
-  color: #171100 !important;
+  background: linear-gradient(135deg, #ffd747, #f59e0b) !important;
+  color: #0f172a !important;
   font-weight: 950 !important;
-  border-color: #ffd23f !important;
-  box-shadow: 0 0 10px rgba(245, 183, 22, 0.5);
+  border-color: #fbbf24 !important;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.75);
+  transform: scale(1.06);
+}
+
+/* ==========================================================================
+   Selected Cartelas Preview Section ("የመረጡት ካርቴላዎች")
+   ========================================================================== */
+.selected-cartelas-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  animation: fadeInCartelas 0.25s ease-out;
+}
+
+@keyframes fadeInCartelas {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.selected-cartelas-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.sc-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sc-sparkle {
+  color: var(--habesha-gold);
+  font-size: 11px;
+}
+
+.selected-cartelas-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: #e2e8f0;
+  letter-spacing: 0.2px;
+}
+
+.sc-count-badge {
+  background: rgba(245, 183, 22, 0.15);
+  border: 1px solid rgba(245, 183, 22, 0.35);
+  color: var(--habesha-gold);
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.selected-cartelas-list {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 2px 2px 8px 2px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.selected-cartelas-list::-webkit-scrollbar {
+  height: 4px;
+}
+
+.selected-cartelas-list::-webkit-scrollbar-thumb {
+  background: rgba(245, 183, 22, 0.3);
+  border-radius: 4px;
+}
+
+/* Individual 5x5 Mini Cartela Card (Matching Screenshot exactly) */
+.mini-cartela-card {
+  flex: 0 0 168px;
+  max-width: 175px;
+  scroll-snap-align: start;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 8px 9px 9px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  position: relative;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.mini-cartela-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(245, 183, 22, 0.3);
+}
+
+.mcc-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 2px;
+}
+
+.mcc-brand {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mcc-title {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #1e293b;
+  letter-spacing: -0.2px;
+}
+
+.mcc-right {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mcc-tag {
+  background: linear-gradient(135deg, #f5b716, #e5a706);
+  color: #111827;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 1.5px 6px;
+  border-radius: 5px;
+  letter-spacing: 0.2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.mcc-remove-btn {
+  background: #f1f5f9;
+  border: none;
+  color: #64748b;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  font-size: 9.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.mcc-remove-btn:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+/* Letters Row: B I N G O */
+.mcc-letters-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2.5px;
+  margin-bottom: 1px;
+}
+
+.mcc-letter {
+  aspect-ratio: 1.15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.mcc-letter.col-b { background: #2563eb; } /* Blue */
+.mcc-letter.col-i { background: #dc2626; } /* Red */
+.mcc-letter.col-n { background: #16a34a; } /* Green */
+.mcc-letter.col-g { background: #f59e0b; } /* Amber/Gold */
+.mcc-letter.col-o { background: #0891b2; } /* Teal/Sky */
+
+/* 5x5 Number Grid */
+.mcc-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2.5px;
+}
+
+.mcc-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 3px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 0.5px 1.5px rgba(0, 0, 0, 0.04);
+}
+
+.mcc-cell.free-cell {
+  background: #f1f5f9;
+  color: #1e293b;
+  font-weight: 900;
+  font-size: 11.5px;
+  border-color: #cbd5e1;
 }
 
 /* Bottom Bar */
