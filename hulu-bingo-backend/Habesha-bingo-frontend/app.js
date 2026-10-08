@@ -1407,9 +1407,11 @@ function syncHuluWebApp(overrideNum, overrideList) {
   const tableGrid = $("tgBingoTableGrid");
   const bingoBtn = $("tgBingoBtn");
 
-  const roundNum = "226798";
-  const players = 286;
-  const prize = "4800 ETB";
+  const roundNum = g?.id || "226798";
+  const cartelaCount = selectedCardNumbers.size || (state.myTickets && state.myTickets.length ? state.myTickets.length : 1);
+  const prizeVal = (g?.prize_pool && Number(g.prize_pool) > 0) ? Number(g.prize_pool) : (cartelaCount * 8);
+  const prize = `${prizeVal} ETB`;
+  const players = g?.players || cartelaCount;
   const currentNum = overrideNum || g?.current_number || 31;
   const calledList = (overrideList && overrideList.length > 0)
     ? overrideList
@@ -1423,7 +1425,10 @@ function syncHuluWebApp(overrideNum, overrideList) {
   if (playersEl) playersEl.textContent = `LIVE - ${players} PLAYERS`;
   if (prizeEl) prizeEl.textContent = prize;
   const selPrizeEl = $("tgCardSelPrize");
-  if (selPrizeEl) selPrizeEl.textContent = prize;
+  if (selPrizeEl) {
+    const selCount = selectedCardNumbers.size;
+    selPrizeEl.textContent = `${selCount * 8} ETB`;
+  }
   if (ballLetterEl) ballLetterEl.textContent = getBingoLetter(currentNum);
   if (ballNumEl) ballNumEl.textContent = currentNum;
   if (trackerCount) trackerCount.innerHTML = `<span class="yellow-dot">●</span> ${calledCount}/75`;
@@ -1508,7 +1513,7 @@ function animateDerashPrize(targetAmount) {
 
 function updateDerashPrize() {
   const count = selectedCardNumbers.size;
-  const totalDerash = 2896 + (count * 10);
+  const totalDerash = count * 8;
   animateDerashPrize(totalDerash);
 }
 
@@ -1705,14 +1710,15 @@ function switchToWinnersView() {
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavRank")?.classList.add("active");
 
+  const totalPrize = selectedCardNumbers.size ? (selectedCardNumbers.size * 8) : ((state.game?.prize_pool && Number(state.game.prize_pool)) || 8);
   const badgeEl = $("tgWinnersBadgeCount");
   const headingEl = $("tgWinnersHeading");
   const totalEl = $("tgWinnersTotal");
   const shareEl = $("tgWinnersShare");
-  if (badgeEl) badgeEl.textContent = "5 WINNERS";
-  if (headingEl) headingEl.textContent = "የደራሽ ሽልማት ተካፋዮች!";
-  if (totalEl) totalEl.textContent = "5";
-  if (shareEl) shareEl.textContent = "960 ETB";
+  if (badgeEl) badgeEl.textContent = "1 WINNER";
+  if (headingEl) headingEl.textContent = "የደራሽ ሽልማት አሸናፊ!";
+  if (totalEl) totalEl.textContent = "1";
+  if (shareEl) shareEl.textContent = `${totalPrize} ETB`;
 
   renderWinnersConfetti();
   toast("🎉 የደራሽ ሽልማት ተካፋዮች!");

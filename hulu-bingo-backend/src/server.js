@@ -1635,8 +1635,8 @@ async function callNumber() {
 
       // If players exist, update prize pool and transition to running
       const entryFee = Number(g.entry || 10);
-      const prize = currentTickets * entryFee;
-      const fee = currentTickets > 3 ? (currentTickets * 2) : 0;
+      const fee = currentTickets >= 3 ? (currentTickets * 2) : 0;
+      const prize = currentTickets * (entryFee - (currentTickets >= 3 ? 2 : 0));
       await client.query("UPDATE games SET prize_pool=$1, platform_fee=$2, status='running' WHERE id=$3", [prize, fee, g.id]);
       g.status = 'running';
       waitCycle = 0;
@@ -1668,8 +1668,8 @@ async function callNumber() {
     const ts = (await client.query("SELECT * FROM tickets WHERE game_id=$1 ORDER BY id", [g.id])).rows;
     const playerCount = ts.length;
     const entryFee = Number(g.entry || 10);
-    const prize = playerCount * entryFee;
-    const fee = playerCount > 3 ? (playerCount * 2) : 0;
+    const fee = playerCount >= 3 ? (playerCount * 2) : 0;
+    const prize = playerCount * (entryFee - (playerCount >= 3 ? 2 : 0));
     const winner = ts.find(t => validTicket(t.numbers) && isBingo(t.numbers, next));
     await client.query("UPDATE games SET current_number=$1, called_numbers=$2, prize_pool=$3, platform_fee=$4 WHERE id=$5", [n, JSON.stringify(next), prize, fee, g.id]);
     
