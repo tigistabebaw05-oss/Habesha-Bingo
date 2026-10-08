@@ -92,7 +92,7 @@ class TelegramBingoService {
         try {
           await this.apiCall("setMyCommands", {
             commands: [
-              { command: "start", description: "🎮 ጨዋታ ጀምር / START HULU BINGO" },
+              { command: "start", description: "🎮 ጨዋታ ጀምር / START HABESHA BINGO" },
               { command: "deposit", description: "📥 ገቢ አድርግ (ዋና ከ10 ብር / VIP ከ50 ብር)" },
               { command: "withdraw", description: "📤 ወጪ አድርግ / Withdraw Funds" },
               { command: "balance", description: "💰 ቀሪ ሂሳብ / Wallet Balance" },
@@ -1056,7 +1056,7 @@ class TelegramBingoService {
       return;
     }
 
-    const text = `🎉 <b>ሁሉ ቢንጎ ለመጫወት ዝግጁ ነዎት!</b>\n\n` +
+    const text = `🎉 <b>ሀበሻ ቢንጎ ለመጫወት ዝግጁ ነዎት!</b>\n\n` +
       `👤 ተጫዋች: <b>${user ? user.name : "ተጫዋች"}</b>\n` +
       `💰 ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n` +
       `🎟 የመግቢያ ክፍያ: <b>10.00 ETB</b>\n\n` +
