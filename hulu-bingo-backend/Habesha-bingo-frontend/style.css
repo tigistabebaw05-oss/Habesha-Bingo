@@ -2215,11 +2215,13 @@ footer {
 
 .card-pick-grid {
   display: grid;
-  grid-template-columns: repeat(11, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 5px;
+  min-height: 180px;
   max-height: 250px;
   overflow-y: auto;
-  padding-right: 3px;
+  padding: 4px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .card-pick-grid::-webkit-scrollbar {
