@@ -279,7 +279,7 @@ function drawGame(){
   if(state.ticket){
     $("joinBtn").disabled=true; $("joinBtn").textContent="Joined — Good Luck!";
   }else{
-    $("joinBtn").disabled=false; $("joinBtn").textContent="Join Game — 10 ETB";
+    $("joinBtn").disabled=false; $("joinBtn").textContent="Join Game — 8 ETB";
   }
 }
 function drawWinners(list){
@@ -1330,7 +1330,7 @@ function animateDerashPrize(targetAmount) {
 
 function updateDerashPrize() {
   const count = selectedCardNumbers.size;
-  const totalDerash = 2896 + (count * 10);
+  const totalDerash = 2896 + (count * 8);
   animateDerashPrize(totalDerash);
 }
 
@@ -1393,7 +1393,7 @@ function updateCardSelectionTotals() {
   const countEl = $("tgSelectedCount");
   const betEl = $("tgTotalBetAmount");
   if (countEl) countEl.textContent = count;
-  if (betEl) betEl.textContent = `${count * 10} ETB`;
+  if (betEl) betEl.textContent = `${count * 8} ETB`;
   updateDerashPrize();
   renderSelectedCartelasPreview();
 }
@@ -1595,7 +1595,7 @@ if($("tgTotalBetBtn")) {
       toast("እባክዎ መጀመሪያ ካርቴላ ይምረጡ! (Select a card first)");
       return;
     }
-    toast(`ካርቴላዎች ተመርጠዋል! ድምር: ${selectedCardNumbers.size * 10} ETB`);
+    toast(`ካርቴላዎች ተመርጠዋል! ድምር: ${selectedCardNumbers.size * 8} ETB`);
     setTimeout(switchToLiveGameView, 600);
   });
 }

@@ -70,7 +70,7 @@ async function init(){
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
   CREATE TABLE IF NOT EXISTS games(
-    id BIGSERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL DEFAULT 'Main Game', entry NUMERIC(12,2) NOT NULL DEFAULT 10,
+    id BIGSERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL DEFAULT 'Main Game', entry NUMERIC(12,2) NOT NULL DEFAULT 8,
     status VARCHAR(20) NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting','running','finished','cancelled')),
     prize_pool NUMERIC(14,2) NOT NULL DEFAULT 0, platform_fee NUMERIC(14,2) NOT NULL DEFAULT 0,
     current_number INTEGER CHECK (current_number IS NULL OR current_number BETWEEN 1 AND 600),
@@ -135,8 +135,8 @@ async function init(){
   CREATE INDEX IF NOT EXISTS idx_support_user ON support_messages(user_id);
   CREATE INDEX IF NOT EXISTS idx_support_status ON support_messages(status);`);
   await pool.query("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS balance_before NUMERIC(14,2), ADD COLUMN IF NOT EXISTS balance_after NUMERIC(14,2), ADD COLUMN IF NOT EXISTS provider VARCHAR(30), ADD COLUMN IF NOT EXISTS provider_reference VARCHAR(150), ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100), ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb, ADD COLUMN IF NOT EXISTS failure_reason TEXT, ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ");
-  await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_idempotency ON transactions(user_id,idempotency_key) WHERE idempotency_key IS NOT NULL");
-  await pool.query("INSERT INTO app_settings(key,value) VALUES ('demo_mode','true'),('demo_entry_amount','10'),('demo_min_deposit','50'),('demo_min_withdrawal','100'),('demo_number_max','600') ON CONFLICT (key) DO NOTHING");
+  await pool.query("INSERT INTO app_settings(key,value) VALUES ('demo_mode','true'),('demo_entry_amount','8'),('demo_min_deposit','10'),('demo_min_withdrawal','100'),('demo_number_max','600') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value WHERE app_settings.key IN ('demo_entry_amount', 'demo_min_deposit')");
+  await pool.query("UPDATE games SET entry = 8 WHERE status = 'waiting' AND entry = 10");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE, ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'PLAYER'");
   await pool.query("ALTER TABLE payment_accounts ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE");
   const telebirrAcc = (await pool.query("SELECT id FROM payment_accounts WHERE method = 'TeleBirr'")).rows[0];
@@ -299,7 +299,7 @@ async function currentGame(){
     await client.query("SELECT pg_advisory_xact_lock($1)",[390711]);
     const r=await client.query("SELECT * FROM games WHERE status IN ('waiting','running') ORDER BY id DESC LIMIT 1");
     if(r.rows[0]){await client.query("COMMIT");return r.rows[0]}
-    const x=await client.query("INSERT INTO games(name) VALUES('Main Game') RETURNING *");
+    const x=await client.query("INSERT INTO games(name, entry) VALUES('Main Game', 8) RETURNING *");
     await client.query("COMMIT");return x.rows[0];
   }catch(error){await client.query("ROLLBACK");throw error}finally{client.release()}
 }
@@ -310,7 +310,7 @@ async function publicGame(g){
 async function recalc(gameId){
   const g=(await pool.query("SELECT * FROM games WHERE id=$1",[gameId])).rows[0];
   const p=Number((await pool.query("SELECT COUNT(*)::int AS count FROM tickets WHERE game_id=$1",[gameId])).rows[0].count);
-  const feePer=p>3?2:0, poolAmount=p*(Number(g.entry)-feePer);
+  const feePer=p>=3?2:0, poolAmount=p*(Number(g.entry)-feePer);
   await pool.query("UPDATE games SET prize_pool=$1,platform_fee=$2 WHERE id=$3",[poolAmount,p*feePer,gameId]);
 }
 async function broadcast(id){
@@ -581,7 +581,7 @@ app.post("/api/join",auth,async(req,res)=>{
     }
     res.json({ok:true});
   }catch(e){await client.query("ROLLBACK");
-    const message=e.message==="joined"?"Already joined":e.message==="INSUFFICIENT_BALANCE"?"At least 10 ETB is required in the main wallet":"Could not join game";
+    const message=e.message==="joined"?"Already joined":e.message==="INSUFFICIENT_BALANCE"?"At least 8 ETB is required in the main wallet":"Could not join game";
     res.status(400).json({error:message});
   }finally{client.release()}
 });
