@@ -1536,25 +1536,53 @@ function getPlayerMainBalance() {
   return 0;
 }
 
-function startCardCountdown() {
-  if (cardCountdownInterval) clearInterval(cardCountdownInterval);
-  if (liveGameInterval) clearInterval(liveGameInterval);
+const ROUND_COUNTDOWN_DURATION = 60; // 60 seconds
 
-  cardCountdownSeconds = 60;
+function getOrCreateRoundEndTime() {
+  const now = Date.now();
+  let end = parseInt(localStorage.getItem("habesha_bingo_round_end") || "0", 10);
+  if (!end || end <= now || (end - now) > (ROUND_COUNTDOWN_DURATION + 5) * 1000) {
+    end = now + ROUND_COUNTDOWN_DURATION * 1000;
+    localStorage.setItem("habesha_bingo_round_end", String(end));
+  }
+  return end;
+}
+
+function resetRoundEndTime() {
+  const end = Date.now() + ROUND_COUNTDOWN_DURATION * 1000;
+  localStorage.setItem("habesha_bingo_round_end", String(end));
+  return end;
+}
+
+function updateCountdownDisplay() {
   const digitsEl = $("tgCardCountdown");
-  if (digitsEl) digitsEl.textContent = "01:00";
+  const now = Date.now();
+  let end = parseInt(localStorage.getItem("habesha_bingo_round_end") || "0", 10);
+  if (!end || end <= now || (end - now) > (ROUND_COUNTDOWN_DURATION + 5) * 1000) {
+    end = getOrCreateRoundEndTime();
+  }
+  const remaining = Math.max(0, Math.ceil((end - now) / 1000));
+  const min = Math.floor(remaining / 60);
+  const sec = remaining % 60;
+  const timeStr = `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  if (digitsEl) digitsEl.textContent = timeStr;
+  return remaining;
+}
+
+function startCardCountdown() {
+  updateCountdownDisplay();
+
+  if (cardCountdownInterval) clearInterval(cardCountdownInterval);
 
   cardCountdownInterval = setInterval(() => {
-    if (cardCountdownSeconds > 0) {
-      cardCountdownSeconds--;
-      const min = Math.floor(cardCountdownSeconds / 60);
-      const sec = cardCountdownSeconds % 60;
-      const timeStr = `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-      if (digitsEl) digitsEl.textContent = timeStr;
-    } else {
-      clearInterval(cardCountdownInterval);
-      toast("ጨዋታው ተጀምሯል!");
-      switchToLiveGameView();
+    const rem = updateCountdownDisplay();
+    if (rem <= 0) {
+      resetRoundEndTime();
+      const cardView = $("huluCardSelectionView");
+      if (cardView && !cardView.hidden) {
+        toast("ጨዋታው ተጀምሯል!");
+        switchToLiveGameView();
+      }
     }
   }, 1000);
 }
@@ -1624,7 +1652,6 @@ function switchToCardSelectionView() {
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavHome")?.classList.add("active");
   
-  selectedCardNumbers.clear();
   updateCardSelectionTotals();
   renderCardSelectionGrid();
   startCardCountdown();
@@ -1752,6 +1779,8 @@ function switchToWinnersView() {
 
   // ይህን ካመጣ በኋላ ቀጥታ አውቶማቲክ ጨዋታውን ሰርቶ እንዲጀምር
   winnersAutoRestartTimeout = setTimeout(() => {
+    selectedCardNumbers.clear();
+    resetRoundEndTime();
     switchToCardSelectionView();
   }, 5000);
 }
@@ -1771,6 +1800,8 @@ function switchToGrandWinnerView() {
   $("tgNavRank")?.classList.add("active");
 
   winnersAutoRestartTimeout = setTimeout(() => {
+    selectedCardNumbers.clear();
+    resetRoundEndTime();
     switchToCardSelectionView();
   }, 5000);
 }
