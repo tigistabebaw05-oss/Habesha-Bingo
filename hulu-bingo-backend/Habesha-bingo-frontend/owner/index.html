@@ -119,32 +119,110 @@
 
     <section class="section" id="wallet">
       <div class="section-title">
-        <div><div class="eyebrow">MY ACCOUNT</div><h2>Wallet</h2></div>
+        <div><div class="eyebrow">MY ACCOUNT (የእኔ ሂሳብ)</div><h2>Wallet & Cash Out</h2></div>
+        <button class="btn btn-gold" type="button" onclick="openTelegramModal('withdrawalModal')" style="font-weight:700;">📤 ገንዘብ አውጣ (Withdraw)</button>
       </div>
-      <div class="wallet-grid">
-        <div class="balance-card main-balance"><span>Main Game Demo Wallet</span><strong id="mainBalance">0.00 ETB</strong><small>Demo balance used for the main game</small></div>
-        <div class="balance-card vip-balance"><span>VIP Demo Wallet</span><strong id="vipBalance">0.00 ETB</strong><small>Demo balance reserved for VIP room</small></div>
+      <div class="wallet-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+        <div class="balance-card main-balance">
+          <span>ዋና ሂሳብ (Main Game)</span>
+          <strong id="mainBalance">0.00 ETB</strong>
+          <small>ለጨዋታ መግቢያ እና ውርርድ</small>
+        </div>
+        <div class="balance-card vip-balance">
+          <span>VIP ሂሳብ (VIP Balance)</span>
+          <strong id="vipBalance">0.00 ETB</strong>
+          <small>ለ VIP ክፍል ጨዋታዎች</small>
+        </div>
+        <div class="balance-card" style="background: linear-gradient(135deg, rgba(30, 144, 255, 0.15), rgba(16, 185, 129, 0.15)); border: 1px solid rgba(16, 185, 129, 0.35);">
+          <span style="color: #34d399; font-weight:700;">💵 ሊወጣ የሚችል ሂሳብ (Withdrawable)</span>
+          <strong id="withdrawableBalance" style="color: #10b981;">0.00 ETB</strong>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+            <small style="color: var(--habesha-muted);">ዝቅተኛ ማውጫ: <b id="minWithdrawalLabel">100 ETB</b></small>
+            <span id="pendingWithdrawalBadge" style="font-size:11px; color:#f59e0b; background:rgba(245,158,11,0.15); padding:2px 6px; border-radius:4px; display:none;">0.00 ETB በመጠባበቅ ላይ</span>
+          </div>
+        </div>
       </div>
       <div class="forms-grid">
         <form class="panel" id="depositForm">
-          <div class="eyebrow">DEPOSIT</div><h3>Add Funds</h3>
+          <div class="eyebrow">DEPOSIT</div><h3>ገንዘብ አስገባ (Add Funds)</h3>
           <div id="paymentAccountsContainer" class="payment-accounts-container" style="display:none; padding:10px; background:var(--habesha-bg-alt); border-radius:8px; margin-bottom:10px;"></div>
-          <label>Wallet<select name="wallet"><option value="main">Main Game</option><option value="vip">VIP Room</option></select></label>
-          <label>Method<select name="method"><option>TeleBirr</option><option>CBE Birr</option><option>M-Pesa</option><option>E-Birr</option></select></label>
-          <label>Amount<input name="amount" type="number" min="10" value="10"></label>
-          <label>Payment reference<input name="reference" placeholder="Transaction reference"></label>
-          <button class="btn btn-gold full">Submit Deposit Request</button>
-          <small class="hint">Minimum deposit: 10 ETB. Demo/manual request only.</small>
+          <label>Wallet (ዋሌት)<select name="wallet"><option value="main">🎮 ዋና ጨዋታ (Main Game)</option><option value="vip">💎 VIP ክፍል (VIP Room)</option></select></label>
+          <label>የክፍያ ዘዴ (Method)<select name="method"><option>TeleBirr</option><option>CBE Birr</option><option>M-Pesa</option><option>E-Birr</option></select></label>
+          <label>የብር መጠን (Amount)<input name="amount" type="number" min="10" value="10"></label>
+          <label>የግብይት ማረጋገጫ ቁጥር (Txn Reference)<input name="reference" placeholder="ምሳሌ፡ FT29384912..."></label>
+          <button class="btn btn-gold full" type="submit">የገቢ ጥያቄ ላክ (Submit Deposit)</button>
+          <small class="hint">ዝቅተኛ ገቢ: 10 ETB። ጥያቄዎ በአስተዳዳሪው ሲረጋገጥ በደቂቃዎች ውስጥ ይገባል።</small>
         </form>
-        <form class="panel" id="withdrawForm">
-          <div class="eyebrow">WITHDRAW</div><h3>Withdraw Funds</h3>
-          <label>Wallet<select name="wallet"><option value="main">Main Game</option><option value="vip">VIP Room</option></select></label>
-          <label>Method<select name="method"><option>TeleBirr</option><option>CBE Birr</option><option>M-Pesa</option><option>E-Birr</option></select></label>
-          <label>Amount<input name="amount" type="number" min="100" value="100"></label>
-          <label>Account / phone<input name="account" placeholder="09xxxxxxxx"></label>
-          <button class="btn btn-outline full">Request Withdrawal</button>
-          <small class="hint">Minimum withdrawal: 100 ETB in this prototype.</small>
+        <form class="panel" id="withdrawForm" style="border: 1px solid rgba(245, 183, 22, 0.3);">
+          <div class="eyebrow" style="color:var(--habesha-gold);">SECURE CASH OUT</div><h3>ገንዘብ አውጣ (Withdrawal)</h3>
+          <div style="background:rgba(245,183,22,0.08); padding:8px 12px; border-radius:6px; margin-bottom:10px; font-size:12px; color:var(--habesha-muted);">
+            💡 ያሸነፉትን ገንዘብ በቀጥታ ወደ ቴሌብር ወይም ባንክ አካውንትዎ ያውጡ።
+          </div>
+          <label>ዋሌት (Wallet)<select name="wallet"><option value="main">🎮 ዋና ሂሳብ (Main Game)</option></select></label>
+          <label>የክፍያ ዘዴ (Payout Method)
+            <select name="method" id="withdrawMethodSelect" required>
+              <option value="TeleBirr">📱 TeleBirr (ቴሌብር)</option>
+              <option value="CBE Birr">🏦 CBE Birr (ሲቢኢ ብር)</option>
+              <option value="CBE Bank">🏛 Commercial Bank of Ethiopia (CBE)</option>
+              <option value="Awash Bank">🏛 Awash Bank (አዋሽ ባንክ)</option>
+              <option value="Bank of Abyssinia">🏛 Bank of Abyssinia (አቢሲኒያ)</option>
+              <option value="M-Pesa">🟢 Safaricom M-Pesa</option>
+              <option value="E-Birr">🟡 E-Birr</option>
+            </select>
+          </label>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <label>የብር መጠን (Amount ETB)
+              <input name="amount" id="withdrawAmountInput" type="number" min="100" value="100" required>
+            </label>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
+              <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px;" onclick="document.getElementById('withdrawAmountInput').value=100">100</button>
+              <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px;" onclick="document.getElementById('withdrawAmountInput').value=200">200</button>
+              <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px;" onclick="document.getElementById('withdrawAmountInput').value=500">500</button>
+              <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px;" onclick="document.getElementById('withdrawAmountInput').value=1000">1000</button>
+              <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px; color:var(--habesha-gold); border-color:var(--habesha-gold);" id="withdrawMaxBtn">ሙሉውን (Max)</button>
+            </div>
+          </div>
+          <label>የተቀባይ ሂሳብ ወይም ስልክ ቁጥር (Account / Phone)
+            <input name="account" id="withdrawAccountInput" placeholder="ምሳሌ፡ 09xxxxxxxx ወይም 1000xxxxxxxxx" required>
+          </label>
+          <label>የሂሳብ ባለቤት ሙሉ ስም (Account Holder Name — KYC)
+            <input name="account_name" id="withdrawAccountNameInput" placeholder="ምሳሌ፡ Abebe Kebede" required>
+          </label>
+          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; font-size:12px; margin-top:4px; color:var(--habesha-muted);">
+            <input type="checkbox" name="is_adult" checked required style="width:auto; margin-top:2px;">
+            <span>ዕድሜዬ ከ18 ዓመት በላይ መሆኑን እና የገባሁት የባንክ/ቴሌብር መረጃ ትክክለኛ መሆኑን አረጋግጣለሁ (18+ & KYC Confirmation)</span>
+          </label>
+          <button class="btn btn-gold full" style="margin-top:8px;" id="submitWithdrawBtn">📤 የወጪ ጥያቄ ላክ (Request Withdrawal)</button>
+          <small class="hint">ደህንነቱ የተጠበቀ ክፍያ። ጥያቄው እንደገባ ወዲያውኑ ቀሪ ሂሳብዎ ተቀናሽ ሆኖ በአስተዳዳሪው ይረጋገጣል።</small>
         </form>
+      </div>
+
+      <!-- Player's My Withdrawal History Table -->
+      <div class="panel" style="margin-top: 20px;">
+        <div class="section-title" style="margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div class="eyebrow">TRANSACTION HISTORY</div>
+            <h3>የእርስዎ የወጪ ጥያቄዎች (My Withdrawal Requests)</h3>
+          </div>
+          <button class="btn btn-outline" type="button" id="refreshPlayerWithdrawalsBtn" style="padding:4px 10px; font-size:12px;">🔄 አድስ (Refresh)</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>መጠን (Amount)</th>
+                <th>ዘዴ (Method)</th>
+                <th>አካውንት (Account)</th>
+                <th>የባለቤት ስም</th>
+                <th>ቀን (Date)</th>
+                <th>ሁኔታ (Status)</th>
+              </tr>
+            </thead>
+            <tbody id="playerWithdrawalsTableBody">
+              <tr><td colspan="6" style="text-align:center; padding:16px; color:var(--habesha-muted);">እስካሁን ምንም የወጪ ጥያቄ የለም።</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -372,24 +450,43 @@
         <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
         <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
       </div>
-      <h2>📤 ገንዘብ አውጣ (Withdraw)</h2>
-      <p style="color: var(--habesha-muted); font-size: 13px; margin-bottom: 15px;">ያሸነፉትን ገንዘብ ወደ ቴሌብር ወይም ባንክ አካውንትዎ በቀላሉ ያስተላልፉ</p>
-      <form id="modalWithdrawForm" style="display: flex; flex-direction: column; gap: 12px;">
-        <label>የማውጫ ዘዴ
-          <select name="method" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;">
-            <option>TeleBirr</option>
-            <option>CBE Birr</option>
-            <option>M-Pesa</option>
-            <option>E-Birr</option>
+      <h2>📤 ገንዘብ አውጣ (Withdraw Funds)</h2>
+      <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px; margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <span style="font-size: 11px; color: var(--habesha-muted); display: block;">ሊወጣ የሚችል ሂሳብ</span>
+          <strong id="modalWithdrawableBal" style="font-size: 16px; color: #10b981;">0.00 ETB</strong>
+        </div>
+        <div style="text-align: right;">
+          <span style="font-size: 11px; color: var(--habesha-muted); display: block;">ዝቅተኛ ማውጫ</span>
+          <strong style="font-size: 14px; color: var(--habesha-gold);">100 ETB</strong>
+        </div>
+      </div>
+      <form id="modalWithdrawForm" style="display: flex; flex-direction: column; gap: 10px;">
+        <label>የማውጫ ዘዴ (Payout Method)
+          <select name="method" id="modalWithdrawMethodSelect" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;" required>
+            <option value="TeleBirr">📱 TeleBirr (ቴሌብር)</option>
+            <option value="CBE Birr">🏦 CBE Birr (ሲቢኢ ብር)</option>
+            <option value="CBE Bank">🏛 Commercial Bank of Ethiopia (CBE)</option>
+            <option value="Awash Bank">🏛 Awash Bank (አዋሽ ባንክ)</option>
+            <option value="Bank of Abyssinia">🏛 Bank of Abyssinia (አቢሲኒያ)</option>
+            <option value="M-Pesa">🟢 Safaricom M-Pesa</option>
+            <option value="E-Birr">🟡 E-Birr</option>
           </select>
         </label>
         <label>የገንዘብ መጠን (ETB)
-          <input name="amount" type="number" min="100" value="100" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;">
+          <input name="amount" id="modalWithdrawAmountInput" type="number" min="100" value="100" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;" required>
         </label>
-        <label>ስልክ ቁጥር ወይም አካውንት
-          <input name="account" placeholder="09xxxxxxxx" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;">
+        <label>ስልክ ቁጥር ወይም አካውንት (Account / Phone)
+          <input name="account" id="modalWithdrawAccountInput" placeholder="ምሳሌ፡ 09xxxxxxxx ወይም 1000xxxxxxxxx" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;" required>
         </label>
-        <button class="btn btn-gold full" type="submit" style="margin-top: 5px;">ወጪ ጠይቅ (Request Withdrawal)</button>
+        <label>የሂሳብ ባለቤት ሙሉ ስም (Account Holder Name)
+          <input name="account_name" id="modalWithdrawAccountNameInput" placeholder="ምሳሌ፡ Abebe Kebede" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;" required>
+        </label>
+        <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 11.5px; color: var(--habesha-muted); margin-top: 2px;">
+          <input type="checkbox" name="is_adult" checked required style="width: auto; margin-top: 2px;">
+          <span>ዕድሜዬ 18 ዓመትና ከዚያ በላይ መሆኑን አረጋግጣለሁ (18+ Confirmation)</span>
+        </label>
+        <button class="btn btn-gold full" type="submit" style="margin-top: 5px;">📤 ወጪ ጠይቅ (Request Withdrawal)</button>
       </form>
       <button class="btn btn-outline full modal-bottom-back-btn" style="margin-top: 10px;" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
     </div>
@@ -1217,7 +1314,44 @@
             </div>
           </section>
 
-          <!-- 6. TRANSACTIONS MANAGEMENT -->
+          <!-- 6. DEDICATED WITHDRAWALS MANAGEMENT (OWNER & ADMIN) -->
+          <section class="panel admin-section wide" style="border: 1px solid rgba(245, 183, 22, 0.4);">
+            <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:gap:10px;">
+              <div>
+                <div class="eyebrow" style="color:var(--habesha-gold);">CASH OUT APPROVAL PIPELINE</div>
+                <h2>Player Withdrawals Review (<span id="ownerPendingWithdrawalsCount" style="color:var(--habesha-gold);">0</span> Pending)</h2>
+              </div>
+              <div style="display:flex;gap:10px;align-items:center;">
+                <select id="ownerWithdrawalStatusFilter" class="status-select" style="padding:5px 10px;font-size:12px;">
+                  <option value="">All Statuses</option>
+                  <option value="pending" selected>Pending</option>
+                  <option value="approved">Approved (Unpaid)</option>
+                  <option value="completed">Completed</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <button type="button" class="btn btn-outline" id="refreshOwnerWithdrawalsBtn" style="padding:5px 12px;font-size:12px;">🔄 Refresh</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Player Name</th>
+                    <th>Phone</th>
+                    <th>Wallet</th>
+                    <th>Amount</th>
+                    <th>Payment Method & Account</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="ownerWithdrawalsBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- 7. TRANSACTIONS MANAGEMENT -->
           <section class="panel admin-section wide">
             <div class="section-title"><h2>Deposits & Withdrawals Review</h2></div>
             <div class="table-wrap">

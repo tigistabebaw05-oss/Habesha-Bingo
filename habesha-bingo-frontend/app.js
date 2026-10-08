@@ -234,6 +234,48 @@ function getGuestCartela(){
   return guestCartela;
 }
 
+let currentWithdrawableAmount = 0;
+
+async function loadPlayerWithdrawals() {
+  const tbody = $("playerWithdrawalsTableBody");
+  if (!tbody) return;
+  const token = authStorage.getItem("hulu_token");
+  if (!token) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:16px; color:var(--habesha-muted);">የወጪ ታሪክዎን ለማየት እባክዎ ይግቡ (Please login to view history)</td></tr>`;
+    return;
+  }
+  try {
+    const res = await api("/wallet/withdrawals").catch(() => null);
+    if (!res || !Array.isArray(res.withdrawals) || !res.withdrawals.length) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:16px; color:var(--habesha-muted);">እስካሁን ምንም የወጪ ጥያቄ የለም (No withdrawal requests yet)</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = res.withdrawals.map(w => {
+      const st = (w.status || "pending").toLowerCase();
+      let badge = `<span style="background:rgba(245,158,11,0.15); color:#f59e0b; padding:2px 8px; border-radius:4px; font-weight:600; font-size:11px;">PENDING</span>`;
+      if (st === "approved") {
+        badge = `<span style="background:rgba(59,130,246,0.15); color:#3b82f6; padding:2px 8px; border-radius:4px; font-weight:600; font-size:11px;">APPROVED</span>`;
+      } else if (st === "completed") {
+        badge = `<span style="background:rgba(16,185,129,0.15); color:#10b981; padding:2px 8px; border-radius:4px; font-weight:600; font-size:11px;">✓ COMPLETED</span>`;
+      } else if (st === "rejected") {
+        badge = `<span style="background:rgba(239,68,68,0.15); color:#ef4444; padding:2px 8px; border-radius:4px; font-weight:600; font-size:11px;" title="${escapeHtml(w.failure_reason || 'Rejected')}">REFUNDED</span>`;
+      }
+      const dt = w.created_at ? new Date(w.created_at).toLocaleDateString() : "—";
+      const amt = Number(w.display_amount || Math.abs(w.amount || 0)).toFixed(2);
+      return `<tr>
+        <td><strong style="color:var(--habesha-gold);">${amt} ETB</strong></td>
+        <td>${escapeHtml(w.method || "TeleBirr")}</td>
+        <td><code>${escapeHtml(w.reference || "—")}</code></td>
+        <td>${escapeHtml(w.account_name || "—")}</td>
+        <td><small style="color:var(--habesha-muted);">${escapeHtml(dt)}</small></td>
+        <td>${badge}</td>
+      </tr>`;
+    }).join("");
+  } catch (err) {
+    console.warn("Could not load player withdrawals:", err.message);
+  }
+}
+
 async function refresh(){
   try{
     const w=await api("/me").catch(()=>null);
@@ -250,6 +292,37 @@ async function refresh(){
       if($("vipBalance")) $("vipBalance").textContent=money(w.wallet?.vip_balance);
       if($("tgMainBalance")) $("tgMainBalance").textContent=money(w.wallet?.main_balance);
       if($("tgPlayBalance")) $("tgPlayBalance").textContent="8.00 ETB";
+
+      // Populate KYC name default if empty
+      if ($("withdrawAccountNameInput") && !$("withdrawAccountNameInput").value) {
+        $("withdrawAccountNameInput").value = w.user.name || "";
+      }
+      if ($("modalWithdrawAccountNameInput") && !$("modalWithdrawAccountNameInput").value) {
+        $("modalWithdrawAccountNameInput").value = w.user.name || "";
+      }
+
+      // Fetch official withdrawable balance
+      try {
+        const withRes = await api("/wallet/withdrawable");
+        if (withRes) {
+          currentWithdrawableAmount = Number(withRes.withdrawable_balance || 0);
+          if ($("withdrawableBalance")) $("withdrawableBalance").textContent = money(currentWithdrawableAmount);
+          if ($("modalWithdrawableBal")) $("modalWithdrawableBal").textContent = money(currentWithdrawableAmount);
+          if ($("minWithdrawalLabel")) $("minWithdrawalLabel").textContent = `${withRes.min_withdrawal || 100} ETB`;
+          const pend = Number(withRes.pending_withdrawals || 0);
+          if ($("pendingWithdrawalBadge")) {
+            if (pend > 0) {
+              $("pendingWithdrawalBadge").textContent = `${pend.toFixed(2)} ETB በመጠባበቅ ላይ`;
+              $("pendingWithdrawalBadge").style.display = "inline-block";
+            } else {
+              $("pendingWithdrawalBadge").style.display = "none";
+            }
+          }
+        }
+      } catch (_) {}
+
+      // Load player's withdrawal requests
+      loadPlayerWithdrawals();
     } else {
       syncAuthUi();
     }
@@ -409,11 +482,76 @@ $("depositForm").addEventListener("submit",async e=>{
   const button=e.target.querySelector("button");button.disabled=true;
   try{await api("/wallet/deposit",{method:"POST",headers:{"Idempotency-Key":crypto.randomUUID()},body:JSON.stringify(Object.fromEntries(f))});toast("Deposit request submitted");e.target.reset()}catch(x){toast(x.message,true)}finally{button.disabled=false}
 });
-$("withdrawForm").addEventListener("submit",async e=>{
-  e.preventDefault(); const f=new FormData(e.target);
-  const button=e.target.querySelector("button");button.disabled=true;
-  try{await api("/wallet/withdraw",{method:"POST",headers:{"Idempotency-Key":crypto.randomUUID()},body:JSON.stringify(Object.fromEntries(f))});toast("Withdrawal request submitted");e.target.reset()}catch(x){toast(x.message,true)}finally{button.disabled=false}
-});
+if ($("withdrawMaxBtn")) {
+  $("withdrawMaxBtn").addEventListener("click", () => {
+    const amt = Math.max(100, Math.floor(currentWithdrawableAmount));
+    if ($("withdrawAmountInput")) $("withdrawAmountInput").value = amt;
+  });
+}
+
+if ($("refreshPlayerWithdrawalsBtn")) {
+  $("refreshPlayerWithdrawalsBtn").addEventListener("click", () => {
+    loadPlayerWithdrawals();
+    toast("የወጪ ታሪክ ታድሷል (History refreshed)");
+  });
+}
+
+if ($("withdrawForm")) {
+  $("withdrawForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const amountVal = Number(f.get("amount") || 0);
+    const methodVal = f.get("method") || "TeleBirr";
+    const accountVal = String(f.get("account") || "").trim();
+    const accountNameVal = String(f.get("account_name") || "").trim();
+    const isAdultVal = f.get("is_adult") === "on" || f.get("is_adult") === "true";
+
+    if (!isAdultVal) {
+      toast("እድሜዎ ከ18 ዓመት በላይ መሆኑን ያረጋግጡ (18+ confirmation required)", true);
+      return;
+    }
+    if (amountVal < 100) {
+      toast("ዝቅተኛው የወጪ መጠን 100 ETB ነው (Minimum withdrawal is 100 ETB)", true);
+      return;
+    }
+    if (!accountVal || accountVal.length < 5) {
+      toast("ትክክለኛ የሂሳብ ወይም የስልክ ቁጥር ያስገቡ (Valid account number required)", true);
+      return;
+    }
+    if (!accountNameVal || accountNameVal.length < 3) {
+      toast("የሂሳብ ባለቤት ሙሉ ስም ያስገቡ (Account holder name required for KYC)", true);
+      return;
+    }
+    if (amountVal > currentWithdrawableAmount && currentWithdrawableAmount > 0) {
+      toast(`በቂ ሊወጣ የሚችል ቀሪ ሂሳብ የለዎትም! ያለዎት፡ ${currentWithdrawableAmount.toFixed(2)} ETB`, true);
+      return;
+    }
+
+    const button = e.target.querySelector("button[type=submit]") || $("submitWithdrawBtn");
+    if (button) button.disabled = true;
+    try {
+      const res = await api("/wallet/withdraw", {
+        method: "POST",
+        headers: { "Idempotency-Key": crypto.randomUUID() },
+        body: JSON.stringify({
+          amount: amountVal,
+          method: methodVal,
+          account: accountVal,
+          account_name: accountNameVal,
+          is_adult: true,
+          wallet: "main"
+        })
+      });
+      toast(res.message || `የ ${amountVal} ETB የወጪ ጥያቄ በተሳካ ሁኔታ ተመዝግቧል!`);
+      e.target.reset();
+      await refresh();
+    } catch (x) {
+      toast(x.message, true);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
+}
 
 function connectSocket(){
   const s=document.createElement("script");
@@ -1021,19 +1159,57 @@ if ($("modalWithdrawForm")) {
   $("modalWithdrawForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const amount = fd.get("amount") || "100";
-    const method = fd.get("method") || "TeleBirr";
+    const amountVal = Number(fd.get("amount") || 100);
+    const methodVal = fd.get("method") || "TeleBirr";
+    const accountVal = String(fd.get("account") || "").trim();
+    const accountNameVal = String(fd.get("account_name") || "").trim();
+    const isAdultVal = fd.get("is_adult") === "on" || fd.get("is_adult") === "true";
+
+    if (!isAdultVal) {
+      toast("እድሜዎ ከ18 ዓመት በላይ መሆኑን ያረጋግጡ (18+ confirmation required)", true);
+      return;
+    }
+    if (amountVal < 100) {
+      toast("ዝቅተኛው የወጪ መጠን 100 ETB ነው", true);
+      return;
+    }
+    if (!accountVal || accountVal.length < 5) {
+      toast("ትክክለኛ የሂሳብ ወይም የስልክ ቁጥር ያስገቡ", true);
+      return;
+    }
+    if (!accountNameVal || accountNameVal.length < 3) {
+      toast("የሂሳብ ባለቤት ሙሉ ስም ያስገቡ", true);
+      return;
+    }
+
+    const button = e.target.querySelector("button[type=submit]");
+    if (button) button.disabled = true;
     try {
       if (authStorage.getItem("hulu_token")) {
-        await api("/wallet/withdraw", { method: "POST", body: JSON.stringify({ amount: Number(amount) }) });
+        const res = await api("/wallet/withdraw", {
+          method: "POST",
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+          body: JSON.stringify({
+            amount: amountVal,
+            method: methodVal,
+            account: accountVal,
+            account_name: accountNameVal,
+            is_adult: true,
+            wallet: "main"
+          })
+        });
+        toast(res.message || `የ ${amountVal} ETB የወጪ ጥያቄ (${methodVal}) በተሳካ ሁኔታ ተልኳል!`);
+        closeAllTelegramModals();
+        e.target.reset();
         await refresh();
+      } else {
+        toast("እባክዎ መጀመሪያ ይግቡ (Please login)", true);
+        openAuth("login");
       }
-      toast(`የ ${amount} ETB የወጪ ጥያቄ (${method}) በተሳካ ሁኔታ ተልኳል!`);
-      closeAllTelegramModals();
-      e.target.reset();
     } catch(err) {
-      toast(err.message || `የ ${amount} ETB የወጪ ጥያቄ ተልኳል!`);
-      closeAllTelegramModals();
+      toast(err.message, true);
+    } finally {
+      if (button) button.disabled = false;
     }
   });
 }

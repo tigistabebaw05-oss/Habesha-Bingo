@@ -2034,6 +2034,79 @@ class TelegramBingoService {
     }
   }
 
+  async notifyAdminWithdrawalRequest(userId, userName, amount, method, account, accountName) {
+    try {
+      const text = `🚨 <b>አዲስ የወጪ ጥያቄ (New Withdrawal Request)!</b>\n\n` +
+        `👤 ተጫዋች: <b>${userName || "User #" + userId}</b> (ID: ${userId})\n` +
+        `💰 መጠን: <b>${Number(amount).toFixed(2)} ETB</b>\n` +
+        `💳 የክፍያ ዘዴ: <b>${method}</b>\n` +
+        `👤 የስም ማረጋገጫ (KYC): <b>${accountName || "N/A"}</b>\n` +
+        `📞 ተቀባይ ቁጥር/አካውንት: <code>${account}</code>\n` +
+        `⏰ ሰዓት: <b>${new Date().toLocaleTimeString()}</b>\n\n` +
+        `👉 <i>ለማጽደቅ/ለመላክ ወደ Admin Dashboard ይግቡ።</i>`;
+
+      if (this.groupId) {
+        await this.sendMessage(this.groupId, text);
+      }
+    } catch (e) {
+      console.warn("[Telegram] Could not send admin withdrawal alert:", e.message);
+    }
+  }
+
+  async notifyWithdrawalApproved(userId, amount, method) {
+    if (!this.pool || !userId) return;
+    try {
+      const uRes = await this.pool.query("SELECT telegram_id, name FROM users WHERE id = $1", [userId]);
+      const user = uRes.rows[0];
+      if (!user?.telegram_id) return;
+      const text = `⏳ <b>የወጪ ጥያቄዎ ጸድቋል (Withdrawal Approved)!</b>\n\n` +
+        `💰 መጠን: <b>${Number(amount).toFixed(2)} ETB</b>\n` +
+        `💳 ዘዴ: <b>${method}</b>\n\n` +
+        `ጥያቄዎ በአስተዳዳሪው ተቀባይነት አግኝቷል። ክፍያው በደቂቃዎች ውስጥ ወደ እርስዎ ሂሳብ ይላካል!`;
+      await this.sendMessage(user.telegram_id, text);
+    } catch (e) {
+      console.warn("[Telegram] Could not notify withdrawal approved:", e.message);
+    }
+  }
+
+  async notifyWithdrawalCompleted(userId, amount, method, reference) {
+    if (!this.pool || !userId) return;
+    try {
+      const uRes = await this.pool.query("SELECT telegram_id, name FROM users WHERE id = $1", [userId]);
+      const user = uRes.rows[0];
+      if (!user?.telegram_id) return;
+      const text = `✅ <b>ክፍያዎ በተሳካ ሁኔታ ተላልፏል (Withdrawal Paid)!</b>\n\n` +
+        `💰 የተላከው መጠን: <b>${Number(amount).toFixed(2)} ETB</b>\n` +
+        `💳 ዘዴ: <b>${method}</b>\n` +
+        (reference ? `🔢 የግብይት ማረጋገጫ (TxID): <code>${reference}</code>\n\n` : `\n`) +
+        `ገንዘቡ ወደ ሂሳብዎ ገብቷል! ስለተጫወቱ እናመሰግናለን። 🎉`;
+      await this.sendMessage(user.telegram_id, text);
+    } catch (e) {
+      console.warn("[Telegram] Could not notify withdrawal completed:", e.message);
+    }
+  }
+
+  async notifyWithdrawalRejected(userId, amount, reason) {
+    if (!this.pool || !userId) return;
+    try {
+      const uRes = await this.pool.query(
+        "SELECT u.telegram_id, u.name, w.main_balance FROM users u LEFT JOIN wallets w ON w.user_id = u.id WHERE u.id = $1",
+        [userId]
+      );
+      const user = uRes.rows[0];
+      if (!user?.telegram_id) return;
+      const bal = Number(user.main_balance || 0).toFixed(2);
+      const text = `❌ <b>የወጪ ጥያቄዎ ተመላሽ ተደርጓል (Withdrawal Rejected/Refunded)</b>\n\n` +
+        `💰 መጠን: <b>${Number(amount).toFixed(2)} ETB</b> (ወደ ዋና ሂሳብዎ ተመልሷል)\n` +
+        `💵 አዲሱ ቀሪ ሂሳብ: <b>${bal} ETB</b>\n` +
+        (reason ? `📝 ምክንያት: <i>${reason}</i>\n\n` : `\n`) +
+        `ማንኛውም ጥያቄ ካለዎት የደንበኞች ድጋፍን ያነጋግሩ።`;
+      await this.sendMessage(user.telegram_id, text);
+    } catch (e) {
+      console.warn("[Telegram] Could not notify withdrawal rejected:", e.message);
+    }
+  }
+
   // ==================== 75-BALL BINGO CARD GENERATOR & CHECKER ====================
   generateRandomTicket() {
     const cols = [

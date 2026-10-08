@@ -134,7 +134,21 @@ async function init(){
   CREATE INDEX IF NOT EXISTS idx_games_status ON games(status);
   CREATE INDEX IF NOT EXISTS idx_support_user ON support_messages(user_id);
   CREATE INDEX IF NOT EXISTS idx_support_status ON support_messages(status);`);
-  await pool.query("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS balance_before NUMERIC(14,2), ADD COLUMN IF NOT EXISTS balance_after NUMERIC(14,2), ADD COLUMN IF NOT EXISTS provider VARCHAR(30), ADD COLUMN IF NOT EXISTS provider_reference VARCHAR(150), ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100), ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb, ADD COLUMN IF NOT EXISTS failure_reason TEXT, ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ");
+  await pool.query(`ALTER TABLE transactions 
+    ADD COLUMN IF NOT EXISTS balance_before NUMERIC(14,2), 
+    ADD COLUMN IF NOT EXISTS balance_after NUMERIC(14,2), 
+    ADD COLUMN IF NOT EXISTS provider VARCHAR(30), 
+    ADD COLUMN IF NOT EXISTS provider_reference VARCHAR(150), 
+    ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100), 
+    ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb, 
+    ADD COLUMN IF NOT EXISTS failure_reason TEXT, 
+    ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS account_name VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS bank_name VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS admin_notes TEXT,
+    ADD COLUMN IF NOT EXISTS admin_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS payout_proof TEXT`);
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_transactions_type_status ON transactions(type, status)");
   await pool.query("INSERT INTO app_settings(key,value) VALUES ('demo_mode','true'),('demo_entry_amount','10'),('demo_min_deposit','10'),('demo_min_withdrawal','100'),('demo_number_max','600') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value WHERE app_settings.key IN ('demo_entry_amount', 'demo_min_deposit')");
   await pool.query("UPDATE games SET entry = 10 WHERE status = 'waiting' AND entry = 8");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE, ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'PLAYER'");
@@ -212,7 +226,7 @@ const methods=new Set(["TeleBirr","CBE Birr","M-Pesa","E-Birr"]);
 function amount(value){const parsed=Number(value);return Number.isFinite(parsed)&&parsed>0&&parsed<=1000000?Math.round(parsed*100)/100:null}
 async function setting(key,fallback){const row=(await pool.query("SELECT value FROM app_settings WHERE key=$1",[key])).rows[0];return row?.value??fallback}
 function walletColumn(wallet){return wallet==="vip"?"vip_balance":"main_balance"}
-async function changeBalance(client,{userId,wallet,delta,type,status="completed",method=null,reference=null,transactionId=null,idempotencyKey=null}){
+async function changeBalance(client,{userId,wallet,delta,type,status="completed",method=null,reference=null,transactionId=null,idempotencyKey=null,accountName=null,bankName=null,adminNotes=null,adminId=null}){
   if(!validWallet(wallet)||!Number.isFinite(delta)||delta===0)throw new Error("INVALID_BALANCE_CHANGE");
   if(idempotencyKey){
     const existing=(await client.query("SELECT id,type,wallet,amount,status FROM transactions WHERE user_id=$1 AND idempotency_key=$2 FOR UPDATE",[userId,idempotencyKey])).rows[0];
@@ -230,13 +244,28 @@ async function changeBalance(client,{userId,wallet,delta,type,status="completed"
   if(transactionId){
     await client.query("UPDATE transactions SET amount=$1,balance_before=$2,balance_after=$3,status=$4 WHERE id=$5",[delta,before,after,status,transactionId]);
   }else{
-    ledgerId=(await client.query("INSERT INTO transactions(user_id,type,wallet,amount,balance_before,balance_after,status,method,reference,idempotency_key) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id",[userId,type,wallet,delta,before,after,status,method,reference,idempotencyKey])).rows[0].id;
+    ledgerId=(await client.query("INSERT INTO transactions(user_id,type,wallet,amount,balance_before,balance_after,status,method,reference,idempotency_key,account_name,bank_name,admin_notes,admin_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id",[userId,type,wallet,delta,before,after,status,method,reference,idempotencyKey,accountName,bankName,adminNotes,adminId])).rows[0].id;
   }
   return {before,after,transactionId:ledgerId};
 }
 function providerMethod(value){
-  const normalized=text(value,30).toLowerCase().replace(/[^a-z0-9]+/g,"-");
-  return {telebirr:"TeleBirr","cbe-birr":"CBE Birr",mpesa:"M-Pesa","m-pesa":"M-Pesa","e-birr":"E-Birr"}[normalized]||null;
+  const normalized=text(value,40).toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  const map = {
+    "telebirr": "TeleBirr",
+    "cbe-birr": "CBE Birr",
+    "cbe": "CBE Bank",
+    "cbe-bank": "CBE Bank",
+    "commercial-bank-of-ethiopia": "CBE Bank",
+    "awash": "Awash Bank",
+    "awash-bank": "Awash Bank",
+    "abyssinia": "Bank of Abyssinia",
+    "bank-of-abyssinia": "Bank of Abyssinia",
+    "mpesa": "M-Pesa",
+    "m-pesa": "M-Pesa",
+    "e-birr": "E-Birr",
+    "ebirr": "E-Birr"
+  };
+  return map[normalized] || (value && value.length >= 3 ? text(value, 40) : null);
 }
 function providerMetadata(result){return JSON.stringify({status:result.status,checkoutUrl:result.checkoutUrl||null})}
 async function markPaymentFailed(transactionId,reason){
@@ -611,93 +640,513 @@ app.post("/api/wallet/deposit",auth,async(req,res)=>{
     res.status(code).json({error:code===503?"This payment provider is not configured":"Could not start the deposit",transactionId});
   }
 });
-app.post("/api/wallet/withdraw",auth,async(req,res)=>{
-  const value=amount(req.body.amount),wallet=req.body.wallet||"main",method=providerMethod(req.body.method),account=text(req.body.account,50);
-  if(value===null||value<100)return res.status(400).json({error:"Minimum withdrawal is 100 ETB"});
-  if(!validWallet(wallet)||!method||account.length<5)return res.status(400).json({error:"Valid wallet, payment provider and account are required"});
-  const client=await pool.connect();
-  let transactionId;
-  try{await client.query("BEGIN");
-    const idempotencyKey=text(req.get("Idempotency-Key"),100)||crypto.randomUUID();
-    const ledger=await changeBalance(client,{userId:req.user.id,wallet,delta:-value,type:"withdrawal",status:"pending",method,reference:account,idempotencyKey});
-    transactionId=ledger.transactionId;
-    if(ledger.existing){await client.query("COMMIT");return res.status(ledger.status==="completed"?200:202).json({message:"Withdrawal request already submitted",paymentStatus:ledger.status,transactionId})}
-    await client.query("UPDATE transactions SET provider=$1,metadata=$2 WHERE id=$3",[DEMO_MODE?"DEMO":method,JSON.stringify({demo:DEMO_MODE}),transactionId]);
-    await client.query("COMMIT");
-  }catch(e){await client.query("ROLLBACK");if(e.message==="INSUFFICIENT_BALANCE")return res.status(400).json({error:"Insufficient balance"});if(e.message==="IDEMPOTENCY_CONFLICT")return res.status(409).json({error:"Idempotency key was reused with different payment details"});return res.status(500).json({error:"Could not submit withdrawal"})}finally{client.release()}
-  if(DEMO_MODE)return res.status(202).json({message:"Demo withdrawal request submitted for admin approval",paymentStatus:"pending",transactionId,demo:true});
-  const slug=method.toLowerCase().replace(/[^a-z0-9]+/g,"-");
-  try{
-    const payment=await callProvider(method,"withdrawal",{amount:value,currency:"ETB",account,customer_reference:String(transactionId),callback_url:`${process.env.PUBLIC_API_URL||""}/api/payments/webhook/${slug}`},transactionId);
-    if(!payment.providerReference)throw new Error("Provider did not return a transaction reference");
-    await pool.query("UPDATE transactions SET provider_reference=$1,metadata=$2 WHERE id=$3",[payment.providerReference,providerMetadata(payment),transactionId]);
-    if(payment.status==="failed"){await markPaymentFailed(transactionId,"Provider rejected withdrawal");return res.status(502).json({error:"Payment provider rejected the withdrawal",transactionId})}
-    if(payment.status==="success")await completePayment(transactionId,payment.providerReference,providerMetadata(payment));
-    res.status(payment.status==="success"?200:202).json({message:payment.status==="success"?"Withdrawal completed":"Withdrawal is being processed",paymentStatus:payment.status,transactionId,providerReference:payment.providerReference});
-  }catch(error){
-    await markPaymentFailed(transactionId,error.message);
-    const code=error.code==="PROVIDER_NOT_CONFIGURED"?503:502;
-    res.status(code).json({error:code===503?"This payment provider is not configured":"Could not start the withdrawal",transactionId});
+app.get("/api/wallet/withdrawable", auth, async (req, res) => {
+  try {
+    const w = (await pool.query("SELECT main_balance, vip_balance FROM wallets WHERE user_id = $1", [req.user.id])).rows[0];
+    const pendingRow = (await pool.query("SELECT COALESCE(SUM(ABS(amount)), 0)::numeric AS pending FROM transactions WHERE user_id = $1 AND type = 'withdrawal' AND status = 'pending'", [req.user.id])).rows[0];
+    const minWithdrawal = Number(await setting("demo_min_withdrawal", 100));
+    const mainBalance = Number(w?.main_balance || 0);
+    const vipBalance = Number(w?.vip_balance || 0);
+    const pending = Number(pendingRow?.pending || 0);
+    res.json({
+      main_balance: mainBalance,
+      vip_balance: vipBalance,
+      pending_withdrawals: pending,
+      withdrawable_balance: mainBalance,
+      min_withdrawal: minWithdrawal,
+      currency: "ETB"
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Could not fetch withdrawable balance" });
   }
 });
-app.post("/api/payments/webhook/:provider",async(req,res)=>{
-  const method=providerMethod(req.params.provider),raw=Buffer.isBuffer(req.body)?req.body:Buffer.from(JSON.stringify(req.body||{}));
-  if(!method||!verifyWebhook(method,raw,req.headers["x-payment-signature"]||req.headers["x-signature"]))return res.status(401).json({error:"Invalid payment webhook"});
+
+app.get("/api/wallet/withdrawals", auth, async (req, res) => {
+  try {
+    const list = await pool.query(
+      `SELECT id, amount, ABS(amount) as display_amount, wallet, status, method, reference, account_name, bank_name, provider_reference, failure_reason, created_at, updated_at
+       FROM transactions
+       WHERE user_id = $1 AND type = 'withdrawal'
+       ORDER BY id DESC LIMIT 50`,
+      [req.user.id]
+    );
+    res.json({ withdrawals: list.rows });
+  } catch (err) {
+    res.status(500).json({ error: "Could not fetch withdrawal history" });
+  }
+});
+
+app.post("/api/wallet/withdraw", auth, async (req, res) => {
+  const user = (await pool.query("SELECT id, name, phone, is_active FROM users WHERE id = $1", [req.user.id])).rows[0];
+  if (!user || user.is_active === false) {
+    return res.status(403).json({ error: "Your account is not active. Please contact support." });
+  }
+
+  const value = amount(req.body.amount);
+  const wallet = req.body.wallet || "main";
+  const rawMethod = req.body.method;
+  const method = providerMethod(rawMethod) || text(rawMethod, 40);
+  const account = text(req.body.account, 50);
+  const accountName = text(req.body.account_name || req.body.accountName || user.name, 100);
+  const isAdult = req.body.is_adult === true || req.body.is_adult === "true" || req.body.confirm_18 === true || req.body.is_adult === "on";
+
+  if (!isAdult) {
+    return res.status(400).json({ error: "እድሜዎ ከ18 ዓመት በላይ መሆኑን ማረጋገጥ አለብዎት (18+ age confirmation required)" });
+  }
+
+  const minWithdrawal = Number(await setting("demo_min_withdrawal", 100));
+  if (value === null || value < minWithdrawal) {
+    return res.status(400).json({ error: `ዝቅተኛው የወጪ መጠን ${minWithdrawal} ETB ነው (Minimum withdrawal is ${minWithdrawal} ETB)` });
+  }
+  if (!validWallet(wallet)) {
+    return res.status(400).json({ error: "ትክክለኛ ዋሌት ይምረጡ (Invalid wallet selected)" });
+  }
+  if (!method) {
+    return res.status(400).json({ error: "የክፍያ ዘዴ ይምረጡ (Valid payment method is required)" });
+  }
+  if (!account || account.length < 5) {
+    return res.status(400).json({ error: "ትክክለኛ የሂሳብ ወይም የስልክ ቁጥር ያስገቡ (Valid account or phone number is required)" });
+  }
+  if (!accountName || accountName.length < 3) {
+    return res.status(400).json({ error: "የሂሳብ ባለቤት ሙሉ ስም ያስገቡ (Account holder full name is required for verification)" });
+  }
+
+  const client = await pool.connect();
+  let transactionId;
+  let ledger;
+  try {
+    await client.query("BEGIN");
+    const idempotencyKey = text(req.get("Idempotency-Key"), 100) || crypto.randomUUID();
+
+    ledger = await changeBalance(client, {
+      userId: req.user.id,
+      wallet,
+      delta: -value,
+      type: "withdrawal",
+      status: "pending",
+      method,
+      reference: account,
+      accountName,
+      bankName: method,
+      idempotencyKey
+    });
+    transactionId = ledger.transactionId;
+
+    if (ledger.existing) {
+      await client.query("COMMIT");
+      return res.status(ledger.status === "completed" ? 200 : 202).json({
+        message: "የወጪ ጥያቄዎ አስቀድሞ ተመዝግቧል (Withdrawal request already submitted)",
+        paymentStatus: ledger.status,
+        transactionId
+      });
+    }
+
+    await client.query(
+      "UPDATE transactions SET provider=$1, account_name=$2, bank_name=$3, metadata=$4 WHERE id=$5",
+      [
+        method,
+        accountName,
+        method,
+        JSON.stringify({
+          account_name: accountName,
+          account_number: account,
+          bank_name: method,
+          requested_by_ip: req.ip,
+          requested_at: new Date().toISOString()
+        }),
+        transactionId
+      ]
+    );
+
+    await pool.query(
+      "INSERT INTO audit_logs(user_id, action, entity_type, entity_id, details, ip_address) VALUES($1, $2, $3, $4, $5, $6)",
+      [
+        req.user.id,
+        "withdrawal.requested",
+        "transaction",
+        transactionId,
+        JSON.stringify({
+          amount: value,
+          method,
+          account,
+          accountName,
+          balance_before: ledger.before,
+          balance_after: ledger.after
+        }),
+        req.ip
+      ]
+    );
+
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK");
+    if (e.message === "INSUFFICIENT_BALANCE") {
+      return res.status(400).json({ error: "በቂ ሊወጣ የሚችል ቀሪ ሂሳብ የለዎትም (Insufficient withdrawable balance)" });
+    }
+    if (e.message === "IDEMPOTENCY_CONFLICT") {
+      return res.status(409).json({ error: "ይህ ጥያቄ በተለየ መረጃ አስቀድሞ ተልኳል (Idempotency conflict)" });
+    }
+    return res.status(500).json({ error: "የወጪ ጥያቄውን ማስተናገድ አልተቻለም: " + e.message });
+  } finally {
+    client.release();
+  }
+
+  // Telegram alert to admin
+  try {
+    if (typeof telegramService !== "undefined" && telegramService && telegramService.notifyAdminWithdrawalRequest) {
+      telegramService.notifyAdminWithdrawalRequest(req.user.id, user.name, value, method, account, accountName).catch(() => {});
+    }
+  } catch (tErr) {}
+
+  // Check if real automated payment provider is configured in environment
+  const config = typeof providerConfig === "function" ? providerConfig(method) : null;
+  const isAutomatedConfigured = config && config.withdrawalUrl && config.apiKey;
+
+  if (isAutomatedConfigured) {
+    try {
+      const payment = await callProvider(method, "withdrawal", {
+        amount: value,
+        currency: "ETB",
+        account,
+        account_name: accountName,
+        customer_reference: String(transactionId),
+        callback_url: `${process.env.PUBLIC_API_URL || ""}/api/payments/webhook/${method.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`
+      }, transactionId);
+
+      if (payment.status === "success") {
+        await pool.query(
+          "UPDATE transactions SET status='completed', provider_reference=$1, processed_at=now() WHERE id=$2",
+          [payment.providerReference, transactionId]
+        );
+        return res.status(200).json({
+          message: "ገንዘቡ በተሳካ ሁኔታ ተላልፏል (Withdrawal completed via payment provider)",
+          paymentStatus: "completed",
+          transactionId,
+          providerReference: payment.providerReference
+        });
+      } else {
+        await pool.query(
+          "UPDATE transactions SET provider_reference=$1, metadata=$2 WHERE id=$3",
+          [payment.providerReference, providerMetadata(payment), transactionId]
+        );
+        return res.status(202).json({
+          message: "የወጪ ጥያቄዎ በክፍያ አቅራቢው በሂደት ላይ ነው (Withdrawal is processing via provider)",
+          paymentStatus: "processing",
+          transactionId
+        });
+      }
+    } catch (pErr) {
+      console.warn("[Payout Provider Error]:", pErr.message);
+    }
+  }
+
+  return res.status(202).json({
+    message: `የ ${value.toFixed(2)} ETB የወጪ ጥያቄዎ በተሳካ ሁኔታ ቀርቧል! በአስተዳዳሪው ተረጋግጦ ወደ ${method} (${account}) ይላካል (Withdrawal submitted for admin payout verification).`,
+    paymentStatus: "pending",
+    transactionId,
+    mode: "manual_payout_review"
+  });
+});
+
+// ==================== ADMIN WITHDRAWALS MANAGEMENT ====================
+app.get("/api/admin/withdrawals", auth, requireRole("ADMIN"), async (req, res) => {
+  const status = ["pending", "approved", "completed", "rejected"].includes(req.query.status) ? req.query.status : null;
+  const result = await pool.query(`
+    SELECT t.id, t.user_id, u.name, u.phone, u.role, t.type, t.wallet,
+           ABS(t.amount) AS amount, t.status, t.method, t.reference,
+           t.account_name, t.bank_name, t.balance_before, t.balance_after,
+           t.provider, t.provider_reference, t.failure_reason, t.admin_notes,
+           t.admin_id, admin_u.name AS admin_name, t.processed_at, t.created_at
+    FROM transactions t
+    JOIN users u ON u.id = t.user_id
+    LEFT JOIN users admin_u ON admin_u.id = t.admin_id
+    WHERE t.type = 'withdrawal' AND ($1::varchar IS NULL OR t.status = $1)
+    ORDER BY t.created_at DESC, t.id DESC
+    LIMIT 200
+  `, [status]);
+  res.json({ withdrawals: result.rows });
+});
+
+app.post("/api/admin/withdrawals/:id/approve", auth, requireRole("ADMIN"), async (req, res) => {
+  const transactionId = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(transactionId)) return res.status(400).json({ error: "Invalid withdrawal id" });
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const tx = (await client.query("SELECT * FROM transactions WHERE id = $1 FOR UPDATE", [transactionId])).rows[0];
+    if (!tx || tx.type !== "withdrawal") throw new Error("NOT_FOUND");
+    if (tx.status !== "pending") throw new Error("NOT_PENDING");
+
+    await client.query(
+      "UPDATE transactions SET status = 'approved', admin_id = $1, processed_at = now() WHERE id = $2",
+      [req.user.id, transactionId]
+    );
+
+    await pool.query(
+      "INSERT INTO audit_logs(user_id, action, entity_type, entity_id, details, ip_address) VALUES($1, $2, $3, $4, $5, $6)",
+      [
+        req.user.id,
+        "withdrawal.approved",
+        "transaction",
+        transactionId,
+        JSON.stringify({
+          withdrawalId: transactionId,
+          userId: tx.user_id,
+          amount: Math.abs(Number(tx.amount)),
+          method: tx.method,
+          account: tx.reference
+        }),
+        req.ip
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    if (typeof telegramService !== "undefined" && telegramService && telegramService.sendMessage) {
+      const u = (await pool.query("SELECT telegram_id FROM users WHERE id = $1", [tx.user_id])).rows[0];
+      if (u?.telegram_id) {
+        telegramService.sendMessage(
+          u.telegram_id,
+          `✅ <b>የወጪ ጥያቄዎ ጸድቋል (Withdrawal Approved)!</b>\nመጠን: <b>${Math.abs(Number(tx.amount))} ETB</b>\nዘዴ: <b>${tx.method}</b> (${tx.reference})\nክፍያው እየተዘጋጀ ነው፤ በጥቂት ደቂቃዎች ውስጥ ይላካል።`
+        ).catch(() => {});
+      }
+    }
+
+    res.json({ ok: true, message: "Withdrawal approved. Status is now Approved (Unpaid)." });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    if (e.message === "NOT_PENDING") return res.status(409).json({ error: "Withdrawal is no longer pending" });
+    if (e.message === "NOT_FOUND") return res.status(404).json({ error: "Withdrawal request not found" });
+    console.error(e);
+    res.status(500).json({ error: "Could not approve withdrawal: " + e.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post("/api/admin/withdrawals/:id/complete", auth, requireRole("ADMIN"), async (req, res) => {
+  const transactionId = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(transactionId)) return res.status(400).json({ error: "Invalid withdrawal id" });
+  const txRef = text(req.body.transactionReference || req.body.reference || req.body.providerReference, 150);
+  const notes = text(req.body.notes || req.body.adminNotes, 500);
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const tx = (await client.query("SELECT * FROM transactions WHERE id = $1 FOR UPDATE", [transactionId])).rows[0];
+    if (!tx || tx.type !== "withdrawal") throw new Error("NOT_FOUND");
+    if (!["pending", "approved"].includes(tx.status)) throw new Error("ALREADY_PROCESSED");
+
+    await client.query(
+      "UPDATE transactions SET status = 'completed', provider_reference = $1, admin_notes = $2, admin_id = $3, processed_at = now() WHERE id = $4",
+      [txRef || "MANUAL_PAID", notes, req.user.id, transactionId]
+    );
+
+    await pool.query(
+      "INSERT INTO audit_logs(user_id, action, entity_type, entity_id, details, ip_address) VALUES($1, $2, $3, $4, $5, $6)",
+      [
+        req.user.id,
+        "withdrawal.completed",
+        "transaction",
+        transactionId,
+        JSON.stringify({
+          withdrawalId: transactionId,
+          userId: tx.user_id,
+          amount: Math.abs(Number(tx.amount)),
+          method: tx.method,
+          account: tx.reference,
+          reference: txRef,
+          notes
+        }),
+        req.ip
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    if (typeof telegramService !== "undefined" && telegramService && telegramService.sendMessage) {
+      const u = (await pool.query("SELECT telegram_id FROM users WHERE id = $1", [tx.user_id])).rows[0];
+      if (u?.telegram_id) {
+        telegramService.sendMessage(
+          u.telegram_id,
+          `🎉 <b>ገንዘብዎ በተሳካ ሁኔታ ተላልፏል (Payment Completed)!</b>\nመጠን: <b>${Math.abs(Number(tx.amount))} ETB</b>\nዘዴ: <b>${tx.method}</b> (${tx.reference})\nየማረጋገጫ ቁጥር (TxID): <b>${txRef || "Completed"}</b>\nመልካም ጨዋታ!`
+        ).catch(() => {});
+      }
+    }
+
+    res.json({ ok: true, message: "Withdrawal marked as completed and paid." });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    if (e.message === "ALREADY_PROCESSED") return res.status(409).json({ error: "Withdrawal has already been processed" });
+    if (e.message === "NOT_FOUND") return res.status(404).json({ error: "Withdrawal request not found" });
+    console.error(e);
+    res.status(500).json({ error: "Could not complete withdrawal: " + e.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post("/api/admin/withdrawals/:id/reject", auth, requireRole("ADMIN"), async (req, res) => {
+  const transactionId = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(transactionId)) return res.status(400).json({ error: "Invalid withdrawal id" });
+  const reason = text(req.body.reason || req.body.failure_reason, 500) || "Verification failed";
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const tx = (await client.query("SELECT * FROM transactions WHERE id = $1 FOR UPDATE", [transactionId])).rows[0];
+    if (!tx || tx.type !== "withdrawal") throw new Error("NOT_FOUND");
+    if (!["pending", "approved"].includes(tx.status)) throw new Error("ALREADY_PROCESSED");
+
+    const refundAmount = Math.abs(Number(tx.amount));
+    const walletCol = tx.wallet === "vip" ? "vip_balance" : "main_balance";
+    const wRow = (await client.query(`SELECT ${walletCol} FROM wallets WHERE user_id = $1 FOR UPDATE`, [tx.user_id])).rows[0];
+    const beforeBal = Number(wRow[walletCol]);
+    const afterBal = Math.round((beforeBal + refundAmount) * 100) / 100;
+
+    await client.query(`UPDATE wallets SET ${walletCol} = $1, updated_at = now() WHERE user_id = $2`, [afterBal, tx.user_id]);
+
+    await client.query(
+      "UPDATE transactions SET status = 'rejected', failure_reason = $1, admin_id = $2, processed_at = now() WHERE id = $3",
+      [reason, req.user.id, transactionId]
+    );
+
+    await client.query(
+      "INSERT INTO transactions(user_id, type, wallet, amount, balance_before, balance_after, status, method, reference, failure_reason) VALUES($1, 'refund', $2, $3, $4, $5, 'completed', 'admin', $6, $7)",
+      [
+        tx.user_id,
+        tx.wallet,
+        refundAmount,
+        beforeBal,
+        afterBal,
+        `Refund for rejected withdrawal #${transactionId}`,
+        reason
+      ]
+    );
+
+    await pool.query(
+      "INSERT INTO audit_logs(user_id, action, entity_type, entity_id, details, ip_address) VALUES($1, $2, $3, $4, $5, $6)",
+      [
+        req.user.id,
+        "withdrawal.rejected",
+        "transaction",
+        transactionId,
+        JSON.stringify({
+          withdrawalId: transactionId,
+          userId: tx.user_id,
+          amount: refundAmount,
+          reason,
+          balance_before: beforeBal,
+          balance_after: afterBal
+        }),
+        req.ip
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    if (typeof telegramService !== "undefined" && telegramService && telegramService.sendMessage) {
+      const u = (await pool.query("SELECT telegram_id FROM users WHERE id = $1", [tx.user_id])).rows[0];
+      if (u?.telegram_id) {
+        telegramService.sendMessage(
+          u.telegram_id,
+          `⚠️ <b>የወጪ ጥያቄዎ ውድቅ ተደርጓል (Withdrawal Rejected)</b>\nመጠን: <b>${refundAmount} ETB</b>\nምክንያት: <i>${reason}</i>\n💰 ገንዘቡ ሙሉ በሙሉ ወደ ዋሌትዎ ተመልሷል (አሁን መጫወት ወይም እንደገና መጠየቅ ይችላሉ)።`
+        ).catch(() => {});
+      }
+    }
+
+    res.json({ ok: true, message: `Withdrawal rejected and ${refundAmount.toFixed(2)} ETB refunded to player wallet.` });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    if (e.message === "ALREADY_PROCESSED") return res.status(409).json({ error: "Withdrawal has already been processed" });
+    if (e.message === "NOT_FOUND") return res.status(404).json({ error: "Withdrawal request not found" });
+    console.error(e);
+    res.status(500).json({ error: "Could not reject withdrawal: " + e.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post("/api/payments/webhook/:provider", async (req, res) => {
+  const method = providerMethod(req.params.provider), raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body || {}));
+  if (!method || !verifyWebhook(method, raw, req.headers["x-payment-signature"] || req.headers["x-signature"])) return res.status(401).json({ error: "Invalid payment webhook" });
   let payload;
-  try{payload=JSON.parse(raw.toString("utf8"))}catch{return res.status(400).json({error:"Invalid webhook payload"})}
-  const providerReference=text(payload.reference||payload.transaction_id||payload.transactionId||payload.id,150),status=providerStatus(payload.status||payload.payment_status||payload.transaction_status);
-  if(!providerReference)return res.status(400).json({error:"Missing provider transaction reference"});
-  const tx=(await pool.query("SELECT * FROM transactions WHERE provider=$1 AND provider_reference=$2",[method,providerReference])).rows[0];
-  if(!tx)return res.status(404).json({error:"Payment transaction not found"});
-  if(payload.amount!==undefined&&Number(payload.amount)!==Math.abs(Number(tx.amount)))return res.status(400).json({error:"Payment amount mismatch"});
-  try{
-    if(status==="failed")await markPaymentFailed(tx.id,"Provider webhook reported failure");
-    else if(status==="success")await completePayment(tx.id,providerReference,JSON.stringify({status:"success"}));
-    else await pool.query("UPDATE transactions SET metadata=$1 WHERE id=$2 AND status='pending'",[JSON.stringify({status:"pending"}),tx.id]);
-    res.json({ok:true});
-  }catch(error){console.error("Payment webhook settlement failed:",error.message);res.status(500).json({error:"Payment settlement failed"})}
+  try { payload = JSON.parse(raw.toString("utf8")) } catch { return res.status(400).json({ error: "Invalid webhook payload" }) }
+  const providerReference = text(payload.reference || payload.transaction_id || payload.transactionId || payload.id, 150), status = providerStatus(payload.status || payload.payment_status || payload.transaction_status);
+  if (!providerReference) return res.status(400).json({ error: "Missing provider transaction reference" });
+  const tx = (await pool.query("SELECT * FROM transactions WHERE provider=$1 AND provider_reference=$2", [method, providerReference])).rows[0];
+  if (!tx) return res.status(404).json({ error: "Payment transaction not found" });
+  if (payload.amount !== undefined && Number(payload.amount) !== Math.abs(Number(tx.amount))) return res.status(400).json({ error: "Payment amount mismatch" });
+  try {
+    if (status === "failed") await markPaymentFailed(tx.id, "Provider webhook reported failure");
+    else if (status === "success") await completePayment(tx.id, providerReference, JSON.stringify({ status: "success" }));
+    else await pool.query("UPDATE transactions SET metadata=$1 WHERE id=$2 AND status='pending'", [JSON.stringify({ status: "pending" }), tx.id]);
+    res.json({ ok: true });
+  } catch (error) { console.error("Payment webhook settlement failed:", error.message); res.status(500).json({ error: "Payment settlement failed" }) }
 });
-app.get("/api/wallet/transactions",auth,async(req,res)=>{
-  const requested=Number.parseInt(req.query.limit,10),limit=Number.isInteger(requested)?Math.min(Math.max(requested,1),100):50;
-  const result=await pool.query("SELECT id,type,wallet,amount,balance_before,balance_after,status,method,reference,provider,provider_reference,failure_reason,processed_at,created_at FROM transactions WHERE user_id=$1 ORDER BY created_at DESC,id DESC LIMIT $2",[req.user.id,limit]);
-  res.json({transactions:result.rows});
+
+app.get("/api/wallet/transactions", auth, async (req, res) => {
+  const requested = Number.parseInt(req.query.limit, 10), limit = Number.isInteger(requested) ? Math.min(Math.max(requested, 1), 100) : 50;
+  const result = await pool.query("SELECT id,type,wallet,amount,balance_before,balance_after,status,method,reference,account_name,bank_name,provider,provider_reference,failure_reason,admin_notes,processed_at,created_at FROM transactions WHERE user_id=$1 ORDER BY created_at DESC,id DESC LIMIT $2", [req.user.id, limit]);
+  res.json({ transactions: result.rows });
 });
-app.get("/api/admin/transactions",auth,requireRole("ADMIN"),async(req,res)=>{
-  const status=["pending","approved","rejected","completed"].includes(req.query.status)?req.query.status:null;
-  const result=await pool.query("SELECT t.id,t.user_id,u.name,u.phone,t.type,t.wallet,t.amount,t.status,t.method,t.reference,t.provider,t.provider_reference,t.failure_reason,t.processed_at,t.created_at FROM transactions t JOIN users u ON u.id=t.user_id WHERE ($1::varchar IS NULL OR t.status=$1) ORDER BY t.created_at ASC,t.id ASC LIMIT 200",[status]);
-  res.json({transactions:result.rows});
+
+app.get("/api/admin/transactions", auth, requireRole("ADMIN"), async (req, res) => {
+  const status = ["pending", "approved", "rejected", "completed"].includes(req.query.status) ? req.query.status : null;
+  const result = await pool.query("SELECT t.id,t.user_id,u.name,u.phone,t.type,t.wallet,t.amount,t.status,t.method,t.reference,t.account_name,t.bank_name,t.provider,t.provider_reference,t.failure_reason,t.admin_notes,t.processed_at,t.created_at FROM transactions t JOIN users u ON u.id=t.user_id WHERE ($1::varchar IS NULL OR t.status=$1) ORDER BY t.created_at ASC,t.id ASC LIMIT 200", [status]);
+  res.json({ transactions: result.rows });
 });
-app.post("/api/admin/transactions/:id/approve",auth,requireRole("ADMIN"),async(req,res)=>{
-  const transactionId=Number.parseInt(req.params.id,10);
-  if(!Number.isInteger(transactionId))return res.status(400).json({error:"Invalid transaction id"});
-  const client=await pool.connect();
-  try{await client.query("BEGIN");
-    const tx=(await client.query("SELECT * FROM transactions WHERE id=$1 FOR UPDATE",[transactionId])).rows[0];
-    if(!tx||tx.status!=="pending")throw new Error("NOT_PENDING");
-    if(tx.type==="deposit") {
-      await changeBalance(client,{userId:tx.user_id,wallet:tx.wallet,delta:Number(tx.amount),type:tx.type,status:"approved",method:tx.method,reference:tx.reference,transactionId});
-      telegramService.notifyDepositApproved(tx.user_id, Number(tx.amount), tx.method).catch(()=>{});
-    } else if(tx.type==="withdrawal")await client.query("UPDATE transactions SET status='completed' WHERE id=$1",[transactionId]);
-    else throw new Error("UNSUPPORTED");
+
+app.post("/api/admin/transactions/:id/approve", auth, requireRole("ADMIN"), async (req, res) => {
+  const transactionId = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(transactionId)) return res.status(400).json({ error: "Invalid transaction id" });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const tx = (await client.query("SELECT * FROM transactions WHERE id=$1 FOR UPDATE", [transactionId])).rows[0];
+    if (!tx || tx.status !== "pending") throw new Error("NOT_PENDING");
+    if (tx.type === "deposit") {
+      await changeBalance(client, { userId: tx.user_id, wallet: tx.wallet, delta: Number(tx.amount), type: tx.type, status: "approved", method: tx.method, reference: tx.reference, transactionId });
+      telegramService.notifyDepositApproved(tx.user_id, Number(tx.amount), tx.method).catch(() => {});
+    } else if (tx.type === "withdrawal") {
+      await client.query("UPDATE transactions SET status='approved', admin_id=$1, processed_at=now() WHERE id=$2", [req.user.id, transactionId]);
+    } else throw new Error("UNSUPPORTED");
     await client.query("COMMIT");
-    await audit(req,"transaction.approved","transaction",transactionId,{type:tx.type,userId:tx.user_id});
-    res.json({ok:true});
-  }catch(e){await client.query("ROLLBACK");if(e.message==="NOT_PENDING")return res.status(409).json({error:"Transaction is no longer pending"});if(e.message==="UNSUPPORTED")return res.status(400).json({error:"Transaction type cannot be approved"});console.error(e);res.status(500).json({error:"Could not approve transaction"})}finally{client.release()}
+    await audit(req, "transaction.approved", "transaction", transactionId, { type: tx.type, userId: tx.user_id });
+    res.json({ ok: true });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    if (e.message === "NOT_PENDING") return res.status(409).json({ error: "Transaction is no longer pending" });
+    if (e.message === "UNSUPPORTED") return res.status(400).json({ error: "Transaction type cannot be approved" });
+    console.error(e);
+    res.status(500).json({ error: "Could not approve transaction" });
+  } finally { client.release() }
 });
-app.post("/api/admin/transactions/:id/reject",auth,requireRole("ADMIN"),async(req,res)=>{
-  const transactionId=Number.parseInt(req.params.id,10);
-  if(!Number.isInteger(transactionId))return res.status(400).json({error:"Invalid transaction id"});
-  const client=await pool.connect();
-  try{await client.query("BEGIN");
-    const tx=(await client.query("SELECT * FROM transactions WHERE id=$1 FOR UPDATE",[transactionId])).rows[0];
-    if(!tx||tx.status!=="pending")throw new Error("NOT_PENDING");
-    if(tx.type==="withdrawal")await changeBalance(client,{userId:tx.user_id,wallet:tx.wallet,delta:Math.abs(Number(tx.amount)),type:"refund",method:"wallet",reference:"Rejected transaction #"+transactionId});
-    if(tx.type!=="deposit"&&tx.type!=="withdrawal")throw new Error("UNSUPPORTED");
-    await client.query("UPDATE transactions SET status='rejected' WHERE id=$1",[transactionId]);
+
+app.post("/api/admin/transactions/:id/reject", auth, requireRole("ADMIN"), async (req, res) => {
+  const transactionId = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(transactionId)) return res.status(400).json({ error: "Invalid transaction id" });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const tx = (await client.query("SELECT * FROM transactions WHERE id=$1 FOR UPDATE", [transactionId])).rows[0];
+    if (!tx || !["pending", "approved"].includes(tx.status)) throw new Error("NOT_PENDING");
+    if (tx.type === "withdrawal") {
+      await changeBalance(client, { userId: tx.user_id, wallet: tx.wallet, delta: Math.abs(Number(tx.amount)), type: "refund", method: "wallet", reference: "Rejected transaction #" + transactionId });
+    }
+    if (tx.type !== "deposit" && tx.type !== "withdrawal") throw new Error("UNSUPPORTED");
+    await client.query("UPDATE transactions SET status='rejected', processed_at=now() WHERE id=$1", [transactionId]);
     await client.query("COMMIT");
-    await audit(req,"transaction.rejected","transaction",transactionId,{type:tx.type,userId:tx.user_id});
-    res.json({ok:true});
-  }catch(e){await client.query("ROLLBACK");if(e.message==="NOT_PENDING")return res.status(409).json({error:"Transaction is no longer pending"});if(e.message==="UNSUPPORTED")return res.status(400).json({error:"Transaction type cannot be rejected"});console.error(e);res.status(500).json({error:"Could not reject transaction"})}finally{client.release()}
+    await audit(req, "transaction.rejected", "transaction", transactionId, { type: tx.type, userId: tx.user_id });
+    res.json({ ok: true });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    if (e.message === "NOT_PENDING") return res.status(409).json({ error: "Transaction is no longer pending" });
+    if (e.message === "UNSUPPORTED") return res.status(400).json({ error: "Transaction type cannot be rejected" });
+    console.error(e);
+    res.status(500).json({ error: "Could not reject transaction" });
+  } finally { client.release() }
 });
 app.get("/api/winners",auth,async(req,res)=>{
   const r=await pool.query("SELECT g.id,g.prize_pool AS pool,u.name FROM games g JOIN users u ON u.id=g.winner_id WHERE g.winner_id IS NOT NULL ORDER BY g.id DESC LIMIT 20");
