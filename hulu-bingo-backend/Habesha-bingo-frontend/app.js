@@ -280,6 +280,8 @@ async function refresh(){
   try{
     const w=await api("/me").catch(()=>null);
     if(w){
+      state.user = w.user;
+      state.wallet = w.wallet;
       const role=String(w.user.role||"PLAYER").toUpperCase();
       authStorage.setItem("hulu_role", role);
       authStorage.setItem("hulu_name", w.user.name);
@@ -1468,7 +1470,7 @@ function syncHuluWebApp(overrideNum, overrideList) {
 
 let selectedCardNumbers = new Set();
 let cardCountdownInterval = null;
-let cardCountdownSeconds = 39;
+let cardCountdownSeconds = 60;
 let liveGameInterval = null;
 let derashAnimFrame = null;
 
@@ -1517,19 +1519,38 @@ function updateDerashPrize() {
   animateDerashPrize(totalDerash);
 }
 
+function getPlayerMainBalance() {
+  if (state.wallet && typeof state.wallet.main_balance !== "undefined") {
+    return Number(state.wallet.main_balance || 0);
+  }
+  const tgEl = $("tgMainBalance");
+  if (tgEl) {
+    const parsed = parseFloat(tgEl.textContent.replace(/[^\d.]/g, ""));
+    if (!isNaN(parsed)) return parsed;
+  }
+  const mainEl = $("mainBalance");
+  if (mainEl) {
+    const parsed = parseFloat(mainEl.textContent.replace(/[^\d.]/g, ""));
+    if (!isNaN(parsed)) return parsed;
+  }
+  return 0;
+}
+
 function startCardCountdown() {
   if (cardCountdownInterval) clearInterval(cardCountdownInterval);
   if (liveGameInterval) clearInterval(liveGameInterval);
 
-  cardCountdownSeconds = 39;
+  cardCountdownSeconds = 60;
   const digitsEl = $("tgCardCountdown");
-  if (digitsEl) digitsEl.textContent = "00:39";
+  if (digitsEl) digitsEl.textContent = "01:00";
 
   cardCountdownInterval = setInterval(() => {
     if (cardCountdownSeconds > 0) {
       cardCountdownSeconds--;
-      const secStr = String(cardCountdownSeconds).padStart(2, "0");
-      if (digitsEl) digitsEl.textContent = `00:${secStr}`;
+      const min = Math.floor(cardCountdownSeconds / 60);
+      const sec = cardCountdownSeconds % 60;
+      const timeStr = `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+      if (digitsEl) digitsEl.textContent = timeStr;
     } else {
       clearInterval(cardCountdownInterval);
       toast("ጨዋታው ተጀምሯል!");
@@ -1558,6 +1579,12 @@ function renderCardSelectionGrid() {
       selectedCardNumbers.delete(cardNum);
       cell.classList.remove("selected");
     } else {
+      const currentBal = getPlayerMainBalance();
+      const requiredCost = (selectedCardNumbers.size + 1) * 10;
+      if (currentBal < requiredCost) {
+        toast("⚠️ Insufficient balance! እባክዎ መጀመሪያ ተቀማጭ (Deposit) ያድርጉ።", true);
+        return;
+      }
       if (selectedCardNumbers.size >= 4) {
         toast("እስከ 4 ካርቴላ ብቻ መምረጥ ይችላሉ (Max 4 cards)");
         return;
@@ -1619,7 +1646,7 @@ function switchToLiveGameView() {
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavBoard")?.classList.add("active");
 
-  if (selectedCardNumbers.size === 0) {
+  if (selectedCardNumbers.size === 0 && getPlayerMainBalance() >= 10) {
     selectedCardNumbers.add(468);
   }
 
@@ -1776,10 +1803,16 @@ document.querySelectorAll(".winner-row-card").forEach(card => {
 if($("tgTotalBetBtn")) {
   $("tgTotalBetBtn").addEventListener("click", () => {
     if (selectedCardNumbers.size === 0) {
-      toast("እባክዎ መጀመሪያ ካርቴላ ይምረጡ! (Select a card first)");
+      toast("እባክዎ መጀመሪያ ካርቴላ ይምረጡ! (Select a card first)", true);
       return;
     }
-    toast(`ካርቴላዎች ተመርጠዋል! ድምር: ${selectedCardNumbers.size * 10} ETB`);
+    const currentBal = getPlayerMainBalance();
+    const totalBet = selectedCardNumbers.size * 10;
+    if (currentBal < totalBet) {
+      toast("⚠️ Insufficient balance! እባክዎ መጀመሪያ ተቀማጭ (Deposit) ያድርጉ።", true);
+      return;
+    }
+    toast(`ካርቴላዎች ተመርጠዋል! ድምር: ${totalBet} ETB`);
     setTimeout(switchToLiveGameView, 600);
   });
 }
