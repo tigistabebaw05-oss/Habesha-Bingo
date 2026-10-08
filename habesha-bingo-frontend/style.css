@@ -1965,11 +1965,28 @@ footer {
 
 .card-pick-grid {
   display: grid;
-  grid-template-columns: repeat(11, 1fr);
-  gap: 3.5px;
-  max-height: 290px;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+  max-height: 310px;
   overflow-y: auto;
-  padding: 2px 1px;
+  padding: 4px 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #f5b716 #141c2b;
+  -webkit-overflow-scrolling: touch;
+}
+
+.card-pick-grid::-webkit-scrollbar {
+  width: 5px;
+}
+
+.card-pick-grid::-webkit-scrollbar-track {
+  background: #101726;
+  border-radius: 999px;
+}
+
+.card-pick-grid::-webkit-scrollbar-thumb {
+  background: #f5b716;
+  border-radius: 999px;
 }
 
 .card-cell {

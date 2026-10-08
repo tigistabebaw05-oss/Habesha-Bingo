@@ -1289,20 +1289,6 @@ let cardCountdownSeconds = 39;
 let liveGameInterval = null;
 let derashAnimFrame = null;
 
-const AVAILABLE_CARDS_SET = new Set([
-  453, 454, 457, 458, 459, 462,
-  464, 466, 467, 468, 469, 471,
-  474, 481, 482,
-  485, 488, 489, 494, 495,
-  496, 497, 498, 499, 501, 502, 503,
-  511, 514, 516, 517,
-  519, 521, 524, 525, 526, 528,
-  530, 532, 536,
-  540, 541, 545, 547, 548,
-  552, 553, 554, 556, 557, 558, 559, 561,
-  564, 566, 569
-]);
-
 function animateDerashPrize(targetAmount) {
   const selPrizeEl = $("tgCardSelPrize");
   const livePrizeEl = $("tgPrizePool");
@@ -1373,31 +1359,31 @@ function renderCardSelectionGrid() {
   const grid = $("tgCardPickGrid");
   if (!grid) return;
   let html = "";
-  for (let i = 452; i <= 572; i++) {
-    const isAvail = AVAILABLE_CARDS_SET.has(i);
+  for (let i = 1; i <= 600; i++) {
     const isSelected = selectedCardNumbers.has(i);
-    const classes = `card-cell ${isAvail ? 'available' : 'taken'} ${isSelected ? 'selected' : ''}`;
+    const classes = `card-cell available ${isSelected ? 'selected' : ''}`;
     html += `<div class="${classes}" data-card="${i}">${i}</div>`;
   }
   grid.innerHTML = html;
 
-  grid.querySelectorAll(".card-cell.available").forEach(cell => {
-    cell.addEventListener("click", () => {
-      const cardNum = Number(cell.dataset.card);
-      if (selectedCardNumbers.has(cardNum)) {
-        selectedCardNumbers.delete(cardNum);
-        cell.classList.remove("selected");
-      } else {
-        if (selectedCardNumbers.size >= 4) {
-          toast("እስከ 4 ካርቴላ ብቻ መምረጥ ይችላሉ (Max 4 cards)");
-          return;
-        }
-        selectedCardNumbers.add(cardNum);
-        cell.classList.add("selected");
+  grid.onclick = (e) => {
+    const cell = e.target.closest(".card-cell");
+    if (!cell) return;
+    const cardNum = Number(cell.dataset.card);
+    if (!cardNum) return;
+    if (selectedCardNumbers.has(cardNum)) {
+      selectedCardNumbers.delete(cardNum);
+      cell.classList.remove("selected");
+    } else {
+      if (selectedCardNumbers.size >= 4) {
+        toast("እስከ 4 ካርቴላ ብቻ መምረጥ ይችላሉ (Max 4 cards)");
+        return;
       }
-      updateCardSelectionTotals();
-    });
-  });
+      selectedCardNumbers.add(cardNum);
+      cell.classList.add("selected");
+    }
+    updateCardSelectionTotals();
+  };
 
   updateCardSelectionTotals();
 }
