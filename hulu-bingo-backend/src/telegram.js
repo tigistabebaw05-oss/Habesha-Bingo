@@ -2052,14 +2052,12 @@ class TelegramBingoService {
       }
       card.push(pool.slice(0, 5));
     }
-    const res = [0, 1, 2, 3, 4].map(r => [card[0][r], card[1][r], card[2][r], card[3][r], card[4][r]]);
-    res[2][2] = "FREE";
-    return res;
+    return [0, 1, 2, 3, 4].map(r => [card[0][r], card[1][r], card[2][r], card[3][r], card[4][r]]);
   }
 
   checkBingo(ticket, called) {
     const s = new Set(called);
-    const m = ticket.map((r, ri) => r.map((n, ci) => (ri === 2 && ci === 2) || n === "FREE" || n === "F" || n === 0 || s.has(n)));
+    const m = ticket.map(r => r.map(n => s.has(n)));
     for (let r = 0; r < 5; r++) if (m[r].every(Boolean)) return true;
     for (let c = 0; c < 5; c++) if ([0, 1, 2, 3, 4].every(r => m[r][c])) return true;
     return [0, 1, 2, 3, 4].every(i => m[i][i]) || [0, 1, 2, 3, 4].every(i => m[i][4 - i]);
@@ -2074,9 +2072,8 @@ class TelegramBingoService {
       out += "│";
       for (let c = 0; c < 5; c++) {
         const num = ticket[r][c];
-        const isFree = (r === 2 && c === 2) || num === "FREE" || num === "F" || num === 0;
-        const isHit = isFree || s.has(num);
-        const cell = isFree ? " ★ " : (isHit ? `*${num}` : `${num}`);
+        const isHit = s.has(num);
+        const cell = isHit ? `*${num}` : `${num}`;
         out += cell.padStart(4, " ").padEnd(5, " ") + "│";
       }
       out += "\n";

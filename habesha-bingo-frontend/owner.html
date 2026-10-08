@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Ethiopic:wght@300;400;500;600;700;800;900&family=Noto+Serif+Ethiopic:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261008-fix5">
+  <link rel="stylesheet" href="style.css?v=2026habesha">
   <link rel="stylesheet" href="admin.css">
 </head>
 <body>
@@ -71,46 +71,13 @@
         <aside class="panel ticket-panel">
           <div class="panel-head simple">
             <div><small>MY BINGO TICKET</small><h3>Player Card</h3></div>
-            <span class="ticket-badge" id="deskTicketBadge">#468 (5 × 5)</span>
+            <span class="ticket-badge">5 × 5</span>
           </div>
           <div class="hulu-switch-toggle" style="margin: 8px 0 10px; justify-content: flex-start;">
             <button class="switch-opt active" id="deskModeAuto" type="button">AUTO</button>
             <button class="switch-opt" id="deskModeManual" type="button">MANUAL</button>
           </div>
-          <div class="desk-bingo-header">
-            <span class="desk-col col-b">B</span>
-            <span class="desk-col col-i">I</span>
-            <span class="desk-col col-n">N</span>
-            <span class="desk-col col-g">G</span>
-            <span class="desk-col col-o">O</span>
-          </div>
-          <div class="ticket" id="ticket" data-card-key="8,18,34,54,67;15,28,40,60,68;4,17,FREE,55,61;5,21,42,57,72;3,23,35,51,74">
-            <div data-r="0" data-c="0" data-val="8">8</div>
-            <div data-r="0" data-c="1" data-val="18">18</div>
-            <div data-r="0" data-c="2" data-val="34">34</div>
-            <div data-r="0" data-c="3" data-val="54">54</div>
-            <div data-r="0" data-c="4" data-val="67">67</div>
-            <div data-r="1" data-c="0" data-val="15">15</div>
-            <div data-r="1" data-c="1" data-val="28">28</div>
-            <div data-r="1" data-c="2" data-val="40">40</div>
-            <div data-r="1" data-c="3" data-val="60">60</div>
-            <div data-r="1" data-c="4" data-val="68">68</div>
-            <div data-r="2" data-c="0" data-val="4">4</div>
-            <div data-r="2" data-c="1" data-val="17">17</div>
-            <div data-r="2" data-c="2" data-val="FREE" class="free-cell marked"><span class="free-star">★</span><span class="free-text">FREE</span></div>
-            <div data-r="2" data-c="3" data-val="55">55</div>
-            <div data-r="2" data-c="4" data-val="61">61</div>
-            <div data-r="3" data-c="0" data-val="5">5</div>
-            <div data-r="3" data-c="1" data-val="21">21</div>
-            <div data-r="3" data-c="2" data-val="42">42</div>
-            <div data-r="3" data-c="3" data-val="57">57</div>
-            <div data-r="3" data-c="4" data-val="72">72</div>
-            <div data-r="4" data-c="0" data-val="3">3</div>
-            <div data-r="4" data-c="1" data-val="23">23</div>
-            <div data-r="4" data-c="2" data-val="35">35</div>
-            <div data-r="4" data-c="3" data-val="51">51</div>
-            <div data-r="4" data-c="4" data-val="74">74</div>
-          </div>
+          <div class="ticket" id="ticket"></div>
           <button class="btn btn-gold full" id="joinBtn">Join Game — 10 ETB</button>
           <p class="hint">A row, column or diagonal completes Bingo in this demo.</p>
         </aside>
@@ -603,14 +570,13 @@
   <div class="hulu-webapp-overlay" id="huluBingoWebAppModal" hidden>
     <div class="hulu-webapp-container">
       <!-- Telegram WebApp Top Header -->
-      <!-- Telegram WebApp Top Header -->
       <header class="hulu-webapp-topbar">
-        <button class="tg-back-btn" id="tgAppBackBtn" type="button" title="Back to Main Menu">⬅️ ተመለስ (Menu)</button>
-        <div class="tg-app-title" id="tgAppTitleBtn" style="cursor: pointer;" title="Select Room">
-          <span id="tgAppTitleText">Hulu Bingo</span>
-          <svg class="chevron-down" id="tgAppTitleChevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        <button class="tg-back-btn" id="tgAppBackBtn" type="button" title="Back to Main Menu" onclick="closeAllTelegramModals(); document.getElementById('huluBingoWebAppModal').hidden=true;">⬅️ ተመለስ (Menu)</button>
+        <div class="tg-app-title">
+          <span>Hulu Bingo</span>
+          <svg class="chevron-down" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </div>
-        <button class="tg-icon-btn" id="tgAppCloseBtn" title="Close" type="button">✕</button>
+        <button class="tg-icon-btn" id="tgAppCloseBtn" title="Close" onclick="closeAllTelegramModals(); document.getElementById('huluBingoWebAppModal').hidden=true;">✕</button>
       </header>
 
       <!-- VIEW 1: Card Selection View (Matching the new screenshot) -->
@@ -618,37 +584,37 @@
         <!-- Top Balance & Logo Bar -->
         <div class="card-select-topbar">
           <div class="user-profile-group">
-            <div class="user-avatar-badge" id="tgUserAvatarBtn" style="cursor: pointer;" title="ተጫዋች ፕሮፋይል">T</div>
-            <div class="user-balances-pill" id="tgUserBalancesBtn" style="cursor: pointer;" title="ቦርሳ እና ሂሳብ">
-              <div class="bal-row"><span class="lbl-play" id="lblPlayBal">መጫወቻ ሂሳብ</span> <b class="val-play" id="tgPlayBalance">5.00 ETB</b></div>
-              <div class="bal-row"><span class="lbl-main" id="lblMainBal">ዋና ሂሳብ</span> <b class="val-main" id="tgMainBalance">0.00 ETB</b></div>
+            <div class="user-avatar-badge">T</div>
+            <div class="user-balances-pill">
+              <div class="bal-row"><span class="lbl-play">መጫወቻ ሂሳብ</span> <b class="val-play" id="tgPlayBalance">5.00 ETB</b></div>
+              <div class="bal-row"><span class="lbl-main">ዋና ሂሳብ</span> <b class="val-main" id="tgMainBalance">0.00 ETB</b></div>
             </div>
           </div>
           <div class="brand-group">
-            <div class="brand-ethiopic" id="tgBrandBtn" style="cursor: pointer;" title="ሁሉቢንጎ">ሁሉቢንጎ</div>
-            <button class="lang-pill-btn" id="tgLangPillBtn" title="Switch Language"><span class="lang-am active">አማ</span><span class="lang-divider">|</span><span class="lang-en">EN</span></button>
+            <div class="brand-ethiopic">ሁሉቢንጎ</div>
+            <button class="lang-pill-btn" id="tgLangPillBtn"><span class="lang-am active">አማ</span><span class="lang-divider">|</span><span class="lang-en">EN</span></button>
           </div>
         </div>
 
         <!-- Notification Banner -->
-        <div class="hulu-notice-card" id="tgNoticeCard" style="cursor: pointer;" title="ዝግጅቶች እና ተጨማሪ ቦነሶች">
+        <div class="hulu-notice-card">
           <div class="notice-icon-box">▪</div>
           <div class="notice-text-content">
-            <div class="notice-tag" id="lblNoticeTag">ዝግጅቶች</div>
-            <div class="notice-title" id="lblNoticeTitle">ተጨማሪ ቦነስ</div>
-            <div class="notice-sub" id="lblNoticeSub">በቅርቡ ይጠብቁ!</div>
+            <div class="notice-tag">ዝግጅቶች</div>
+            <div class="notice-title">ተጨማሪ ቦነስ</div>
+            <div class="notice-sub">በቅርቡ ይጠብቁ!</div>
           </div>
         </div>
 
         <!-- Prize & Countdown Golden Card -->
         <div class="round-countdown-card">
-          <div class="derash-box" id="tgDerashBox" style="cursor: pointer;" title="የደራሽ ሽልማት መረጃ">
-            <span class="derash-badge" id="lblDerashBadge">ደራሽ</span>
+          <div class="derash-box">
+            <span class="derash-badge">ደራሽ</span>
             <div class="derash-amount" id="tgCardSelPrize">0 ETB</div>
           </div>
 
           <!-- Golden 3D Balls Cluster/Pyramid -->
-          <div class="balls-pyramid-container" id="tgBallsPyramid" style="cursor: pointer;" title="እድለኛ ቁጥሮች">
+          <div class="balls-pyramid-container">
             <div class="pyramid-row">
               <div class="mini-gold-ball"><div class="b-inner"><span class="b-letter">O</span><span class="b-num">66</span></div></div>
               <div class="mini-gold-ball"><div class="b-inner"><span class="b-letter">O</span><span class="b-num">64</span></div></div>
@@ -669,139 +635,26 @@
             </div>
           </div>
 
-          <div class="countdown-box" id="tgCountdownBox" style="cursor: pointer;" title="ጨዋታውን ወዲያውኑ ጀምር">
-            <div class="countdown-heading" id="lblCountdownHeading">ጨዋታው ሊጀምር ነው</div>
+          <div class="countdown-box">
+            <div class="countdown-heading">ጨዋታው ሊጀምር ነው</div>
             <div class="countdown-digits" id="tgCardCountdown">00:39</div>
           </div>
         </div>
 
-        <!-- Card Selection Grid Container -->
+        <!-- Card Selection 1-80 Grid Container -->
         <div class="card-selection-box">
           <div class="selection-box-header">
-            <h3 id="tgCardSelectTitle">ካርቴላ ይምረጡ (10 ብር)</h3>
-            <div class="selection-counter" id="tgSelectionCounterBox" style="cursor: pointer;" title="የካርቴላዎች ብዛት"><span class="cnt-cur" id="tgSelectedCount">0</span> <span class="cnt-max">/ 4</span></div>
+            <h3>ካርቴላ ይምረጡ (10 ብር)</h3>
+            <div class="selection-counter"><span class="cnt-cur" id="tgSelectedCount">0</span> <span class="cnt-max">/ 4</span></div>
           </div>
-          <div class="card-range-tabs">
-            <button type="button" class="range-tab-btn active" data-start="401" data-end="500" id="ownerRangeTab401">401 - 500</button>
-            <button type="button" class="range-tab-btn" data-start="1" data-end="100" id="ownerRangeTab1">1 - 100</button>
-            <button type="button" class="range-tab-btn" data-start="101" data-end="200" id="ownerRangeTab101">101 - 200</button>
-            <button type="button" class="range-tab-btn" data-start="201" data-end="300" id="ownerRangeTab201">201 - 300</button>
-            <button type="button" class="range-tab-btn" data-start="301" data-end="400" id="ownerRangeTab301">301 - 400</button>
-            <button type="button" class="range-tab-btn" data-start="501" data-end="600" id="ownerRangeTab501">501 - 600</button>
-            <button type="button" class="range-tab-btn" data-start="1" data-end="600" id="ownerRangeTabAll">1 - 600 (ሁሉም)</button>
-          </div>
-          <div class="card-pick-grid" id="tgCardPickGrid">
-            <div class="card-cell available" data-card="401">401</div>
-            <div class="card-cell available" data-card="402">402</div>
-            <div class="card-cell available" data-card="403">403</div>
-            <div class="card-cell available" data-card="404">404</div>
-            <div class="card-cell available" data-card="405">405</div>
-            <div class="card-cell available" data-card="406">406</div>
-            <div class="card-cell available" data-card="407">407</div>
-            <div class="card-cell available" data-card="408">408</div>
-            <div class="card-cell available" data-card="409">409</div>
-            <div class="card-cell available" data-card="410">410</div>
-            <div class="card-cell available" data-card="411">411</div>
-            <div class="card-cell available" data-card="412">412</div>
-            <div class="card-cell available" data-card="413">413</div>
-            <div class="card-cell available" data-card="414">414</div>
-            <div class="card-cell available" data-card="415">415</div>
-            <div class="card-cell available" data-card="416">416</div>
-            <div class="card-cell available" data-card="417">417</div>
-            <div class="card-cell available" data-card="418">418</div>
-            <div class="card-cell available" data-card="419">419</div>
-            <div class="card-cell available" data-card="420">420</div>
-            <div class="card-cell available" data-card="421">421</div>
-            <div class="card-cell available" data-card="422">422</div>
-            <div class="card-cell available" data-card="423">423</div>
-            <div class="card-cell available" data-card="424">424</div>
-            <div class="card-cell available" data-card="425">425</div>
-            <div class="card-cell available" data-card="426">426</div>
-            <div class="card-cell available" data-card="427">427</div>
-            <div class="card-cell available" data-card="428">428</div>
-            <div class="card-cell available" data-card="429">429</div>
-            <div class="card-cell available" data-card="430">430</div>
-            <div class="card-cell available" data-card="431">431</div>
-            <div class="card-cell available" data-card="432">432</div>
-            <div class="card-cell available" data-card="433">433</div>
-            <div class="card-cell available" data-card="434">434</div>
-            <div class="card-cell available" data-card="435">435</div>
-            <div class="card-cell available" data-card="436">436</div>
-            <div class="card-cell available" data-card="437">437</div>
-            <div class="card-cell available" data-card="438">438</div>
-            <div class="card-cell available" data-card="439">439</div>
-            <div class="card-cell available" data-card="440">440</div>
-            <div class="card-cell available" data-card="441">441</div>
-            <div class="card-cell available" data-card="442">442</div>
-            <div class="card-cell available" data-card="443">443</div>
-            <div class="card-cell available" data-card="444">444</div>
-            <div class="card-cell available" data-card="445">445</div>
-            <div class="card-cell available" data-card="446">446</div>
-            <div class="card-cell available" data-card="447">447</div>
-            <div class="card-cell available" data-card="448">448</div>
-            <div class="card-cell available" data-card="449">449</div>
-            <div class="card-cell available" data-card="450">450</div>
-            <div class="card-cell available" data-card="451">451</div>
-            <div class="card-cell available" data-card="452">452</div>
-            <div class="card-cell available" data-card="453">453</div>
-            <div class="card-cell available" data-card="454">454</div>
-            <div class="card-cell available" data-card="455">455</div>
-            <div class="card-cell available" data-card="456">456</div>
-            <div class="card-cell available" data-card="457">457</div>
-            <div class="card-cell available" data-card="458">458</div>
-            <div class="card-cell available" data-card="459">459</div>
-            <div class="card-cell available" data-card="460">460</div>
-            <div class="card-cell available" data-card="461">461</div>
-            <div class="card-cell available" data-card="462">462</div>
-            <div class="card-cell taken" data-card="463">463</div>
-            <div class="card-cell available" data-card="464">464</div>
-            <div class="card-cell taken" data-card="465">465</div>
-            <div class="card-cell available" data-card="466">466</div>
-            <div class="card-cell available" data-card="467">467</div>
-            <div class="card-cell available" data-card="468">468</div>
-            <div class="card-cell available" data-card="469">469</div>
-            <div class="card-cell taken" data-card="470">470</div>
-            <div class="card-cell available" data-card="471">471</div>
-            <div class="card-cell taken" data-card="472">472</div>
-            <div class="card-cell taken" data-card="473">473</div>
-            <div class="card-cell available" data-card="474">474</div>
-            <div class="card-cell taken" data-card="475">475</div>
-            <div class="card-cell taken" data-card="476">476</div>
-            <div class="card-cell taken" data-card="477">477</div>
-            <div class="card-cell taken" data-card="478">478</div>
-            <div class="card-cell taken" data-card="479">479</div>
-            <div class="card-cell taken" data-card="480">480</div>
-            <div class="card-cell available" data-card="481">481</div>
-            <div class="card-cell available" data-card="482">482</div>
-            <div class="card-cell taken" data-card="483">483</div>
-            <div class="card-cell taken" data-card="484">484</div>
-            <div class="card-cell available" data-card="485">485</div>
-            <div class="card-cell taken" data-card="486">486</div>
-            <div class="card-cell taken" data-card="487">487</div>
-            <div class="card-cell available" data-card="488">488</div>
-            <div class="card-cell available" data-card="489">489</div>
-            <div class="card-cell taken" data-card="490">490</div>
-            <div class="card-cell taken" data-card="491">491</div>
-            <div class="card-cell taken" data-card="492">492</div>
-            <div class="card-cell taken" data-card="493">493</div>
-            <div class="card-cell available" data-card="494">494</div>
-            <div class="card-cell available" data-card="495">495</div>
-            <div class="card-cell available" data-card="496">496</div>
-            <div class="card-cell available" data-card="497">497</div>
-            <div class="card-cell available" data-card="498">498</div>
-            <div class="card-cell available" data-card="499">499</div>
-            <div class="card-cell taken" data-card="500">500</div>
-          </div>
+          <div class="card-pick-grid" id="tgCardPickGrid"></div>
         </div>
 
-        <!-- Selected Cartelas ("የመረጡት ካርቴላዎች") Preview Section -->
-        <div class="selected-cartelas-container" id="tgSelectedCartelasContainer" style="display: none;">
-          <div class="selected-cartelas-header">
-            <div class="sc-header-left">
-              <span class="sc-sparkle">❖</span>
-              <h4 class="selected-cartelas-title">የመረጡት ካርቴላዎች</h4>
-            </div>
-            <span class="sc-count-badge" id="tgSelectedCartelasBadge">0 ካርቴላ</span>
+        <!-- Selected Cartelas Preview Drawer (Matching Screenshot 2: የመረጡት ካርቴላዎች) -->
+        <div class="selected-cartelas-drawer" id="tgSelectedCartelasDrawer" hidden>
+          <div class="drawer-drag-pill"></div>
+          <div class="drawer-header">
+            <h4>የመረጡት ካርቴላዎች</h4>
           </div>
           <div class="selected-cartelas-list" id="tgSelectedCartelasList"></div>
         </div>
@@ -813,11 +666,11 @@
         <div class="hulu-info-bar">
           <div class="hulu-pill round-pill">
             <span class="gold-triangle">▲</span>
-            <span id="tgGameRound">GAME ROUND #221453</span>
+            <span id="tgGameRound">GAME ROUND #226798</span>
           </div>
           <div class="hulu-pill live-pill">
             <span class="live-indicator"></span>
-            <span id="tgLivePlayers">LIVE - 85 PLAYERS</span>
+            <span id="tgLivePlayers">LIVE - 286 PLAYERS</span>
             <button class="sound-btn" id="tgSoundBtn" aria-label="Toggle Sound">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
             </button>
@@ -829,29 +682,29 @@
           <!-- Prize Box -->
           <div class="hulu-prize-card">
             <div class="prize-tag">የደራሽ መጠን</div>
-            <div class="prize-value" id="tgPrizePool">1568 ETB</div>
+            <div class="prize-value" id="tgPrizePool">4800 ETB</div>
           </div>
 
           <!-- 3D Ball -->
           <div class="hulu-ball-wrapper">
             <div class="bingo-3d-ball" id="tgMainBall">
-              <span class="ball-letter" id="tgBallLetter">B</span>
-              <span class="ball-num" id="tgBallNumber">6</span>
+              <span class="ball-letter" id="tgBallLetter">N</span>
+              <span class="ball-num" id="tgBallNumber">31</span>
             </div>
           </div>
 
           <!-- Recent Balls Strip & Counter -->
           <div class="hulu-tracker-card">
             <div class="tracker-chips" id="tgTrackerChips">
-              <span class="chip"><b class="c-b">B</b> 6</span>
-              <span class="chip"><b class="c-g">G</b> 50</span>
+              <span class="chip"><b class="c-n">N</b> 31</span>
+              <span class="chip"><b class="c-o">O</b> 66</span>
               <span class="chip"><b class="c-g">G</b> 47</span>
-              <span class="chip"><b class="c-b">B</b> 14</span>
-              <span class="chip"><b class="c-o">O</b> 61</span>
+              <span class="chip"><b class="c-n">N</b> 45</span>
+              <span class="chip"><b class="c-g">G</b> 53</span>
             </div>
             <div class="tracker-counter">
               <span class="yellow-dot">●</span>
-              <span id="tgTrackerCount">12/75</span>
+              <span id="tgTrackerCount">0/75</span>
             </div>
           </div>
         </div>
@@ -884,10 +737,11 @@
             <div class="bingo-table-grid" id="tgBingoTableGrid"></div>
           </div>
 
-          <!-- 4-Slots Live Game Area (Matching Image 3 & Image 4) -->
-          <div class="hulu-player-card-view" id="huluPlayerCardView">
-            <div class="hulu-slots-grid" id="tgSlotsGrid"></div>
+          <!-- 4-Slots Live Grid (Matching Screenshots 3 & 4) -->
+          <div class="hulu-slots-grid" id="tgSlotsGrid">
+            <!-- Dynamically populated with Slot 1..4 based on selected cartelas -->
           </div>
+          <div class="ticket" id="tgTicketGrid" style="display:none;"></div>
 
           <!-- Waiting State Screen -->
           <div class="hulu-waiting-view" id="huluWaitingView" hidden>
@@ -1187,13 +1041,13 @@
           </button>
           <button class="bottom-nav-item" id="tgNavBoard">
             <span class="nav-icon">💳</span>
-            <span class="nav-label">ቦርሳ</span>
+            <span class="nav-label">ቦርድ</span>
           </button>
         </nav>
 
         <!-- Dynamic Action: Total Bet Button (on Card Select) or BINGO! Button (on Live Game) -->
         <button class="total-bet-card" id="tgTotalBetBtn">
-          <span class="bet-label">አጠቃላይ የመረጡት</span>
+          <span class="bet-label">አጠቃላይ የመደቡት</span>
           <span class="bet-amount" id="tgTotalBetAmount">0 ETB</span>
           <span class="bet-live-status"><i class="live-dot"></i> LIVE</span>
         </button>
@@ -1205,404 +1059,10 @@
 
       <!-- Android System Navigation Mock -->
       <div class="android-nav-mock">
-        <span class="nav-key triangle" id="androidBackKey" style="cursor: pointer;" title="ተመለስ (Back)">◁</span>
-        <span class="nav-key circle" id="androidHomeKey" style="cursor: pointer;" title="መነሻ (Home)">○</span>
-        <span class="nav-key square" id="androidTasksKey" style="cursor: pointer;" title="ክፍሎች (Recent)">□</span>
-        <span class="nav-key human" id="androidA11yKey" style="cursor: pointer;" title="እርዳታ እና ሕጎች (Help)">🧍</span>
-      </div>
-
-      <!-- ==================== IN-APP INTERACTIVE MODALS & SHEETS ==================== -->
-      <!-- 1. Topbar Room Dropdown -->
-      <div class="hulu-room-dropdown" id="huluRoomDropdown" hidden>
-        <div class="dropdown-header">የቢንጎ ክፍሎች (Bingo Rooms)</div>
-        <button class="room-item-btn active" id="dropdownRoomClassic" type="button">
-          <span class="room-icon">🎮</span>
-          <div class="room-details">
-            <span class="room-name">መደበኛ ቢንጎ (Classic Room)</span>
-            <span class="room-meta">10 ETB / ካርቴላ • 1-600 ቁጥሮች</span>
-          </div>
-          <span class="room-badge">ንቁ</span>
-        </button>
-        <button class="room-item-btn" id="dropdownRoomVip" type="button">
-          <span class="room-icon">👑</span>
-          <div class="room-details">
-            <span class="room-name">VIP ቢንጎ ክፍል (VIP Room)</span>
-            <span class="room-meta">50 ETB / ካርቴላ • ከፍተኛ ሽልማት</span>
-          </div>
-          <span class="room-badge vip">VIP</span>
-        </button>
-        <button class="room-item-btn" id="dropdownRoomLive" type="button">
-          <span class="room-icon">🟢</span>
-          <div class="room-details">
-            <span class="room-name">የቀጥታ ጨዋታ (Live Room)</span>
-            <span class="room-meta">ተከታታይ የቁጥሮች ጥሪ</span>
-          </div>
-        </button>
-        <button class="room-item-btn" id="dropdownRoomWinners" type="button">
-          <span class="room-icon">🏆</span>
-          <div class="room-details">
-            <span class="room-name">የአሸናፊዎች መዝገብ (Winners)</span>
-            <span class="room-meta">የቅርብ ጊዜ ደራሽ አሸናፊዎች</span>
-          </div>
-        </button>
-        <button class="room-item-btn" id="dropdownRoomRules" type="button">
-          <span class="room-icon">📜</span>
-          <div class="room-details">
-            <span class="room-name">ደንቦች እና መመሪያ (Rules)</span>
-            <span class="room-meta">አጨዋወት እና የክፍያ ስሌት</span>
-          </div>
-        </button>
-      </div>
-
-      <!-- 2. Player Profile Modal Sheet -->
-      <div class="hulu-sheet-backdrop" id="huluProfileModal" hidden>
-        <div class="hulu-sheet-container">
-          <div class="hulu-sheet-handle"></div>
-          <div class="hulu-sheet-header">
-            <div class="sheet-title-group">
-              <div class="user-avatar-badge large">T</div>
-              <div>
-                <h3 class="sheet-title" id="profilePlayerName">Tesfaye B.</h3>
-                <span class="sheet-subtitle" id="profilePlayerId">ID: #HB-77291 • ተጫዋች</span>
-              </div>
-            </div>
-            <button class="sheet-close-btn" id="profileCloseBtn" type="button">✕</button>
-          </div>
-          <div class="sheet-body">
-            <div class="profile-stats-grid">
-              <div class="pstat-card">
-                <span class="pstat-lbl">መጫወቻ ሂሳብ</span>
-                <strong class="pstat-val gold" id="profilePlayBal">5.00 ETB</strong>
-              </div>
-              <div class="pstat-card">
-                <span class="pstat-lbl">ዋና ሂሳብ</span>
-                <strong class="pstat-val gold" id="profileMainBal">0.00 ETB</strong>
-              </div>
-              <div class="pstat-card">
-                <span class="pstat-lbl">የተጫወቱት</span>
-                <strong class="pstat-val">28 ዙር</strong>
-              </div>
-              <div class="pstat-card">
-                <span class="pstat-lbl">ያሸነፉት ጠቅላላ</span>
-                <strong class="pstat-val green">4,768 ETB</strong>
-              </div>
-            </div>
-            <div class="sheet-actions-col">
-              <button class="btn btn-gold full" id="profileGoWalletBtn" type="button">💳 ቦርሳ እና ሂሳብ ሙላ</button>
-              <button class="btn btn-outline full" id="profileRulesBtn" type="button">📜 የአጨዋወት ደንቦች</button>
-              <button class="btn btn-outline full danger" id="profileLogoutBtn" type="button">🚪 ከመለያ ውጣ</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 3. In-App Wallet Modal Sheet -->
-      <div class="hulu-sheet-backdrop" id="huluWalletModal" hidden>
-        <div class="hulu-sheet-container">
-          <div class="hulu-sheet-handle"></div>
-          <div class="hulu-sheet-header">
-            <div>
-              <h3 class="sheet-title">💳 የቢንጎ ቦርሳ (Wallet)</h3>
-              <span class="sheet-subtitle">ሂሳብ ይሙሉ ወይም ወጪ ያድርጉ</span>
-            </div>
-            <button class="sheet-close-btn" id="walletCloseBtn" type="button">✕</button>
-          </div>
-          <div class="sheet-body">
-            <div class="wallet-balance-banner">
-              <div>
-                <span class="wb-label">የሚገኝ መጫወቻ ሂሳብ</span>
-                <div class="wb-amount" id="walletModalPlayBal">5.00 ETB</div>
-              </div>
-              <div class="wb-secondary">
-                <span class="wb-label">ዋና ሂሳብ</span>
-                <b class="wb-sub-amount" id="walletModalMainBal">0.00 ETB</b>
-              </div>
-            </div>
-            <div class="quick-deposit-section">
-              <span class="section-micro-lbl">ፈጣን ሂሳብ መሙያ (Quick Deposit)</span>
-              <div class="quick-deposit-chips">
-                <button class="qdep-chip" data-amt="25" type="button">+25 ETB</button>
-                <button class="qdep-chip active" data-amt="50" type="button">+50 ETB</button>
-                <button class="qdep-chip" data-amt="100" type="button">+100 ETB</button>
-                <button class="qdep-chip" data-amt="500" type="button">+500 ETB</button>
-              </div>
-              <div class="payment-methods-row">
-                <button class="pay-method-btn active" data-method="Telebirr" id="payMethodTelebirr" type="button">
-                  <span class="pay-logo">📱</span> Telebirr
-                </button>
-                <button class="pay-method-btn" data-method="CBE Birr" id="payMethodCbe" type="button">
-                  <span class="pay-logo">🏦</span> CBE Birr
-                </button>
-              </div>
-              <button class="btn btn-gold full" id="walletDepositBtn" type="button">✅ 50 ETB በ Telebirr አስገባ</button>
-            </div>
-            <div class="wallet-links-row">
-              <button class="wallet-link-btn" id="walletWithdrawBtn" type="button">💸 ገንዘብ ወጪ አድርግ (Withdraw)</button>
-              <button class="wallet-link-btn" id="walletHistoryBtn" type="button">📋 የግብይት ታሪክ (History)</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 4. Events & Bonus Modal Sheet -->
-      <div class="hulu-sheet-backdrop" id="huluEventsModal" hidden>
-        <div class="hulu-sheet-container">
-          <div class="hulu-sheet-handle"></div>
-          <div class="hulu-sheet-header">
-            <div>
-              <h3 class="sheet-title">🎉 ዝግጅቶች እና ተጨማሪ ቦነሶች</h3>
-              <span class="sheet-subtitle">ልዩ ስጦታዎችን እና ቦነሶችን ያግኙ</span>
-            </div>
-            <button class="sheet-close-btn" id="eventsCloseBtn" type="button">✕</button>
-          </div>
-          <div class="sheet-body">
-            <div class="promo-item-card featured">
-              <div class="promo-icon">🎁</div>
-              <div class="promo-info">
-                <h4 class="promo-name">ተጨማሪ ቦነስ (Welcome Bonus)</h4>
-                <p class="promo-desc">አሁኑኑ 20 ETB ነጻ መጫወቻ ቦነስ ያግኙ እና ቢንጎ ይጫወቱ!</p>
-                <button class="btn btn-gold small" id="claimBonusBtn" type="button">🎁 20 ETB ቦነስ ውሰድ</button>
-              </div>
-            </div>
-            <div class="promo-item-card">
-              <div class="promo-icon">👥</div>
-              <div class="promo-info">
-                <h4 class="promo-name">የጓደኛ መጋበዣ (Referral)</h4>
-                <p class="promo-desc">ጓደኛዎን ሲጋብዙ ለእያንዳንዱ 25 ETB ተጨማሪ ሂሳብ ያገኛሉ።</p>
-                <button class="btn btn-outline small" id="inviteFriendBtn" type="button">🔗 ሊንክ ኮፒ አድርግ</button>
-              </div>
-            </div>
-            <div class="promo-item-card">
-              <div class="promo-icon">🏆</div>
-              <div class="promo-info">
-                <h4 class="promo-name">የሳምንቱ አሸናፊዎች ጃክፖት</h4>
-                <p class="promo-desc">በሳምንቱ ከፍተኛ ጨዋታ የተጫወቱ 3 አሸናፊዎች 2,000 ETB ይሸለማሉ!</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 5. Derash Jackpot Modal Sheet -->
-      <div class="hulu-sheet-backdrop" id="huluDerashModal" hidden>
-        <div class="hulu-sheet-container">
-          <div class="hulu-sheet-handle"></div>
-          <div class="hulu-sheet-header">
-            <div>
-              <h3 class="sheet-title">💰 የደራሽ ሽልማት መረጃ (Derash Pool)</h3>
-              <span class="sheet-subtitle">የቀጥታ ቢንጎ አጠቃላይ የሽልማት ገቢ</span>
-            </div>
-            <button class="sheet-close-btn" id="derashCloseBtn" type="button">✕</button>
-          </div>
-          <div class="sheet-body">
-            <div class="derash-hero-card">
-              <span class="dh-tag">የአሁኑ ዙር ደራሽ</span>
-              <div class="dh-amount" id="modalDerashAmount">0 ETB</div>
-              <span class="dh-note">በእያንዳንዱ ተጫዋች 10 ETB ሲጨመር ደራሹ ይጨምራል!</span>
-            </div>
-            <div class="derash-breakdown-list">
-              <div class="db-item">
-                <span>🏆 ለአሸናፊው የሚሰጥ ድርሻ</span>
-                <b class="green-text">80%</b>
-              </div>
-              <div class="db-item">
-                <span>⚙️ የአገልግሎት ክፍያ</span>
-                <b>20%</b>
-              </div>
-              <div class="db-item">
-                <span>👥 የአሁኑ ተሳታፊዎች</span>
-                <b id="derashPlayerCount">0 ተጫዋቾች</b>
-              </div>
-            </div>
-            <button class="btn btn-gold full" id="derashPlayNowBtn" type="button">🎮 አሁኑኑ ተሳተፍና አሸንፍ</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 6. Lucky Balls Modal Sheet -->
-      <div class="hulu-sheet-backdrop" id="huluLuckyBallsModal" hidden>
-        <div class="hulu-sheet-container">
-          <div class="hulu-sheet-handle"></div>
-          <div class="hulu-sheet-header">
-            <div>
-              <h3 class="sheet-title">✨ እድለኛ ቁጥሮች (Lucky Balls)</h3>
-              <span class="sheet-subtitle">ተደጋግመው የወጡ እና አሸናፊ ቁጥሮች</span>
-            </div>
-            <button class="sheet-close-btn" id="luckyCloseBtn" type="button">✕</button>
-          </div>
-          <div class="sheet-body">
-            <div class="lucky-stats-box">
-              <span class="section-micro-lbl">ተደጋጋሚ የወጡ (HOT NUMBERS)</span>
-              <div class="lucky-balls-row">
-                <span class="hot-ball b">B 3</span>
-                <span class="hot-ball i">I 25</span>
-                <span class="hot-ball n">N 32</span>
-                <span class="hot-ball g">G 55</span>
-                <span class="hot-ball o">O 66</span>
-              </div>
-            </div>
-            <div class="lucky-stats-box">
-              <span class="section-micro-lbl">ቀጣይ የሚጠበቁ (COLD NUMBERS)</span>
-              <div class="lucky-balls-row">
-                <span class="cold-ball">B 8</span>
-                <span class="cold-ball">I 17</span>
-                <span class="cold-ball">N 40</span>
-                <span class="cold-ball">O 64</span>
-              </div>
-            </div>
-            <button class="btn btn-gold full" id="luckyQuickPickBtn" type="button">🎲 ለእኔ 2 እድለኛ ካርቴላ ምረጥልኝ</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 7. Countdown / Instant Start Modal Sheet -->
-      <div class="hulu-sheet-backdrop" id="huluCountdownModal" hidden>
-        <div class="hulu-sheet-container">
-          <div class="hulu-sheet-handle"></div>
-          <div class="hulu-sheet-header">
-            <div>
-              <h3 class="sheet-title">⏱️ የጨዋታው መጀመሪያ ሰዓት</h3>
-              <span class="sheet-subtitle">ቀጣዩ ዙር ሊጀመር ጥቂት ሰከንዶች ቀርተውታል</span>
-            </div>
-            <button class="sheet-close-btn" id="countdownCloseBtn" type="button">✕</button>
-          </div>
-          <div class="sheet-body">
-            <div class="countdown-hero-circle">
-              <span class="cd-timer-val" id="modalCountdownVal">00:39</span>
-              <span class="cd-timer-sub">ሰከንዶች ቀርተዋል</span>
-            </div>
-            <p class="cd-info-text">ካርቴላዎን መርጠው ጨርሰዋል? መጠበቅ ካልፈለጉ ወዲያውኑ ወደ የቀጥታ ጨዋታው መግባት ይችላሉ።</p>
-            <button class="btn btn-gold full" id="instantStartBtn" type="button">🚀 ወዲያውኑ ጀምር (Start Now)</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 8. Cartela Zoom View Modal Sheet -->
-      <div class="hulu-sheet-backdrop" id="huluCartelaZoomModal" hidden>
-        <div class="hulu-sheet-container">
-          <div class="hulu-sheet-handle"></div>
-          <div class="hulu-sheet-header">
-            <div>
-              <h3 class="sheet-title" id="zoomCardTitle">ሁሉ ካርቴላ #468</h3>
-              <span class="sheet-subtitle">የተመረጠ ካርቴላ ሙሉ እይታ (5 × 5)</span>
-            </div>
-            <button class="sheet-close-btn" id="zoomCloseBtn" type="button">✕</button>
-          </div>
-          <div class="sheet-body">
-            <div class="zoom-card-wrapper" id="zoomCardGrid"></div>
-            <div class="sheet-actions-row">
-              <button class="btn btn-outline full danger" id="zoomRemoveCardBtn" type="button">🗑️ አስወግድ</button>
-              <button class="btn btn-gold full" id="zoomConfirmBtn" type="button">✓ ተስማምቻለሁ</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 9. Back Menu Modal Sheet -->
-      <div class="hulu-sheet-backdrop" id="huluBackMenuModal" hidden>
-        <div class="hulu-sheet-container">
-          <div class="hulu-sheet-handle"></div>
-          <div class="hulu-sheet-header">
-            <div>
-              <h3 class="sheet-title">📋 Hulu Bingo ዋና ማውጫ</h3>
-              <span class="sheet-subtitle">የሚፈልጉትን አማራጭ ይምረጡ</span>
-            </div>
-            <button class="sheet-close-btn" id="backMenuCloseBtn" type="button">✕</button>
-          </div>
-          <div class="sheet-body">
-            <div class="menu-options-list">
-              <button class="menu-opt-btn" id="menuOptStay" type="button">
-                <span class="mo-icon">🎮</span>
-                <div><b>በጨዋታው ውስጥ ቆይ</b><small>ካርቴላ መምረጥዎን ይቀጥሉ</small></div>
-              </button>
-              <button class="menu-opt-btn" id="menuOptVip" type="button">
-                <span class="mo-icon">👑</span>
-                <div><b>ወደ VIP ቢንጎ ክፍል ሂድ</b><small>ከፍተኛ 50 ETB ሽልማት ክፍል</small></div>
-              </button>
-              <button class="menu-opt-btn" id="menuOptRules" type="button">
-                <span class="mo-icon">📜</span>
-                <div><b>የአጨዋወት ደንቦች</b><small>እንዴት እንደሚጫወቱ ይመልከቱ</small></div>
-              </button>
-              <button class="menu-opt-btn" id="menuOptClose" type="button">
-                <span class="mo-icon">🚪</span>
-                <div><b style="color:#ef4444;">መተግበሪያውን ዝጋ (Close)</b><small>ወደ ዋናው ገጽ ይመለሱ</small></div>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 10. App Switcher Sheet (Android Square Button) -->
-      <div class="hulu-sheet-backdrop" id="huluAppSwitcherModal" hidden>
-        <div class="hulu-sheet-container">
-          <div class="hulu-sheet-handle"></div>
-          <div class="hulu-sheet-header">
-            <h3 class="sheet-title">📱 ክፍት ገጾች (App Switcher)</h3>
-            <button class="sheet-close-btn" id="appSwitcherCloseBtn" type="button">✕</button>
-          </div>
-          <div class="sheet-body">
-            <div class="switcher-cards-row">
-              <div class="switcher-app-card" id="switchCardClassic">
-                <div class="sac-preview classic">
-                  <span>🎮 መደበኛ ቢንጎ</span>
-                </div>
-                <span class="sac-label">Classic 10 ETB</span>
-              </div>
-              <div class="switcher-app-card" id="switchCardVip">
-                <div class="sac-preview vip">
-                  <span>👑 VIP ቢንጎ</span>
-                </div>
-                <span class="sac-label">VIP 50 ETB</span>
-              </div>
-              <div class="switcher-app-card" id="switchCardLive">
-                <div class="sac-preview live">
-                  <span>🟢 የቀጥታ ክፍል</span>
-                </div>
-                <span class="sac-label">Live Bingo</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 11. Quick Rules & Guide Modal Sheet (Android Accessibility Button) -->
-      <div class="hulu-sheet-backdrop" id="huluRulesModal" hidden>
-        <div class="hulu-sheet-container">
-          <div class="hulu-sheet-handle"></div>
-          <div class="hulu-sheet-header">
-            <div>
-              <h3 class="sheet-title">📜 የቢንጎ አጨዋወት መመሪያ</h3>
-              <span class="sheet-subtitle">Hulu Bingo Quick Guide</span>
-            </div>
-            <button class="sheet-close-btn" id="rulesCloseBtn" type="button">✕</button>
-          </div>
-          <div class="sheet-body">
-            <div class="rules-steps-list">
-              <div class="rule-step">
-                <span class="rs-num">1</span>
-                <div>
-                  <b>ካርቴላ ይምረጡ</b>
-                  <p>ከ 1 እስከ 600 ቁጥሮች ውስጥ እስከ 4 ካርቴላዎችን ይምረጡ (እያንዳንዱ 10 ብር)።</p>
-                </div>
-              </div>
-              <div class="rule-step">
-                <span class="rs-num">2</span>
-                <div>
-                  <b>የቁጥሮች ጥሪን ይከታተሉ</b>
-                  <p>ጨዋታው ሲጀምር ኳሶች በቅደም ተከተል ይጠራሉ። AUTO ሞድ ካደረጉ በራሱ ምልክት ይደረጋል!</p>
-                </div>
-              </div>
-              <div class="rule-step">
-                <span class="rs-num">3</span>
-                <div>
-                  <b>ቢንጎ ብለው ያሸንፉ!</b>
-                  <p>አንድ ረድፍ፣ አምድ ወይም ዲያጎናል መስመር ሲሞላ BINGO ይበሉና የደራሽ ሽልማቱን ይውሰዱ!</p>
-                </div>
-              </div>
-            </div>
-            <button class="btn btn-gold full" id="rulesGotItBtn" type="button">ተረድቻለሁ (Got It)</button>
-          </div>
-        </div>
+        <span class="nav-key triangle">◁</span>
+        <span class="nav-key circle">○</span>
+        <span class="nav-key square">□</span>
+        <span class="nav-key human">🧍</span>
       </div>
     </div>
   </div>
@@ -1630,42 +1090,9 @@
           <div class="balance-card"><span>Current demo pool</span><strong id="currentPrizePool">0 ETB</strong></div>
           <div class="balance-card"><span>Completed games</span><strong id="completedGameCount">0</strong></div>
           <div class="balance-card"><span>Pending transactions</span><strong id="pendingCount">0</strong></div>
-          <div class="balance-card"><span>Pending withdrawals</span><strong id="pendingWithdrawalsCount" style="color:var(--gold,#f5b716);">0</strong></div>
           <div class="balance-card"><span>Winners</span><strong id="winnerCount">0</strong></div>
         </div>
         <div class="admin-grid">
-          <section class="panel admin-section wide" id="withdrawalsSection">
-            <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-              <h2>💸 Withdrawal Requests</h2>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <select id="withdrawalStatusFilter" class="status-select">
-                  <option value="">All Statuses</option>
-                  <option value="pending" selected>Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="completed">Completed</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-                <button class="btn btn-outline" id="refreshWithdrawalsBtn" style="padding:5px 10px;font-size:11px;">Refresh</button>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Player Name</th>
-                    <th>Phone</th>
-                    <th>Wallet</th>
-                    <th>Amount</th>
-                    <th>Payment Method & Account</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="withdrawalsBody"></tbody>
-              </table>
-            </div>
-          </section>
           <section class="panel admin-section"><div class="section-title"><h2>Users</h2><input class="admin-search" id="userSearch" placeholder="Search name or phone"></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="usersBody"></tbody></table></div></section>
           <section class="panel admin-section"><div class="section-title"><h2>Wallets</h2></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Main</th><th>VIP</th></tr></thead><tbody id="walletsBody"></tbody></table></div></section>
           <section class="panel admin-section wide"><div class="section-title"><h2>Games</h2></div><div class="table-wrap"><table><thead><tr><th>Game</th><th>Players</th><th>Pool</th><th>Status</th><th></th></tr></thead><tbody id="gamesBody"></tbody></table></div></section>
@@ -1931,7 +1358,7 @@
     </main>
   </div>
 
-  <script src="app.js?v=20261008-fix5"></script>
+  <script src="app.js?v=20260926-2"></script>
   <script src="admin.js"></script>
 </body>
 </html>

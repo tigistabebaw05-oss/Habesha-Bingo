@@ -5,45 +5,6 @@ const authStorage = window.sessionStorage;
 localStorage.removeItem("hulu_token");
 let state = { game:null, ticket:null, called:new Set(), socket:null };
 
-// Global State & Collections initialized immediately to prevent Temporal Dead Zone errors
-let takenCards = new Set();
-let selectedCardNumbers = new Set();
-let currentCardRange = { start: 401, end: 500 };
-let cardCountdownInterval = null;
-let cardCountdownSeconds = 39;
-let liveGameInterval = null;
-let derashAnimFrame = null;
-let isAutoMode = true;
-let manualMarkedCells = new Set();
-const tgNavItems = ["tgNavHome", "tgNavRank", "tgNavProfile", "tgNavBoard"];
-let currentDepositAmount = 50;
-let currentDepositMethod = "Telebirr";
-let currentAppLang = "am";
-let hasClaimedBonus = false;
-let winnersAutoRestartTimeout = null;
-
-function generateTakenCards() {
-  const set = new Set();
-  const takenAround468 = [
-    463, 465, 470, 472, 473, 475, 476, 477, 478, 479, 480, 483, 484,
-    486, 487, 490, 491, 492, 493, 500, 504, 505, 506, 507, 508, 509,
-    510, 512, 513, 515, 518, 520, 522, 523, 527, 529, 531, 533, 534,
-    535, 537, 538, 539, 542, 543, 544, 546, 549, 550, 551, 555, 560,
-    562, 563, 565, 567, 568, 570, 571, 572
-  ];
-  takenAround468.forEach(n => set.add(n));
-  for (let i = 1; i <= 600; i++) {
-    if (i === 468 || i === 467) continue;
-    if (!set.has(i)) {
-      if (((i * 37 + 19) % 100) < 35) {
-        set.add(i);
-      }
-    }
-  }
-  return set;
-}
-takenCards = generateTakenCards();
-
 // Auto-authenticate via auth_token URL param or Telegram WebApp initData
 async function initTelegramSession() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -263,27 +224,14 @@ async function api(path, options={}){
 }
 function money(v){return `${Number(v||0).toFixed(2)} ETB`}
 
-const REFERENCE_CARD = [
-  [8, 18, 34, 54, 67],
-  [15, 28, 40, 60, 68],
-  [4, 17, "FREE", 55, 61],
-  [5, 21, 42, 57, 72],
-  [3, 23, 35, 51, 74]
-];
-
-function getReferenceCard() {
-  return [
-    [8, 18, 34, 54, 67],
-    [15, 28, 40, 60, 68],
-    [4, 17, "FREE", 55, 61],
-    [5, 21, 42, 57, 72],
-    [3, 23, 35, 51, 74]
-  ].map(r => [...r]);
-}
-
 let guestCartela = null;
 function getGuestCartela(){
-  return getReferenceCard();
+  if(!guestCartela){
+    const a = Array.from({length:75}, (_,i)=>i+1);
+    for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+    guestCartela = [a.slice(0,5), a.slice(5,10), a.slice(10,15), a.slice(15,20), a.slice(20,25)];
+  }
+  return guestCartela;
 }
 
 async function refresh(){
@@ -304,11 +252,7 @@ async function refresh(){
       syncAuthUi();
     }
     const d=await api("/game");
-    const previousGameId=state.game?.id;
-    state.game=d.game; state.ticket=d.ticket; state.called=new Set((d.game?.called_numbers||[]).map(Number));
-    if (previousGameId && previousGameId !== d.game?.id && !d.ticket) {
-      state.ticket = null;
-    }
+    state.game=d.game; state.ticket=d.ticket; state.called=new Set(d.game?.called_numbers||[]);
     drawGame(); updateHero();
     const wins=await api("/winners").catch(()=>[]);
     if(wins) drawWinners(wins);
@@ -324,90 +268,18 @@ function updateHero(){
   $("currentNumber").textContent=state.game.current_number||"—";
   if (typeof syncHuluWebApp === "function") syncHuluWebApp();
 }
-function renderDeskTicket(cartela, called = new Set()) {
-  const ticketEl = $("ticket");
-  if (!ticketEl) return;
-
-  const card = (cartela && Array.isArray(cartela) && cartela.length === 5)
-    ? cartela
-    : getReferenceCard();
-
-  const cardKey = card.map(r => r.join(",")).join(";");
-  const calledSet = new Set(Array.from(called || []).map(Number));
-
-  // Mount card if not mounted or if card changed
-  if (ticketEl.dataset.cardKey !== cardKey || ticketEl.children.length !== 25) {
-    ticketEl.dataset.cardKey = cardKey;
-    ticketEl.innerHTML = "";
-    for (let r = 0; r < 5; r++) {
-      for (let c = 0; c < 5; c++) {
-        const val = card[r][c];
-        const isFree = (r === 2 && c === 2) || val === "FREE" || val === "F" || val === "★" || val === 0;
-        const cell = document.createElement("div");
-        cell.dataset.r = r;
-        cell.dataset.c = c;
-        cell.dataset.val = isFree ? "FREE" : val;
-
-        if (isFree) {
-          cell.className = "free-cell marked";
-          cell.innerHTML = `<span class="free-star">★</span><span class="free-text">FREE</span>`;
-        } else {
-          const num = Number(val);
-          const isCalled = calledSet.has(num);
-          cell.className = isCalled ? "marked" : "";
-          cell.textContent = val;
-        }
-        ticketEl.appendChild(cell);
-      }
-    }
-  } else {
-    // Stable card update during round: update ONLY cells that match called numbers
-    const cells = ticketEl.children;
-    for (let i = 0; i < cells.length; i++) {
-      const cell = cells[i];
-      if (cell.classList.contains("free-cell") || cell.dataset.val === "FREE") {
-        if (!cell.classList.contains("marked")) cell.classList.add("marked");
-        continue;
-      }
-      const val = Number(cell.dataset.val);
-      const isCalled = calledSet.has(val);
-      if (isCalled && !cell.classList.contains("marked")) {
-        cell.classList.add("marked");
-      } else if (!isCalled && cell.classList.contains("marked")) {
-        cell.classList.remove("marked");
-      }
-    }
-  }
-}
-
 function drawGame(){
-  const g = state.game || {};
-  const called = state.called || new Set(g.called_numbers || []);
+  if(!state.game)return;
   if (typeof syncHuluWebApp === "function") syncHuluWebApp();
-
-  if ($("calledNumbers")) {
-    const list = (g.called_numbers || []).filter(n => Number.isInteger(Number(n)) && Number(n) >= 1 && Number(n) <= 75);
-    $("calledNumbers").innerHTML = list.slice().reverse().slice(0, 28).map((n, i) => `<span class="ball ${i === 0 ? "last" : ""}">${escapeHtml(n)}</span>`).join("") || `<span class="empty">No numbers called yet</span>`;
-  }
-  if ($("numberBoard")) {
-    $("numberBoard").innerHTML = Array.from({ length: 75 }, (_, i) => `<div class="${called.has(i + 1) ? "called" : ""}">${i + 1}</div>`).join("");
-  }
-
-  const chosenCardId = selectedCardNumbers.size > 0 ? Array.from(selectedCardNumbers)[0] : 468;
-  const cartela = state.ticket || getCartelaNumbers(chosenCardId);
-  const badgeEl = $("deskTicketBadge");
-  if (badgeEl) badgeEl.textContent = `#${chosenCardId} (5 × 5)`;
-
-  renderDeskTicket(cartela, called);
-
-  const joinBtn = $("joinBtn");
-  if (joinBtn) {
-    if (state.ticket) {
-      joinBtn.disabled = true; joinBtn.textContent = "Joined — Good Luck!";
-    } else {
-      const cardCount = Math.max(1, selectedCardNumbers.size);
-      joinBtn.disabled = false; joinBtn.textContent = `Join Game — ${cardCount * 10} ETB`;
-    }
+  const called=state.called;
+  $("calledNumbers").innerHTML=(state.game.called_numbers||[]).filter(n=>Number.isInteger(Number(n))&&Number(n)>=1&&Number(n)<=600).slice().reverse().slice(0,28).map((n,i)=>`<span class="ball ${i===0?"last":""}">${escapeHtml(n)}</span>`).join("")||`<span class="empty">No numbers called yet</span>`;
+  $("numberBoard").innerHTML=Array.from({length:150},(_,i)=>`<div class="${called.has(i+1)?"called":""}">${i+1}</div>`).join("");
+  const cartela = state.ticket || getGuestCartela();
+  $("ticket").innerHTML=cartela.flat().filter(n=>Number.isInteger(Number(n))&&Number(n)>=1&&Number(n)<=600).map(n=>`<div class="${called.has(n)?"marked":""}">${escapeHtml(n)}</div>`).join("");
+  if(state.ticket){
+    $("joinBtn").disabled=true; $("joinBtn").textContent="Joined — Good Luck!";
+  }else{
+    $("joinBtn").disabled=false; $("joinBtn").textContent="Join Game — 10 ETB";
   }
 }
 function drawWinners(list){
@@ -429,10 +301,7 @@ $("joinBtn").addEventListener("click",async()=>{
         await api("/wallet/deposit", {method:"POST", body: JSON.stringify({amount: 100, wallet: "main", method: "TeleBirr", reference: "DemoJoin"})}).catch(()=>{});
       }
     }
-    const chosenCardId = selectedCardNumbers.size > 0 ? Array.from(selectedCardNumbers)[0] : 468;
-    const ticketToSend = getCartelaNumbers(chosenCardId);
-    await api("/join",{method:"POST", body: JSON.stringify({ticket: ticketToSend, cardId: chosenCardId})});
-    state.ticket = ticketToSend;
+    await api("/join",{method:"POST"});
     toast("You joined the game!");
     await refresh();
   }catch(e){toast(e.message,true)}
@@ -478,33 +347,23 @@ async function logout(){
   authStorage.removeItem("hulu_token"); authStorage.removeItem("hulu_role"); authStorage.removeItem("hulu_name");
   $("loginBtn").textContent="Login"; syncAuthUi(); navigateTo("player", true); toast("Logged out");
 }
-const loginButton = $("loginBtn");
-if (loginButton) {
-  const freshLoginButton = loginButton.cloneNode(true);
-  loginButton.replaceWith(freshLoginButton);
-  $("loginBtn")?.addEventListener("click", () => authStorage.getItem("hulu_token") ? logout() : openAuth("register"));
-}
-if ($("adminDashBtn")) $("adminDashBtn").addEventListener("click", () => navigateTo("admin", true));
-if ($("ownerDashBtn")) $("ownerDashBtn").addEventListener("click", () => navigateTo("owner", true));
-if ($("adminToOwnerBtn")) $("adminToOwnerBtn").addEventListener("click", () => navigateTo("owner", true));
-const accountLink = document.querySelector('a[href="#account"]');
-if (accountLink) accountLink.addEventListener("click", e => { e.preventDefault(); openAuth("register"); });
-if ($("authClose")) $("authClose").addEventListener("click", () => { if ($("authBackdrop")) $("authBackdrop").hidden = true; });
-document.querySelectorAll("[data-step-action]").forEach(step => {
-  const activate = () => {
-    if (step.dataset.stepAction === "account") openAuth("register");
-    else {
-      const target = document.querySelector(`#${step.dataset.stepAction}`);
-      if (target) target.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-  step.addEventListener("click", activate);
-  step.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } });
+const loginButton=$("loginBtn"),freshLoginButton=loginButton.cloneNode(true);
+loginButton.replaceWith(freshLoginButton);
+$("loginBtn").addEventListener("click",()=>authStorage.getItem("hulu_token")?logout():openAuth("register"));
+$("adminDashBtn").addEventListener("click",()=>navigateTo("admin", true));
+if ($("ownerDashBtn")) $("ownerDashBtn").addEventListener("click",()=>navigateTo("owner", true));
+if ($("adminToOwnerBtn")) $("adminToOwnerBtn").addEventListener("click",()=>navigateTo("owner", true));
+document.querySelector('a[href="#account"]').addEventListener("click",e=>{e.preventDefault();openAuth("register")});
+$("authClose").addEventListener("click",()=>$("authBackdrop").hidden=true);
+document.querySelectorAll("[data-step-action]").forEach(step=>{
+  const activate=()=>step.dataset.stepAction==="account"?openAuth("register"):document.querySelector(`#${step.dataset.stepAction}`).scrollIntoView({behavior:"smooth"});
+  step.addEventListener("click",activate);
+  step.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();activate()}});
 });
-if ($("authBackdrop")) $("authBackdrop").addEventListener("click", e => { if (e.target.id === "authBackdrop") e.currentTarget.hidden = true; });
-if ($("authSwitch")) $("authSwitch").addEventListener("click", () => { authMode = authMode === "login" ? "register" : "login"; updateAuthDialog(); });
-if ($("authForgot")) $("authForgot").addEventListener("click", () => { authMode = "request"; updateAuthDialog(); if ($("authForm")?.elements?.phone) $("authForm").elements.phone.focus(); });
-if ($("authForm")) $("authForm").addEventListener("submit", async e => {
+$("authBackdrop").addEventListener("click",e=>{if(e.target.id==="authBackdrop")e.currentTarget.hidden=true});
+$("authSwitch").addEventListener("click",()=>{authMode=authMode==="login"?"register":"login";updateAuthDialog()});
+$("authForgot").addEventListener("click",()=>{authMode="request";updateAuthDialog();$("authForm").elements.phone.focus()});
+$("authForm").addEventListener("submit",async e=>{
   e.preventDefault();
   const form=new FormData(e.target), values=Object.fromEntries(form);
   const mode=authMode,path=mode==="register"?"/register":mode==="request"?"/password-reset/request":mode==="reset"?"/password-reset/confirm":"/login";
@@ -563,42 +422,14 @@ function connectSocket(){
     state.socket.on("connect",()=>state.socket.emit("room",state.game?.id));
     state.socket.on("update",g=>{
       const previousGameId=state.game?.id;
-      const isNewGame = previousGameId && previousGameId !== g.id;
-      state.game=g;
-      state.called=new Set((g.called_numbers||[]).map(Number));
-      if (isNewGame) {
-        state.ticket = null;
-        if (state.socket) state.socket.emit("room", g.id);
-      }
-      drawGame();
-      updateHero();
+      state.game=g;state.called=new Set(g.called_numbers||[]);drawGame();updateHero();
+      if(previousGameId!==g.id)state.socket.emit("room",g.id);
     });
-    state.socket.on("round_reset", g => {
-      state.game = g;
-      state.ticket = null;
-      state.called = new Set();
-      drawGame();
-      updateHero();
-    });
-    state.socket.on("new_round", g => {
-      state.game = g;
-      state.ticket = null;
-      state.called = new Set();
-      drawGame();
-      updateHero();
-    });
-    state.socket.on("finished",g=>{
-      state.game=g;
-      state.called=new Set((g.called_numbers||[]).map(Number));
-      drawGame();
-      updateHero();
-      toast(g.winner_id?"BINGO — game finished!":"Game finished");
-    });
+    state.socket.on("finished",g=>{state.game=g;state.called=new Set(g.called_numbers||[]);drawGame();updateHero();toast(g.winner_id?"BINGO — game finished!":"Game finished")});
   };
   document.body.appendChild(s);
 }
 syncAuthUi();
-drawGame();
 handleInitialRoute();
 window.addEventListener("popstate", () => {
   handleInitialRoute();
@@ -1215,6 +1046,177 @@ function getBingoLetter(num) {
   return "B";
 }
 
+// Deterministic Cartela Presets & Seeded Generator
+const CARTELA_PRESETS = {
+  468: {
+    id: 468,
+    b: [8, 15, 4, 5, 3],
+    i: [18, 28, 17, 21, 23],
+    n: [34, 40, "FREE", 42, 35],
+    g: [54, 60, 55, 57, 51],
+    o: [67, 68, 61, 72, 74]
+  }
+};
+
+function getCartelaByNumber(cardId) {
+  const idNum = Number(cardId);
+  if (CARTELA_PRESETS[idNum]) {
+    return CARTELA_PRESETS[idNum];
+  }
+  let seed = (idNum * 1664525 + 1013904223) >>> 0;
+  function rnd() {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return (seed >>> 0) / 0x7fffffff;
+  }
+  function pickCol(start, end, count) {
+    const pool = [];
+    for (let x = start; x <= end; x++) pool.push(x);
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, count);
+  }
+  const b = pickCol(1, 15, 5);
+  const i = pickCol(16, 30, 5);
+  const nPool = pickCol(31, 45, 4);
+  const n = [nPool[0], nPool[1], "FREE", nPool[2], nPool[3]];
+  const g = pickCol(46, 60, 5);
+  const o = pickCol(61, 75, 5);
+  return { id: idNum, b, i, n, g, o };
+}
+
+function renderSelectedCartelasPreview() {
+  const drawer = $("tgSelectedCartelasDrawer");
+  const list = $("tgSelectedCartelasList");
+  if (!drawer || !list) return;
+
+  if (selectedCardNumbers.size === 0) {
+    drawer.hidden = true;
+    list.innerHTML = "";
+    return;
+  }
+
+  drawer.hidden = false;
+  const cardsHtml = Array.from(selectedCardNumbers).map(cardId => {
+    const c = getCartelaByNumber(cardId);
+    let cellsHtml = "";
+    for (let r = 0; r < 5; r++) {
+      const rowVals = [
+        c.b[r],
+        c.i[r],
+        r === 2 ? "F" : c.n[r],
+        c.g[r],
+        c.o[r]
+      ];
+      rowVals.forEach(val => {
+        const isFree = val === "F";
+        cellsHtml += `<div class="mini-cartela-cell ${isFree ? 'cell-free' : ''}">${val}</div>`;
+      });
+    }
+
+    return `
+      <div class="mini-cartela-card" data-card="${c.id}">
+        <div class="mini-cartela-header">
+          <span class="mini-cartela-brand">ሁሉ ካርቴላ</span>
+          <span class="mini-cartela-badge">#${c.id}</span>
+        </div>
+        <div class="mini-cartela-cols">
+          <span class="m-col-b">B</span>
+          <span class="m-col-i">I</span>
+          <span class="m-col-n">N</span>
+          <span class="m-col-g">G</span>
+          <span class="m-col-o">O</span>
+        </div>
+        <div class="mini-cartela-grid">
+          ${cellsHtml}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  list.innerHTML = cardsHtml;
+}
+
+function renderLiveSlotsGrid(calledSet) {
+  const slotsContainer = $("tgSlotsGrid");
+  if (!slotsContainer) return;
+
+  const currentCards = selectedCardNumbers.size > 0 
+    ? Array.from(selectedCardNumbers).slice(0, 4) 
+    : [468];
+
+  let html = "";
+  for (let slotIdx = 0; slotIdx < 4; slotIdx++) {
+    if (slotIdx < currentCards.length) {
+      const cardId = currentCards[slotIdx];
+      const c = getCartelaByNumber(cardId);
+      let cellsHtml = "";
+
+      for (let r = 0; r < 5; r++) {
+        const cols = [
+          { val: c.b[r], isCenter: false },
+          { val: c.i[r], isCenter: false },
+          { val: c.n[r], isCenter: r === 2 },
+          { val: c.g[r], isCenter: false },
+          { val: c.o[r], isCenter: false }
+        ];
+
+        cols.forEach(item => {
+          if (item.isCenter) {
+            cellsHtml += `
+              <div class="slot-card-cell free-star-cell">
+                <span class="star-badge-green">★</span>
+              </div>
+            `;
+          } else {
+            const num = item.val;
+            const isCalled = calledSet && calledSet.has(num);
+            if (isCalled) {
+              cellsHtml += `
+                <div class="slot-card-cell called-cell">
+                  <span class="called-ball-green">${num}</span>
+                </div>
+              `;
+            } else {
+              cellsHtml += `
+                <div class="slot-card-cell">${num}</div>
+              `;
+            }
+          }
+        });
+      }
+
+      html += `
+        <div class="slot-container active-card">
+          <div class="slot-card-header">
+            <span class="slot-card-title">ሁሉ ካርቴላ</span>
+            <span class="slot-card-badge">#${c.id}</span>
+          </div>
+          <div class="slot-cols-header">
+            <span class="col-b">B</span>
+            <span class="col-i">I</span>
+            <span class="col-n">N</span>
+            <span class="col-g">G</span>
+            <span class="col-o">O</span>
+          </div>
+          <div class="slot-card-grid">
+            ${cellsHtml}
+          </div>
+        </div>
+      `;
+    } else {
+      html += `
+        <div class="slot-container empty-slot">
+          <span>SLOT ${slotIdx + 1}</span>
+        </div>
+      `;
+    }
+  }
+
+  slotsContainer.innerHTML = html;
+}
+
 function syncHuluWebApp(overrideNum, overrideList) {
   const g = state.game;
   const roundEl = $("tgGameRound");
@@ -1227,29 +1229,29 @@ function syncHuluWebApp(overrideNum, overrideList) {
   const tableGrid = $("tgBingoTableGrid");
   const bingoBtn = $("tgBingoBtn");
 
-  const roundNum = g?.id ? String(g.id).padStart(6, '0') : "226798";
-  const players = (takenCards && takenCards.size > 0) ? (takenCards.size + selectedCardNumbers.size) : (selectedCardNumbers.size > 0 ? selectedCardNumbers.size : (g?.players || 286));
-  const prize = players >= 200 ? 4800 : (players * 10 || 4800);
-  const currentNum = overrideNum !== undefined ? overrideNum : (g?.current_number || 31);
-  const calledList = (overrideList !== undefined)
+  const roundNum = "226798";
+  const players = 286;
+  const prize = "4800 ETB";
+  const currentNum = overrideNum || g?.current_number || 31;
+  const calledList = (overrideList && overrideList.length > 0)
     ? overrideList
     : ((g?.called_numbers && g.called_numbers.length > 0)
       ? g.called_numbers
-      : []);
+      : [31]);
   const calledCount = calledList.length;
   const calledSet = new Set(calledList);
 
   if (roundEl) roundEl.textContent = `GAME ROUND #${roundNum}`;
   if (playersEl) playersEl.textContent = `LIVE - ${players} PLAYERS`;
-  if (prizeEl) prizeEl.textContent = `${prize} ETB`;
+  if (prizeEl) prizeEl.textContent = prize;
   const selPrizeEl = $("tgCardSelPrize");
-  if (selPrizeEl) selPrizeEl.textContent = `${prize} ETB`;
+  if (selPrizeEl) selPrizeEl.textContent = prize;
   if (ballLetterEl) ballLetterEl.textContent = getBingoLetter(currentNum);
   if (ballNumEl) ballNumEl.textContent = currentNum;
-  if (trackerCount) trackerCount.textContent = `${calledCount} / 75`;
+  if (trackerCount) trackerCount.innerHTML = `<span class="yellow-dot">●</span> ${calledCount}/75`;
 
   if (chipsContainer) {
-    const recent = calledList.slice(-6).reverse();
+    const recent = calledList.slice(-7).reverse();
     chipsContainer.innerHTML = recent.map(n => {
       const l = getBingoLetter(n);
       return `<span class="chip"><b class="c-${l.toLowerCase()}">${l}</b> ${n}</span>`;
@@ -1272,381 +1274,128 @@ function syncHuluWebApp(overrideNum, overrideList) {
     tableGrid.innerHTML = cellsHtml;
   }
 
+  // Render 4-Slots Live Grid
+  renderLiveSlotsGrid(calledSet);
+
   if (bingoBtn) {
-    if (calledCount >= 2 || (state.ticket && state.called)) {
-      bingoBtn.disabled = false;
-      bingoBtn.classList.add("active");
+    bingoBtn.disabled = false;
+    bingoBtn.classList.add("active");
+  }
+}
+
+let selectedCardNumbers = new Set();
+let cardCountdownInterval = null;
+let cardCountdownSeconds = 39;
+let liveGameInterval = null;
+let derashAnimFrame = null;
+
+const AVAILABLE_CARDS_SET = new Set([
+  453, 454, 457, 458, 459, 462,
+  464, 466, 467, 468, 469, 471,
+  474, 481, 482,
+  485, 488, 489, 494, 495,
+  496, 497, 498, 499, 501, 502, 503,
+  511, 514, 516, 517,
+  519, 521, 524, 525, 526, 528,
+  530, 532, 536,
+  540, 541, 545, 547, 548,
+  552, 553, 554, 556, 557, 558, 559, 561,
+  564, 566, 569
+]);
+
+function animateDerashPrize(targetAmount) {
+  const selPrizeEl = $("tgCardSelPrize");
+  const livePrizeEl = $("tgPrizePool");
+  if (!selPrizeEl && !livePrizeEl) return;
+
+  const currentText = selPrizeEl?.textContent || "0";
+  const startAmount = parseInt(currentText.replace(/[^\d]/g, ""), 10) || 0;
+
+  if (derashAnimFrame) cancelAnimationFrame(derashAnimFrame);
+
+  const duration = 250;
+  const startTime = performance.now();
+
+  const derashBox = document.querySelector(".derash-box");
+  if (derashBox) {
+    derashBox.classList.remove("derash-pulse");
+    void derashBox.offsetWidth;
+    derashBox.classList.add("derash-pulse");
+  }
+
+  function step(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 2);
+    const val = Math.round(startAmount + (targetAmount - startAmount) * ease);
+
+    if (selPrizeEl) selPrizeEl.textContent = `${val} ETB`;
+    if (livePrizeEl) livePrizeEl.textContent = `${val} ETB`;
+
+    if (progress < 1) {
+      derashAnimFrame = requestAnimationFrame(step);
     } else {
-      bingoBtn.disabled = false;
+      if (selPrizeEl) selPrizeEl.textContent = `${targetAmount} ETB`;
+      if (livePrizeEl) livePrizeEl.textContent = `${targetAmount} ETB`;
     }
   }
-
-  // Render 4 Slots in Live Game View (Matching Image 3 & Image 4)
-  renderGameSlots(calledSet);
+  derashAnimFrame = requestAnimationFrame(step);
 }
 
-function setTgNavActive(activeId) {
-  tgNavItems.forEach(id => {
-    const el = $(id);
-    if (el) {
-      if (id === activeId) el.classList.add("active");
-      else el.classList.remove("active");
-    }
-  });
-}
-
-// ==================== AUTHENTIC 75-BALL CARTELA GENERATOR ====================
-function getCartelaNumbers(cardId) {
-  const id = Number(cardId);
-  // Exact authentic reference cartela numbers for #468 (and default testing card):
-  if (!id || id === 468 || cardId === "test" || cardId === "default") {
-    return getReferenceCard();
-  }
-  if (id === 467) {
-    return [
-      [13, 16, 41, 58, 71],
-      [8, 18, 34, 54, 67],
-      [15, 28, "FREE", 60, 68],
-      [4, 17, 39, 55, 61],
-      [5, 21, 42, 57, 72]
-    ];
-  }
-
-  // Deterministic PRNG seeded by card ID
-  let seed = ((id * 9301 + 49297) % 233280);
-  function rnd() {
-    seed = (seed * 9301 + 49297) % 233280;
-    return seed / 233280;
-  }
-
-  function pick5(min, max) {
-    const pool = [];
-    for (let i = min; i <= max; i++) pool.push(i);
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(rnd() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    return pool.slice(0, 5);
-  }
-
-  // Authentic B-I-N-G-O column ranges:
-  // B: 1-15, I: 16-30, N: 31-45, G: 46-60, O: 61-75
-  const bCol = pick5(1, 15);
-  const iCol = pick5(16, 30);
-  const nCol = pick5(31, 45);
-  const gCol = pick5(46, 60);
-  const oCol = pick5(61, 75);
-
-  const grid = [];
-  for (let r = 0; r < 5; r++) {
-    grid.push([
-      bCol[r],
-      iCol[r],
-      r === 2 ? "FREE" : nCol[r],
-      gCol[r],
-      oCol[r]
-    ]);
-  }
-  return grid;
-}
-
-// ==================== 4-SLOTS LIVE GAME RENDERER (Image 3 & 4) ====================
-function renderGameSlots(calledSet = new Set()) {
-  const slotsContainers = [ $("tgSlotsGrid") ].filter(Boolean);
-  if (slotsContainers.length === 0) return;
-
-  const chosenCardIds = selectedCardNumbers.size > 0 ? Array.from(selectedCardNumbers) : [468];
-  const slotKey = chosenCardIds.join(",");
-  const normalizedCalled = new Set(Array.from(calledSet || []).map(Number));
-
-  let needsFullMount = false;
-  slotsContainers.forEach(container => {
-    if (container.dataset.slotKey !== slotKey || container.children.length === 0) {
-      needsFullMount = true;
-    }
-  });
-
-  if (!needsFullMount) {
-    // STABLE UPDATE: ONLY update matching cells when a called number arrives!
-    slotsContainers.forEach(container => {
-      const cells = container.querySelectorAll(".slc-cell");
-      cells.forEach(cell => {
-        if (!cell.dataset.val || cell.dataset.val === "FREE") return;
-        const val = Number(cell.dataset.val);
-        const cardId = cell.dataset.card;
-        const isCalled = normalizedCalled.has(val);
-        // Automatically highlight called numbers green
-        if (isCalled && !cell.classList.contains("marked")) {
-          cell.classList.add("marked");
-          cell.innerHTML = `<span class="slc-ball-circle">${val}</span>`;
-        } else if (!isCalled && cell.classList.contains("marked")) {
-          cell.classList.remove("marked");
-          cell.textContent = val;
-        }
-      });
-    });
-    return;
-  }
-
-  let html = "";
-  for (let slotIdx = 0; slotIdx < 4; slotIdx++) {
-    const cardId = chosenCardIds[slotIdx];
-    if (cardId) {
-      const grid = getCartelaNumbers(cardId);
-      let cellsHtml = "";
-      for (let r = 0; r < 5; r++) {
-        for (let c = 0; c < 5; c++) {
-          if (r === 2 && c === 2) {
-            cellsHtml += `<div class="slc-cell free-cell marked" data-card="${cardId}" data-val="FREE"><span class="slc-star-circle">★</span></div>`;
-          } else {
-            const val = grid[r][c];
-            const numVal = Number(val);
-            const isCalled = normalizedCalled.has(numVal);
-            if (isCalled) {
-              cellsHtml += `<div class="slc-cell marked" data-card="${cardId}" data-val="${val}"><span class="slc-ball-circle">${val}</span></div>`;
-            } else {
-              cellsHtml += `<div class="slc-cell" data-card="${cardId}" data-val="${val}">${val}</div>`;
-            }
-          }
-        }
-      }
-
-      html += `
-        <div class="game-slot active-slot" data-slot="${slotIdx + 1}" data-card="${cardId}">
-          <div class="slot-live-card">
-            <div class="slc-topbar">
-              <span class="slc-brand">ሁሉ ካርቴላ</span>
-              <span class="slc-card-no">#${cardId}</span>
-            </div>
-            <div class="slc-letters-row">
-              <span class="slc-letter b">B</span>
-              <span class="slc-letter i">I</span>
-              <span class="slc-letter n">N</span>
-              <span class="slc-letter g">G</span>
-              <span class="slc-letter o">O</span>
-            </div>
-            <div class="slc-grid">
-              ${cellsHtml}
-            </div>
-          </div>
-        </div>
-      `;
-    } else {
-      html += `
-        <div class="game-slot empty-slot" data-slot="${slotIdx + 1}">
-          <span class="slot-label">SLOT ${slotIdx + 1}</span>
-        </div>
-      `;
-    }
-  }
-
-  slotsContainers.forEach(container => {
-    container.dataset.slotKey = slotKey;
-    container.innerHTML = html;
-
-    if (!isAutoMode) {
-      container.querySelectorAll(".slc-cell:not(.marked):not(.free-cell)").forEach(cell => {
-        cell.addEventListener("click", () => {
-          const val = Number(cell.dataset.val);
-          const cId = cell.dataset.card;
-          if (calledSet.has(val)) {
-            manualMarkedCells.add(`${cId}-${val}`);
-            cell.classList.add("marked");
-            cell.innerHTML = `<span class="slc-ball-circle">${val}</span>`;
-          }
-        });
-      });
-    }
-  });
-}
-
-// ==================== "የመረጡት ካርቴላዎች" PREVIEW RENDERER (Image 2) ====================
-function renderSelectedCartelasPreview() {
-  const containers = [ $("tgSelectedCartelasContainer"), $("deskSelectedCartelasContainer") ].filter(Boolean);
-  const lists = [ $("tgSelectedCartelasList"), $("deskSelectedCartelasList") ].filter(Boolean);
-  const badges = [ $("tgSelectedCartelasBadge"), $("deskSelectedCartelasBadge") ].filter(Boolean);
-
+function updateDerashPrize() {
   const count = selectedCardNumbers.size;
-  if (count === 0) {
-    containers.forEach(c => c.style.display = "none");
-    lists.forEach(l => l.innerHTML = "");
-    badges.forEach(b => b.textContent = "0 ካርቴላ");
-    return;
-  }
-
-  containers.forEach(c => c.style.display = "flex");
-  badges.forEach(b => {
-    b.textContent = `${count} ካርቴላ${count > 1 ? "ዎች" : ""}`;
-  });
-
-  const sortedCards = Array.from(selectedCardNumbers).sort((a, b) => a - b);
-  let html = "";
-
-  sortedCards.forEach(cardNum => {
-    const grid = getCartelaNumbers(cardNum);
-    let cellsHtml = "";
-    for (let r = 0; r < 5; r++) {
-      for (let c = 0; c < 5; c++) {
-        const val = grid[r][c];
-        const isFree = val === "FREE" || val === "F" || val === "★" || (r === 2 && c === 2);
-        cellsHtml += `<div class="mcc-cell ${isFree ? "free-cell" : ""}">${isFree ? "★" : val}</div>`;
-      }
-    }
-
-    html += `
-      <div class="mini-cartela-card" data-card="${cardNum}">
-        <div class="mcc-topbar">
-          <div class="mcc-brand">
-            <span class="mcc-title">ሁሉ ካርቴላ</span>
-          </div>
-          <div class="mcc-right">
-            <span class="mcc-tag">#${cardNum}</span>
-            <button class="mcc-remove-btn" type="button" title="አስወግድ" data-remove="${cardNum}">✕</button>
-          </div>
-        </div>
-        <div class="mcc-letters-row">
-          <span class="mcc-letter col-b">B</span>
-          <span class="mcc-letter col-i">I</span>
-          <span class="mcc-letter col-n">N</span>
-          <span class="mcc-letter col-g">G</span>
-          <span class="mcc-letter col-o">O</span>
-        </div>
-        <div class="mcc-grid">
-          ${cellsHtml}
-        </div>
-      </div>
-    `;
-  });
-
-  lists.forEach(l => {
-    l.innerHTML = html;
-    l.querySelectorAll(".mini-cartela-card").forEach(card => {
-      card.style.cursor = "pointer";
-      card.addEventListener("click", () => {
-        const cNum = Number(card.dataset.card);
-        if (cNum && typeof openCartelaZoom === "function") openCartelaZoom(cNum);
-      });
-    });
-    l.querySelectorAll(".mcc-remove-btn").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const numToRemove = Number(btn.dataset.remove);
-        if (selectedCardNumbers.has(numToRemove)) {
-          selectedCardNumbers.delete(numToRemove);
-          document.querySelectorAll(`.card-cell[data-card="${numToRemove}"]`).forEach(cell => {
-            cell.classList.remove("selected");
-          });
-          updateCardSelectionTotals();
-        }
-      });
-    });
-  });
+  const totalDerash = 2896 + (count * 10);
+  animateDerashPrize(totalDerash);
 }
 
-// Range tabs supporting 1 to 600 Cartelas
-function setupCardRangeTabs() {
-  const allTabs = document.querySelectorAll(".range-tab-btn");
+function startCardCountdown() {
+  if (cardCountdownInterval) clearInterval(cardCountdownInterval);
+  if (liveGameInterval) clearInterval(liveGameInterval);
 
-  allTabs.forEach(tab => {
-    tab.onclick = () => {
-      const start = Number(tab.dataset.start) || 1;
-      const end = Number(tab.dataset.end) || 600;
-      currentCardRange = { start, end };
+  cardCountdownSeconds = 39;
+  const digitsEl = $("tgCardCountdown");
+  if (digitsEl) digitsEl.textContent = "00:39";
 
-      allTabs.forEach(b => {
-        const bStart = Number(b.dataset.start);
-        const bEnd = Number(b.dataset.end);
-        if (bStart === start && bEnd === end) {
-          b.classList.add("active");
-        } else {
-          b.classList.remove("active");
-        }
-      });
-
-      renderCardSelectionGrid();
-    };
-  });
-
-  if ($("openHuluAppBtn")) {
-    $("openHuluAppBtn").onclick = (e) => {
-      if (e) e.preventDefault();
-      const modal = $("huluBingoWebAppModal");
-      if (modal) {
-        modal.hidden = false;
-        switchToCardSelectionView();
-      }
-    };
-  }
-
-  // Setup mode switchers (AUTO / MANUAL)
-  const autoBtns = [ $("tgModeAuto"), $("deskModeAuto") ].filter(Boolean);
-  const manualBtns = [ $("tgModeManual"), $("deskModeManual") ].filter(Boolean);
-
-  autoBtns.forEach(btn => {
-    btn.onclick = () => {
-      isAutoMode = true;
-      autoBtns.forEach(b => b.classList.add("active"));
-      manualBtns.forEach(b => b.classList.remove("active"));
-      syncHuluWebApp();
-    };
-  });
-
-  manualBtns.forEach(btn => {
-    btn.onclick = () => {
-      isAutoMode = false;
-      manualBtns.forEach(b => b.classList.add("active"));
-      autoBtns.forEach(b => b.classList.remove("active"));
-      syncHuluWebApp();
-    };
-  });
-
-  // Numbers tracker dropdown toggle
-  if ($("tgTrackBtn")) {
-    $("tgTrackBtn").onclick = () => {
-      const table = $("huluBingoTableView");
-      const chevron = $("tgTrackChevron");
-      if (table) {
-        const isHidden = table.hidden;
-        table.hidden = !isHidden;
-        if (chevron) {
-          chevron.style.transform = isHidden ? "rotate(180deg)" : "rotate(0deg)";
-        }
-      }
-    };
-  }
+  cardCountdownInterval = setInterval(() => {
+    if (cardCountdownSeconds > 0) {
+      cardCountdownSeconds--;
+      const secStr = String(cardCountdownSeconds).padStart(2, "0");
+      if (digitsEl) digitsEl.textContent = `00:${secStr}`;
+    } else {
+      clearInterval(cardCountdownInterval);
+      toast("ጨዋታው ተጀምሯል!");
+      switchToLiveGameView();
+    }
+  }, 1000);
 }
 
 function renderCardSelectionGrid() {
-  const grids = [ $("tgCardPickGrid"), $("deskCardPickGrid") ].filter(Boolean);
-  if (grids.length === 0) return;
+  const grid = $("tgCardPickGrid");
+  if (!grid) return;
   let html = "";
-  const start = currentCardRange.start;
-  const end = currentCardRange.end;
-  for (let i = start; i <= end; i++) {
-    const isTaken = takenCards.has(i);
+  for (let i = 452; i <= 572; i++) {
+    const isAvail = AVAILABLE_CARDS_SET.has(i);
     const isSelected = selectedCardNumbers.has(i);
-    const classes = `card-cell ${isTaken ? 'taken' : 'available'} ${isSelected ? 'selected' : ''}`;
+    const classes = `card-cell ${isAvail ? 'available' : 'taken'} ${isSelected ? 'selected' : ''}`;
     html += `<div class="${classes}" data-card="${i}">${i}</div>`;
   }
+  grid.innerHTML = html;
 
-  grids.forEach(grid => {
-    grid.innerHTML = html;
-    grid.querySelectorAll(".card-cell.available").forEach(cell => {
-      cell.addEventListener("click", () => {
-        const cardNum = Number(cell.dataset.card);
-        if (selectedCardNumbers.has(cardNum)) {
-          selectedCardNumbers.delete(cardNum);
-          document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.remove("selected"));
-        } else {
-          if (selectedCardNumbers.size >= 4) {
-            toast("እስከ 4 ካርቴላ ብቻ መምረጥ ይችላሉ (Max 4 cards)");
-            return;
-          }
-          selectedCardNumbers.add(cardNum);
-          document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.add("selected"));
+  grid.querySelectorAll(".card-cell.available").forEach(cell => {
+    cell.addEventListener("click", () => {
+      const cardNum = Number(cell.dataset.card);
+      if (selectedCardNumbers.has(cardNum)) {
+        selectedCardNumbers.delete(cardNum);
+        cell.classList.remove("selected");
+      } else {
+        if (selectedCardNumbers.size >= 4) {
+          toast("እስከ 4 ካርቴላ ብቻ መምረጥ ይችላሉ (Max 4 cards)");
+          return;
         }
-        updateCardSelectionTotals();
-      });
+        selectedCardNumbers.add(cardNum);
+        cell.classList.add("selected");
+      }
+      updateCardSelectionTotals();
     });
   });
 
@@ -1655,49 +1404,15 @@ function renderCardSelectionGrid() {
 
 function updateCardSelectionTotals() {
   const count = selectedCardNumbers.size;
-  const countEls = [ $("tgSelectedCount"), $("deskSelectedCount") ].filter(Boolean);
+  const countEl = $("tgSelectedCount");
   const betEl = $("tgTotalBetAmount");
-  countEls.forEach(el => {
-    el.textContent = count;
-    el.style.color = count > 0 ? "#f59e0b" : "#94a3b8";
-  });
+  if (countEl) countEl.textContent = count;
   if (betEl) betEl.textContent = `${count * 10} ETB`;
-  renderSelectedCartelasPreview();
   updateDerashPrize();
-  if (typeof drawGame === "function") drawGame();
-}
-
-function startCardCountdown() {
-  if (cardCountdownInterval) clearInterval(cardCountdownInterval);
-  cardCountdownSeconds = 42;
-  const countEls = [ $("tgCardCountdown"), $("deskCardCountdown") ].filter(Boolean);
-
-  function update() {
-    const secStr = String(cardCountdownSeconds).padStart(2, '0');
-    countEls.forEach(el => el.textContent = `00:${secStr}`);
-  }
-  update();
-
-  cardCountdownInterval = setInterval(() => {
-    cardCountdownSeconds--;
-    if (cardCountdownSeconds <= 0) {
-      clearInterval(cardCountdownInterval);
-      cardCountdownInterval = null;
-      if (selectedCardNumbers.size === 0) {
-        selectedCardNumbers.add(468);
-      }
-      switchToLiveGameView();
-    } else {
-      update();
-    }
-  }, 1000);
+  renderSelectedCartelasPreview();
 }
 
 function switchToCardSelectionView() {
-  if (liveGameInterval) {
-    clearInterval(liveGameInterval);
-    liveGameInterval = null;
-  }
   if (typeof winnersAutoRestartTimeout !== "undefined" && winnersAutoRestartTimeout) {
     clearTimeout(winnersAutoRestartTimeout);
     winnersAutoRestartTimeout = null;
@@ -1712,20 +1427,14 @@ function switchToCardSelectionView() {
   if ($("tgBingoBtn")) $("tgBingoBtn").hidden = true;
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavHome")?.classList.add("active");
-
+  
   selectedCardNumbers.clear();
-  manualMarkedCells.clear();
   updateCardSelectionTotals();
   renderCardSelectionGrid();
-  setupCardRangeTabs();
   startCardCountdown();
 }
 
 function switchToLiveGameView() {
-  if (cardCountdownInterval) {
-    clearInterval(cardCountdownInterval);
-    cardCountdownInterval = null;
-  }
   if (typeof winnersAutoRestartTimeout !== "undefined" && winnersAutoRestartTimeout) {
     clearTimeout(winnersAutoRestartTimeout);
     winnersAutoRestartTimeout = null;
@@ -1744,46 +1453,44 @@ function switchToLiveGameView() {
   if (selectedCardNumbers.size === 0) {
     selectedCardNumbers.add(468);
   }
-  const chosenCardId = Array.from(selectedCardNumbers)[0];
-  state.ticket = getCartelaNumbers(chosenCardId);
 
-  // Start fresh live round exactly as shown in Image 3 (0 / 75) & Image 4 (2 / 75 with balls 23 & 60)
-  let liveCalled = [];
-  manualMarkedCells.clear();
+  // Initial called sequence matching Screenshots 3 & 4
+  if (liveGameInterval) clearInterval(liveGameInterval);
+  let liveCalled = [31];
   syncHuluWebApp(31, liveCalled);
 
-  if (liveGameInterval) clearInterval(liveGameInterval);
-  const scriptBallSequence = [23, 60, 31, 66, 47, 45, 53, 7, 2, 8, 18, 34, 54, 67, 15, 28, 40, 68, 4, 17, 55, 61, 5, 21, 42, 57, 72, 3, 35, 51, 74];
-  let ballIdx = 0;
+  // Progressive caller sequence: calls 60 (on card #468), then 23 (on card #468)
+  const sequence = [60, 23, 66, 47, 45, 53, 7, 2, 8, 15, 28, 40, 54, 67, 68, 18, 34, 42];
+  let seqIdx = 0;
 
   liveGameInterval = setInterval(() => {
     let nextNum;
-    if (ballIdx < scriptBallSequence.length) {
-      nextNum = scriptBallSequence[ballIdx++];
+    if (seqIdx < sequence.length) {
+      nextNum = sequence[seqIdx++];
     } else {
       const avail = Array.from({length:75}, (_,i)=>i+1).filter(n => !liveCalled.includes(n));
       if (avail.length === 0) {
         clearInterval(liveGameInterval);
         liveGameInterval = null;
-        setTimeout(switchToWinnersView, 1200);
+        setTimeout(() => switchToWinnersView(), 1500);
         return;
       }
       nextNum = avail[Math.floor(Math.random() * avail.length)];
     }
 
-    liveCalled.push(nextNum);
-    state.called = new Set(liveCalled);
+    if (!liveCalled.includes(nextNum)) {
+      liveCalled.push(nextNum);
+    }
     if (state.game) {
       state.game.current_number = nextNum;
       state.game.called_numbers = liveCalled;
     }
     syncHuluWebApp(nextNum, liveCalled);
-    if (typeof drawGame === "function") drawGame();
 
-    if (liveCalled.length >= 26) {
+    if (liveCalled.length >= 25) {
       clearInterval(liveGameInterval);
       liveGameInterval = null;
-      setTimeout(switchToWinnersView, 1500);
+      setTimeout(() => switchToWinnersView(), 1500);
     }
   }, 3500);
 }
@@ -1896,524 +1603,48 @@ document.querySelectorAll(".winner-row-card").forEach(card => {
   });
 });
 
-// ==========================================================================
-// Hulu Bingo WebApp Interactive Logic for All Elements
-// ==========================================================================
-
-function closeAllInAppSheets() {
-  const sheetIds = [
-    "huluRoomDropdown",
-    "huluProfileModal",
-    "huluWalletModal",
-    "huluEventsModal",
-    "huluDerashModal",
-    "huluLuckyBallsModal",
-    "huluCountdownModal",
-    "huluCartelaZoomModal",
-    "huluBackMenuModal",
-    "huluAppSwitcherModal",
-    "huluRulesModal"
-  ];
-  let hadOpen = false;
-  sheetIds.forEach(id => {
-    const el = $(id);
-    if (el && !el.hidden) {
-      el.hidden = true;
-      hadOpen = true;
-    }
-  });
-  const chevron = $("tgAppTitleChevron");
-  if (chevron) chevron.style.transform = "rotate(0deg)";
-  return hadOpen;
-}
-window.closeAllInAppSheets = closeAllInAppSheets;
-
-function openInAppSheet(modalId) {
-  closeAllInAppSheets();
-  const el = $(modalId);
-  if (el) el.hidden = false;
-}
-window.openInAppSheet = openInAppSheet;
-
-// 1. Topbar Room Dropdown Toggle
-function toggleRoomDropdown() {
-  const dropdown = $("huluRoomDropdown");
-  const chevron = $("tgAppTitleChevron");
-  if (!dropdown) return;
-  const isHidden = dropdown.hidden;
-  closeAllInAppSheets();
-  dropdown.hidden = !isHidden;
-  if (chevron) chevron.style.transform = isHidden ? "rotate(180deg)" : "rotate(0deg)";
-}
-window.toggleRoomDropdown = toggleRoomDropdown;
-
-// 2. Back Button (Menu)
-function handleAppBack() {
-  if (closeAllInAppSheets()) return;
-  const isCardSelection = $("huluCardSelectionView") && !$("huluCardSelectionView").hidden;
-  if (!isCardSelection) {
-    switchToCardSelectionView();
-  } else {
-    openInAppSheet("huluBackMenuModal");
-  }
-}
-window.handleAppBack = handleAppBack;
-
-// 3. User Profile Sheet
-function openPlayerProfileSheet() {
-  openInAppSheet("huluProfileModal");
-  const pBal = $("tgPlayBalance")?.textContent || "5.00 ETB";
-  const mBal = $("tgMainBalance")?.textContent || "0.00 ETB";
-  if ($("profilePlayBal")) $("profilePlayBal").textContent = pBal;
-  if ($("profileMainBal")) $("profileMainBal").textContent = mBal;
-  const uName = authStorage.getItem("hulu_name") || "Tesfaye B.";
-  if ($("profilePlayerName")) $("profilePlayerName").textContent = uName;
-}
-window.openPlayerProfileSheet = openPlayerProfileSheet;
-
-// 4. In-App Wallet Sheet & Deposit
-function openWalletSheet() {
-  openInAppSheet("huluWalletModal");
-  const pBal = $("tgPlayBalance")?.textContent || "5.00 ETB";
-  const mBal = $("tgMainBalance")?.textContent || "0.00 ETB";
-  if ($("walletModalPlayBal")) $("walletModalPlayBal").textContent = pBal;
-  if ($("walletModalMainBal")) $("walletModalMainBal").textContent = mBal;
-  updateWalletDepositButton();
-}
-window.openWalletSheet = openWalletSheet;
-
-function updateWalletDepositButton() {
-  const btn = $("walletDepositBtn");
-  if (btn) btn.textContent = `✅ ${currentDepositAmount} ETB በ ${currentDepositMethod} አስገባ`;
-}
-window.updateWalletDepositButton = updateWalletDepositButton;
-
-// 5. Language Pill Toggle with Full Screen Translation
-function toggleAppLanguage() {
-  currentAppLang = currentAppLang === "am" ? "en" : "am";
-  const isAm = currentAppLang === "am";
-  
-  const amSpan = document.querySelector(".lang-am");
-  const enSpan = document.querySelector(".lang-en");
-  if (amSpan) amSpan.classList.toggle("active", isAm);
-  if (enSpan) enSpan.classList.toggle("active", !isAm);
-
-  if ($("tgAppBackBtn")) $("tgAppBackBtn").textContent = isAm ? "⬅️ ተመለስ (Menu)" : "⬅️ Back (Menu)";
-  if ($("lblPlayBal")) $("lblPlayBal").textContent = isAm ? "መጫወቻ ሂሳብ" : "Play Balance";
-  if ($("lblMainBal")) $("lblMainBal").textContent = isAm ? "ዋና ሂሳብ" : "Main Balance";
-  if ($("lblNoticeTag")) $("lblNoticeTag").textContent = isAm ? "ዝግጅቶች" : "Events";
-  if ($("lblNoticeTitle")) $("lblNoticeTitle").textContent = isAm ? "ተጨማሪ ቦነስ" : "Extra Bonus";
-  if ($("lblNoticeSub")) $("lblNoticeSub").textContent = isAm ? "በቅርቡ ይጠብቁ!" : "Coming Soon!";
-  if ($("lblDerashBadge")) $("lblDerashBadge").textContent = isAm ? "ደራሽ" : "Jackpot";
-  if ($("lblCountdownHeading")) $("lblCountdownHeading").textContent = isAm ? "ጨዋታው ሊጀምር ነው" : "Game Starting Soon";
-  if ($("tgCardSelectTitle")) $("tgCardSelectTitle").textContent = isAm ? "ካርቴላ ይምረጡ (10 ብር)" : "Select Cartela (10 Birr)";
-  
-  const betLabel = document.querySelector("#tgTotalBetBtn .bet-label");
-  if (betLabel) betLabel.textContent = isAm ? "አጠቃላይ የመረጡት" : "Total Selected";
-
-  const homeLabel = document.querySelector("#tgNavHome .nav-label");
-  if (homeLabel) homeLabel.textContent = isAm ? "መነሻ" : "Home";
-  const rankLabel = document.querySelector("#tgNavRank .nav-label");
-  if (rankLabel) rankLabel.textContent = isAm ? "ደረጃ" : "Rank";
-  const profileLabel = document.querySelector("#tgNavProfile .nav-label");
-  if (profileLabel) profileLabel.textContent = isAm ? "ፕሮፋይል" : "Profile";
-  const boardLabel = document.querySelector("#tgNavBoard .nav-label");
-  if (boardLabel) boardLabel.textContent = isAm ? "ቦርሳ" : "Wallet";
-
-  toast(isAm ? "ቋንቋ ወደ አማርኛ ተቀይሯል" : "Language switched to English");
-}
-window.toggleAppLanguage = toggleAppLanguage;
-
-// 6. Range Tab Selection
-window.selectCardRange = function(start, end) {
-  currentCardRange = { start, end };
-  document.querySelectorAll(".range-tab-btn").forEach(b => {
-    const bStart = Number(b.dataset.start);
-    const bEnd = Number(b.dataset.end);
-    if (bStart === start && bEnd === end) {
-      b.classList.add("active");
-    } else {
-      b.classList.remove("active");
-    }
-  });
-  renderCardSelectionGrid();
-};
-
-// 7. Toggle Single Card Selection
-window.toggleCardSelection = function(cardNum) {
-  if (selectedCardNumbers.has(cardNum)) {
-    selectedCardNumbers.delete(cardNum);
-    document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.remove("selected"));
-  } else {
-    if (selectedCardNumbers.size >= 4) {
-      toast("እስከ 4 ካርቴላ ብቻ መምረጥ ይችላሉ (Max 4 cards)");
+if($("tgTotalBetBtn")) {
+  $("tgTotalBetBtn").addEventListener("click", () => {
+    if (selectedCardNumbers.size === 0) {
+      toast("እባክዎ መጀመሪያ ካርቴላ ይምረጡ! (Select a card first)");
       return;
     }
-    selectedCardNumbers.add(cardNum);
-    document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.add("selected"));
-  }
-  updateCardSelectionTotals();
-};
-
-// 8. Total Bet / Play Button Click
-function handleTotalBetClick() {
-  if (selectedCardNumbers.size === 0) {
-    selectedCardNumbers.add(468);
-    updateCardSelectionTotals();
-    renderCardSelectionGrid();
-    toast("እድለኛ ካርቴላ #468 ተመርጧል! ጨዋታው እየጀመረ ነው 🎮");
-  } else {
     toast(`ካርቴላዎች ተመርጠዋል! ድምር: ${selectedCardNumbers.size * 10} ETB`);
-  }
-  setTimeout(switchToLiveGameView, 500);
+    setTimeout(switchToLiveGameView, 600);
+  });
 }
-window.handleTotalBetClick = handleTotalBetClick;
 
-// 9. Cartela Zoom View
-function openCartelaZoom(cardNum) {
-  openInAppSheet("huluCartelaZoomModal");
-  if ($("zoomCardTitle")) $("zoomCardTitle").textContent = `ሁሉ ካርቴላ #${cardNum}`;
-  const gridWrapper = $("zoomCardGrid");
-  if (gridWrapper) {
-    const numbers = getCartelaNumbers(cardNum);
-    let cellsHtml = "";
-    for (let r = 0; r < 5; r++) {
-      for (let c = 0; c < 5; c++) {
-        const val = numbers[r][c];
-        const isFree = val === "FREE" || (r === 2 && c === 2);
-        cellsHtml += `<div class="zoom-cell ${isFree ? 'free' : ''}">${isFree ? '★' : val}</div>`;
-      }
+if($("tgLangPillBtn")) {
+  $("tgLangPillBtn").addEventListener("click", () => {
+    const am = document.querySelector(".lang-am");
+    const en = document.querySelector(".lang-en");
+    if (am && en) {
+      const isAm = am.classList.contains("active");
+      am.classList.toggle("active", !isAm);
+      en.classList.toggle("active", isAm);
     }
-    gridWrapper.innerHTML = `
-      <div class="mcc-letters-row" style="margin-bottom: 6px; display: flex; justify-content: space-around; font-weight: 900;">
-        <span class="mcc-letter col-b" style="color:#38bdf8;">B</span>
-        <span class="mcc-letter col-i" style="color:#818cf8;">I</span>
-        <span class="mcc-letter col-n" style="color:#c084fc;">N</span>
-        <span class="mcc-letter col-g" style="color:#f472b6;">G</span>
-        <span class="mcc-letter col-o" style="color:#fb7185;">O</span>
-      </div>
-      <div class="zoom-grid">${cellsHtml}</div>
-    `;
-  }
-  const removeBtn = $("zoomRemoveCardBtn");
-  if (removeBtn) {
-    removeBtn.onclick = () => {
-      selectedCardNumbers.delete(cardNum);
-      document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.remove("selected"));
-      updateCardSelectionTotals();
-      closeAllInAppSheets();
-      toast(`ካርቴላ #${cardNum} ተወግዷል`);
-    };
-  }
+  });
 }
-window.openCartelaZoom = openCartelaZoom;
 
-// Expose views globally
-window.switchToCardSelectionView = switchToCardSelectionView;
-window.switchToLiveGameView = switchToLiveGameView;
-window.switchToWinnersView = switchToWinnersView;
-window.switchToGrandWinnerView = switchToGrandWinnerView;
+if($("tgAppCloseBtn")) {
+  $("tgAppCloseBtn").addEventListener("click", () => {
+    closeAllTelegramModals();
+  });
+}
 
-// ==========================================================================
-// Global Delegated Click Listener: Handles Every Click on Every Button!
-// ==========================================================================
-document.addEventListener("click", function(e) {
-  // 1. Back button & Android Back Key
-  if (e.target.closest("#tgAppBackBtn, #androidBackKey")) {
-    e.preventDefault();
-    handleAppBack();
-    return;
-  }
+if($("tgAppBackBtn")) {
+  $("tgAppBackBtn").addEventListener("click", () => {
+    closeAllTelegramModals();
+  });
+}
 
-  // 2. Room dropdown title & chevron
-  if (e.target.closest("#tgAppTitleBtn")) {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleRoomDropdown();
-    return;
-  }
+if($("tgNavHome")) {
+  $("tgNavHome").addEventListener("click", () => {
+    closeAllTelegramModals();
+  });
+}
 
-  // 3. Top Close button
-  if (e.target.closest("#tgAppCloseBtn")) {
-    e.preventDefault();
-    closeAllInAppSheets();
-    const modal = $("huluBingoWebAppModal");
-    if (modal) modal.hidden = true;
-    return;
-  }
-
-  // 4. Room dropdown items
-  if (e.target.closest("#dropdownRoomClassic")) {
-    e.preventDefault();
-    closeAllInAppSheets();
-    switchToCardSelectionView();
-    toast("ወደ መደበኛ ቢንጎ (10 ETB) ክፍል ገብተዋል");
-    return;
-  }
-  if (e.target.closest("#dropdownRoomVip, #menuOptVip, #switchCardVip")) {
-    e.preventDefault();
-    closeAllInAppSheets();
-    if (typeof window.switchToVipRoomView === "function") {
-      window.switchToVipRoomView();
-      toast("ወደ VIP ቢንጎ ክፍል (50 ETB) ገብተዋል! 👑");
-    }
-    return;
-  }
-  if (e.target.closest("#dropdownRoomLive, #switchCardLive")) {
-    e.preventDefault();
-    closeAllInAppSheets();
-    switchToLiveGameView();
-    toast("ወደ የቀጥታ ጨዋታ ገብተዋል");
-    return;
-  }
-  if (e.target.closest("#dropdownRoomWinners, #tgNavRank")) {
-    e.preventDefault();
-    closeAllInAppSheets();
-    switchToWinnersView();
-    return;
-  }
-  if (e.target.closest("#dropdownRoomRules, #menuOptRules, #profileRulesBtn, #androidA11yKey")) {
-    e.preventDefault();
-    openInAppSheet("huluRulesModal");
-    return;
-  }
-
-  // 5. User Avatar / Profile
-  if (e.target.closest("#tgUserAvatarBtn, #tgNavProfile")) {
-    e.preventDefault();
-    openPlayerProfileSheet();
-    return;
-  }
-
-  // 6. User Balances / Wallet
-  if (e.target.closest("#tgUserBalancesBtn, #tgNavBoard, #profileGoWalletBtn")) {
-    e.preventDefault();
-    openWalletSheet();
-    return;
-  }
-
-  // 7. Brand / Home navigation
-  if (e.target.closest("#tgBrandBtn, #tgNavHome, #androidHomeKey, #switchCardClassic, #menuOptStay")) {
-    e.preventDefault();
-    closeAllInAppSheets();
-    switchToCardSelectionView();
-    return;
-  }
-
-  // 8. Language pill button
-  if (e.target.closest("#tgLangPillBtn")) {
-    e.preventDefault();
-    toggleAppLanguage();
-    return;
-  }
-
-  // 9. Notice banner
-  if (e.target.closest("#tgNoticeCard")) {
-    e.preventDefault();
-    openInAppSheet("huluEventsModal");
-    return;
-  }
-
-  // 10. Derash box
-  if (e.target.closest("#tgDerashBox")) {
-    e.preventDefault();
-    openInAppSheet("huluDerashModal");
-    const dAmount = $("tgCardSelPrize")?.textContent || "0 ETB";
-    if ($("modalDerashAmount")) $("modalDerashAmount").textContent = dAmount;
-    const count = selectedCardNumbers.size;
-    if ($("derashPlayerCount")) $("derashPlayerCount").textContent = `${Math.max(16, count * 10 + 16)} ተጫዋቾች`;
-    return;
-  }
-
-  // 11. Golden balls pyramid
-  if (e.target.closest("#tgBallsPyramid")) {
-    e.preventDefault();
-    document.querySelectorAll(".mini-gold-ball").forEach(ball => {
-      ball.style.transform = "rotate(360deg) scale(1.15)";
-      setTimeout(() => { ball.style.transform = ""; }, 500);
-    });
-    openInAppSheet("huluLuckyBallsModal");
-    return;
-  }
-
-  // 12. Countdown box
-  if (e.target.closest("#tgCountdownBox")) {
-    e.preventDefault();
-    openInAppSheet("huluCountdownModal");
-    const cVal = $("tgCardCountdown")?.textContent || "00:39";
-    if ($("modalCountdownVal")) $("modalCountdownVal").textContent = cVal;
-    return;
-  }
-
-  // 13. Selection counter
-  if (e.target.closest("#tgSelectionCounterBox")) {
-    e.preventDefault();
-    toast("በአንድ ዙር እስከ 4 ካርቴላ መምረጥ ይችላሉ (እያንዳንዱ 10 ETB)");
-    return;
-  }
-
-  // 14. Total bet action button
-  if (e.target.closest("#tgTotalBetBtn")) {
-    e.preventDefault();
-    handleTotalBetClick();
-    return;
-  }
-
-  // 15. Android Tasks Key (App Switcher)
-  if (e.target.closest("#androidTasksKey")) {
-    e.preventDefault();
-    openInAppSheet("huluAppSwitcherModal");
-    return;
-  }
-
-  // 16. Modal Sheet Close buttons
-  if (e.target.closest(".sheet-close-btn, #backMenuCloseBtn, #appSwitcherCloseBtn, #rulesCloseBtn, #rulesGotItBtn, #zoomCloseBtn, #zoomConfirmBtn, #profileCloseBtn, #walletCloseBtn, #eventsCloseBtn, #derashCloseBtn, #luckyCloseBtn, #countdownCloseBtn")) {
-    e.preventDefault();
-    closeAllInAppSheets();
-    return;
-  }
-
-  // 17. Close from Menu options
-  if (e.target.closest("#menuOptClose")) {
-    e.preventDefault();
-    closeAllInAppSheets();
-    const modal = $("huluBingoWebAppModal");
-    if (modal) modal.hidden = true;
-    return;
-  }
-
-  // 18. Range tab buttons
-  const tabBtn = e.target.closest(".range-tab-btn");
-  if (tabBtn) {
-    e.preventDefault();
-    const start = Number(tabBtn.dataset.start) || 1;
-    const end = Number(tabBtn.dataset.end) || 600;
-    window.selectCardRange(start, end);
-    return;
-  }
-
-  // 19. Cartela card cells
-  const cardCell = e.target.closest(".card-cell");
-  if (cardCell && !cardCell.classList.contains("taken")) {
-    e.preventDefault();
-    const cNum = Number(cardCell.dataset.card);
-    if (cNum) window.toggleCardSelection(cNum);
-    return;
-  }
-
-  // 20. Quick deposit chips
-  const qChip = e.target.closest(".qdep-chip");
-  if (qChip) {
-    e.preventDefault();
-    document.querySelectorAll(".qdep-chip").forEach(c => c.classList.remove("active"));
-    qChip.classList.add("active");
-    currentDepositAmount = Number(qChip.dataset.amt) || 50;
-    updateWalletDepositButton();
-    return;
-  }
-
-  // 21. Payment method options
-  if (e.target.closest("#payMethodTelebirr")) {
-    e.preventDefault();
-    $("payMethodTelebirr")?.classList.add("active");
-    $("payMethodCbe")?.classList.remove("active");
-    currentDepositMethod = "Telebirr";
-    updateWalletDepositButton();
-    return;
-  }
-  if (e.target.closest("#payMethodCbe")) {
-    e.preventDefault();
-    $("payMethodCbe")?.classList.add("active");
-    $("payMethodTelebirr")?.classList.remove("active");
-    currentDepositMethod = "CBE Birr";
-    updateWalletDepositButton();
-    return;
-  }
-
-  // 22. In-App Wallet Deposit Button
-  if (e.target.closest("#walletDepositBtn")) {
-    e.preventDefault();
-    const curVal = parseFloat($("tgPlayBalance")?.textContent || "5.00") || 0;
-    const newVal = (curVal + currentDepositAmount).toFixed(2);
-    if ($("tgPlayBalance")) $("tgPlayBalance").textContent = `${newVal} ETB`;
-    if ($("walletModalPlayBal")) $("walletModalPlayBal").textContent = `${newVal} ETB`;
-    if ($("profilePlayBal")) $("profilePlayBal").textContent = `${newVal} ETB`;
-    toast(`✅ ${currentDepositAmount} ETB በ ${currentDepositMethod} በተሳካ ሁኔታ ገቢ ተደርጓል! 🎉`);
-    if (typeof renderWinnersConfetti === "function") renderWinnersConfetti();
-    setTimeout(closeAllInAppSheets, 800);
-    return;
-  }
-
-  // 23. Claim Bonus Button
-  if (e.target.closest("#claimBonusBtn")) {
-    e.preventDefault();
-    if (hasClaimedBonus) {
-      toast("ይህን ቦነስ ወስደዋል! ቀጣይ ዙር ይጠብቁ");
-      return;
-    }
-    hasClaimedBonus = true;
-    const curVal = parseFloat($("tgPlayBalance")?.textContent || "5.00") || 0;
-    const newVal = (curVal + 20).toFixed(2);
-    if ($("tgPlayBalance")) $("tgPlayBalance").textContent = `${newVal} ETB`;
-    if ($("walletModalPlayBal")) $("walletModalPlayBal").textContent = `${newVal} ETB`;
-    const bBtn = $("claimBonusBtn");
-    if (bBtn) {
-      bBtn.textContent = "✓ ተወስዷል (Claimed)";
-      bBtn.classList.remove("btn-gold");
-      bBtn.classList.add("btn-outline");
-    }
-    toast("🎁 20 ETB ነጻ መጫወቻ ቦነስ ተሰጥቶዎታል! መልካም እድል!");
-    if (typeof renderWinnersConfetti === "function") renderWinnersConfetti();
-    return;
-  }
-
-  // 24. Lucky Quick Pick Button
-  if (e.target.closest("#luckyQuickPickBtn")) {
-    e.preventDefault();
-    selectedCardNumbers.clear();
-    selectedCardNumbers.add(468);
-    for (let c = currentCardRange.start; c <= currentCardRange.end; c++) {
-      if (c !== 468 && !takenCards.has(c)) {
-        selectedCardNumbers.add(c);
-        break;
-      }
-    }
-    updateCardSelectionTotals();
-    renderCardSelectionGrid();
-    closeAllInAppSheets();
-    toast("🎲 2 እድለኛ ካርቴላዎች (#468 እና ተጨማሪ) ተመርጠዋል!");
-    return;
-  }
-
-  // 25. Instant Start & Derash Play Now
-  if (e.target.closest("#instantStartBtn, #derashPlayNowBtn")) {
-    e.preventDefault();
-    closeAllInAppSheets();
-    if (selectedCardNumbers.size === 0) selectedCardNumbers.add(468);
-    switchToLiveGameView();
-    toast("🚀 የቀጥታ ጨዋታው ተጀምሯል!");
-    return;
-  }
-
-  // 26. Invite friend button
-  if (e.target.closest("#inviteFriendBtn")) {
-    e.preventDefault();
-    try { navigator.clipboard.writeText("https://t.me/HabeshaBingoBot?start=ref77291"); } catch(err) {}
-    toast("🔗 የመጋበዣ ሊንክ ተቀድቷል! ለጓደኞችዎ ያጋሩ");
-    return;
-  }
-
-  // 27. Profile logout
-  if (e.target.closest("#profileLogoutBtn")) {
-    e.preventDefault();
-    closeAllInAppSheets();
-    logout();
-    return;
-  }
-});
-
-// Numbers tracker toggle & Auto/Manual switcher
-if ($("tgTrackBtn")) {
+if($("tgTrackBtn")) {
   $("tgTrackBtn").addEventListener("click", () => {
     const table = $("huluBingoTableView");
     const chevron = $("tgTrackChevron");
@@ -2426,20 +1657,18 @@ if ($("tgTrackBtn")) {
   });
 }
 
-if ($("tgModeAuto") && $("tgModeManual")) {
+if($("tgModeAuto") && $("tgModeManual")) {
   $("tgModeAuto").addEventListener("click", () => {
     $("tgModeAuto").classList.add("active");
     $("tgModeManual").classList.remove("active");
-    isAutoMode = true;
   });
   $("tgModeManual").addEventListener("click", () => {
     $("tgModeManual").classList.add("active");
     $("tgModeAuto").classList.remove("active");
-    isAutoMode = false;
   });
 }
 
-if ($("tgSoundBtn")) {
+if($("tgSoundBtn")) {
   let soundOn = true;
   $("tgSoundBtn").addEventListener("click", () => {
     soundOn = !soundOn;
@@ -2447,6 +1676,25 @@ if ($("tgSoundBtn")) {
     toast(soundOn ? "Sound unmuted" : "Sound muted");
   });
 }
+
+const tgNavItems = ["tgNavHome", "tgNavRank", "tgNavProfile", "tgNavBoard"];
+tgNavItems.forEach(id => {
+  const btn = $(id);
+  if (btn) {
+    btn.addEventListener("click", () => {
+      if (id === "tgNavHome") {
+        switchToCardSelectionView();
+      } else if (id === "tgNavBoard") {
+        switchToLiveGameView();
+      } else if (id === "tgNavRank") {
+        switchToWinnersView();
+      } else if (id === "tgNavProfile") {
+        if ($("huluBingoWebAppModal")) $("huluBingoWebAppModal").hidden = true;
+        document.querySelector("#wallet")?.scrollIntoView({ behavior: "smooth" });
+      }
+    });
+  }
+});
 
 window.joinRoom = async function(id) {
   try {
@@ -2752,17 +2000,9 @@ function initVipListeners() {
 }
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => {
-    initVipListeners();
-    if ($("tgCardPickGrid")) {
-      renderCardSelectionGrid();
-    }
-  });
+  document.addEventListener("DOMContentLoaded", initVipListeners);
 } else {
   initVipListeners();
-  if ($("tgCardPickGrid")) {
-    renderCardSelectionGrid();
-  }
 }
 
 // Initial check for VIP query param
