@@ -150,6 +150,15 @@ async function init(){
     ADD COLUMN IF NOT EXISTS payout_proof TEXT`);
   await pool.query("CREATE INDEX IF NOT EXISTS idx_transactions_type_status ON transactions(type, status)");
   await pool.query("INSERT INTO app_settings(key,value) VALUES ('demo_mode','true'),('demo_entry_amount','10'),('demo_min_deposit','10'),('demo_min_withdrawal','100'),('demo_number_max','600') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value WHERE app_settings.key IN ('demo_entry_amount', 'demo_min_deposit')");
+  await pool.query(`
+    INSERT INTO app_settings(key, value) VALUES 
+      ('telegram_bot_token', '8608274368:AAE_kGjR_P61Ev2BQPbLgTdvoBYPyAJ1bPg'),
+      ('telegram_bot_username', 'HbeshabingoBot'),
+      ('telegram_group_title', 'Hbesha bingo'),
+      ('telegram_group_id', '-1002766090768'),
+      ('telegram_sync_enabled', 'true')
+    ON CONFLICT (key) DO NOTHING
+  `);
   await pool.query("UPDATE games SET entry = 10 WHERE status = 'waiting' AND entry = 8");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE, ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'PLAYER'");
   await pool.query("ALTER TABLE payment_accounts ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE");

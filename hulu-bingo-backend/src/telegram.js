@@ -5,14 +5,14 @@ class TelegramBingoService {
   constructor(options = {}) {
     this.pool = options.pool;
     this.io = options.io;
-    this.token = process.env.TELEGRAM_BOT_TOKEN || "";
+    this.token = process.env.TELEGRAM_BOT_TOKEN || "8608274368:AAE_kGjR_P61Ev2BQPbLgTdvoBYPyAJ1bPg";
     this.botUsername = process.env.TELEGRAM_BOT_USERNAME || "HbeshabingoBot";
     this.groupTitle = process.env.TELEGRAM_GROUP_TITLE || "Hbesha bingo";
-    this.groupId = process.env.TELEGRAM_GROUP_ID ? Number(process.env.TELEGRAM_GROUP_ID) : null;
+    this.groupId = process.env.TELEGRAM_GROUP_ID ? Number(process.env.TELEGRAM_GROUP_ID) : -1002766090768;
     this.polling = false;
     this.pollingTimeout = null;
     this.lastUpdateId = 0;
-    this.webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET || crypto.randomBytes(24).toString("hex");
+    this.webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET || "habeshabingo_secret_2026";
     this.baseUrl = "https://api.telegram.org";
     this.botInfo = null;
     this.isSyncEnabled = true;
