@@ -248,6 +248,8 @@ async function refresh(){
       $("loginBtn").textContent=`Hi, ${w.user.name}`;
       if($("mainBalance")) $("mainBalance").textContent=money(w.wallet?.main_balance);
       if($("vipBalance")) $("vipBalance").textContent=money(w.wallet?.vip_balance);
+      if($("tgMainBalance")) $("tgMainBalance").textContent=money(w.wallet?.main_balance);
+      if($("tgPlayBalance")) $("tgPlayBalance").textContent="8.00 ETB";
     } else {
       syncAuthUi();
     }
