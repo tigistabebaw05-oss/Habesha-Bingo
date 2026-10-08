@@ -439,23 +439,33 @@ async function logout(){
   authStorage.removeItem("hulu_token"); authStorage.removeItem("hulu_role"); authStorage.removeItem("hulu_name");
   $("loginBtn").textContent="Login"; syncAuthUi(); navigateTo("player", true); toast("Logged out");
 }
-const loginButton=$("loginBtn"),freshLoginButton=loginButton.cloneNode(true);
-loginButton.replaceWith(freshLoginButton);
-$("loginBtn").addEventListener("click",()=>authStorage.getItem("hulu_token")?logout():openAuth("register"));
-$("adminDashBtn").addEventListener("click",()=>navigateTo("admin", true));
-if ($("ownerDashBtn")) $("ownerDashBtn").addEventListener("click",()=>navigateTo("owner", true));
-if ($("adminToOwnerBtn")) $("adminToOwnerBtn").addEventListener("click",()=>navigateTo("owner", true));
-document.querySelector('a[href="#account"]').addEventListener("click",e=>{e.preventDefault();openAuth("register")});
-$("authClose").addEventListener("click",()=>$("authBackdrop").hidden=true);
-document.querySelectorAll("[data-step-action]").forEach(step=>{
-  const activate=()=>step.dataset.stepAction==="account"?openAuth("register"):document.querySelector(`#${step.dataset.stepAction}`).scrollIntoView({behavior:"smooth"});
-  step.addEventListener("click",activate);
-  step.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();activate()}});
+const loginButton = $("loginBtn");
+if (loginButton) {
+  const freshLoginButton = loginButton.cloneNode(true);
+  loginButton.replaceWith(freshLoginButton);
+  $("loginBtn")?.addEventListener("click", () => authStorage.getItem("hulu_token") ? logout() : openAuth("register"));
+}
+if ($("adminDashBtn")) $("adminDashBtn").addEventListener("click", () => navigateTo("admin", true));
+if ($("ownerDashBtn")) $("ownerDashBtn").addEventListener("click", () => navigateTo("owner", true));
+if ($("adminToOwnerBtn")) $("adminToOwnerBtn").addEventListener("click", () => navigateTo("owner", true));
+const accountLink = document.querySelector('a[href="#account"]');
+if (accountLink) accountLink.addEventListener("click", e => { e.preventDefault(); openAuth("register"); });
+if ($("authClose")) $("authClose").addEventListener("click", () => { if ($("authBackdrop")) $("authBackdrop").hidden = true; });
+document.querySelectorAll("[data-step-action]").forEach(step => {
+  const activate = () => {
+    if (step.dataset.stepAction === "account") openAuth("register");
+    else {
+      const target = document.querySelector(`#${step.dataset.stepAction}`);
+      if (target) target.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+  step.addEventListener("click", activate);
+  step.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } });
 });
-$("authBackdrop").addEventListener("click",e=>{if(e.target.id==="authBackdrop")e.currentTarget.hidden=true});
-$("authSwitch").addEventListener("click",()=>{authMode=authMode==="login"?"register":"login";updateAuthDialog()});
-$("authForgot").addEventListener("click",()=>{authMode="request";updateAuthDialog();$("authForm").elements.phone.focus()});
-$("authForm").addEventListener("submit",async e=>{
+if ($("authBackdrop")) $("authBackdrop").addEventListener("click", e => { if (e.target.id === "authBackdrop") e.currentTarget.hidden = true; });
+if ($("authSwitch")) $("authSwitch").addEventListener("click", () => { authMode = authMode === "login" ? "register" : "login"; updateAuthDialog(); });
+if ($("authForgot")) $("authForgot").addEventListener("click", () => { authMode = "request"; updateAuthDialog(); if ($("authForm")?.elements?.phone) $("authForm").elements.phone.focus(); });
+if ($("authForm")) $("authForm").addEventListener("submit", async e => {
   e.preventDefault();
   const form=new FormData(e.target), values=Object.fromEntries(form);
   const mode=authMode,path=mode==="register"?"/register":mode==="request"?"/password-reset/request":mode==="reset"?"/password-reset/confirm":"/login";
@@ -1262,11 +1272,21 @@ let takenCards = generateTakenCards();
 let selectedCardNumbers = new Set();
 let currentCardRange = { start: 401, end: 500 };
 let cardCountdownInterval = null;
-let cardCountdownSeconds = 42;
+let cardCountdownSeconds = 39;
 let liveGameInterval = null;
 let derashAnimFrame = null;
 let isAutoMode = true;
 let manualMarkedCells = new Set();
+const tgNavItems = ["tgNavHome", "tgNavRank", "tgNavProfile", "tgNavBoard"];
+function setTgNavActive(activeId) {
+  tgNavItems.forEach(id => {
+    const el = $(id);
+    if (el) {
+      if (id === activeId) el.classList.add("active");
+      else el.classList.remove("active");
+    }
+  });
+}
 
 // ==================== AUTHENTIC 75-BALL CARTELA GENERATOR ====================
 function getCartelaNumbers(cardId) {
@@ -1493,6 +1513,13 @@ function renderSelectedCartelasPreview() {
 
   lists.forEach(l => {
     l.innerHTML = html;
+    l.querySelectorAll(".mini-cartela-card").forEach(card => {
+      card.style.cursor = "pointer";
+      card.addEventListener("click", () => {
+        const cNum = Number(card.dataset.card);
+        if (cNum && typeof openCartelaZoom === "function") openCartelaZoom(cNum);
+      });
+    });
     l.querySelectorAll(".mcc-remove-btn").forEach(btn => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -1862,48 +1889,481 @@ document.querySelectorAll(".winner-row-card").forEach(card => {
   });
 });
 
-if($("tgTotalBetBtn")) {
-  $("tgTotalBetBtn").addEventListener("click", () => {
-    if (selectedCardNumbers.size === 0) {
-      toast("እባክዎ መጀመሪያ ካርቴላ ይምረጡ! (Select a card first)");
+// ==========================================================================
+// Hulu Bingo WebApp Interactive Logic for All Elements
+// ==========================================================================
+
+function closeAllInAppSheets() {
+  const sheetIds = [
+    "huluRoomDropdown",
+    "huluProfileModal",
+    "huluWalletModal",
+    "huluEventsModal",
+    "huluDerashModal",
+    "huluLuckyBallsModal",
+    "huluCountdownModal",
+    "huluCartelaZoomModal",
+    "huluBackMenuModal",
+    "huluAppSwitcherModal",
+    "huluRulesModal"
+  ];
+  let hadOpen = false;
+  sheetIds.forEach(id => {
+    const el = $(id);
+    if (el && !el.hidden) {
+      el.hidden = true;
+      hadOpen = true;
+    }
+  });
+  const chevron = $("tgAppTitleChevron");
+  if (chevron) chevron.style.transform = "rotate(0deg)";
+  return hadOpen;
+}
+
+function openInAppSheet(modalId) {
+  closeAllInAppSheets();
+  const el = $(modalId);
+  if (el) el.hidden = false;
+}
+
+// 1. Topbar Room Dropdown Toggle
+function toggleRoomDropdown() {
+  const dropdown = $("huluRoomDropdown");
+  const chevron = $("tgAppTitleChevron");
+  if (!dropdown) return;
+  const isHidden = dropdown.hidden;
+  closeAllInAppSheets();
+  dropdown.hidden = !isHidden;
+  if (chevron) chevron.style.transform = isHidden ? "rotate(180deg)" : "rotate(0deg)";
+}
+
+if ($("tgAppTitleBtn")) {
+  $("tgAppTitleBtn").onclick = (e) => {
+    e.stopPropagation();
+    toggleRoomDropdown();
+  };
+}
+
+// Room Dropdown items
+if ($("dropdownRoomClassic")) {
+  $("dropdownRoomClassic").onclick = () => {
+    closeAllInAppSheets();
+    switchToCardSelectionView();
+    toast("ወደ መደበኛ ቢንጎ (10 ETB) ክፍል ገብተዋል");
+  };
+}
+if ($("dropdownRoomVip")) {
+  $("dropdownRoomVip").onclick = () => {
+    closeAllInAppSheets();
+    if (typeof window.switchToVipRoomView === "function") {
+      window.switchToVipRoomView();
+      toast("ወደ VIP ቢንጎ ክፍል (50 ETB) ገብተዋል! 👑");
+    }
+  };
+}
+if ($("dropdownRoomLive")) {
+  $("dropdownRoomLive").onclick = () => {
+    closeAllInAppSheets();
+    switchToLiveGameView();
+    toast("ወደ የቀጥታ ጨዋታ ገብተዋል");
+  };
+}
+if ($("dropdownRoomWinners")) {
+  $("dropdownRoomWinners").onclick = () => {
+    closeAllInAppSheets();
+    switchToWinnersView();
+  };
+}
+if ($("dropdownRoomRules")) {
+  $("dropdownRoomRules").onclick = () => {
+    openInAppSheet("huluRulesModal");
+  };
+}
+
+// 2. Back Button (Menu)
+function handleAppBack() {
+  if (closeAllInAppSheets()) return;
+  const isCardSelection = $("huluCardSelectionView") && !$("huluCardSelectionView").hidden;
+  if (!isCardSelection) {
+    switchToCardSelectionView();
+  } else {
+    openInAppSheet("huluBackMenuModal");
+  }
+}
+
+if ($("tgAppBackBtn")) {
+  $("tgAppBackBtn").onclick = (e) => {
+    e.preventDefault();
+    handleAppBack();
+  };
+}
+
+// Back Menu Options
+if ($("menuOptStay")) $("menuOptStay").onclick = () => closeAllInAppSheets();
+if ($("menuOptVip")) $("menuOptVip").onclick = () => { closeAllInAppSheets(); if (typeof window.switchToVipRoomView === "function") window.switchToVipRoomView(); };
+if ($("menuOptRules")) $("menuOptRules").onclick = () => openInAppSheet("huluRulesModal");
+if ($("menuOptClose")) $("menuOptClose").onclick = () => { closeAllInAppSheets(); if ($("huluBingoWebAppModal")) $("huluBingoWebAppModal").hidden = true; };
+if ($("backMenuCloseBtn")) $("backMenuCloseBtn").onclick = () => closeAllInAppSheets();
+
+// Close button (X)
+if ($("tgAppCloseBtn")) {
+  $("tgAppCloseBtn").onclick = (e) => {
+    e.preventDefault();
+    closeAllInAppSheets();
+    if ($("huluBingoWebAppModal")) $("huluBingoWebAppModal").hidden = true;
+  };
+}
+
+// 3. User Profile Sheet
+function openPlayerProfileSheet() {
+  openInAppSheet("huluProfileModal");
+  const pBal = $("tgPlayBalance")?.textContent || "5.00 ETB";
+  const mBal = $("tgMainBalance")?.textContent || "0.00 ETB";
+  if ($("profilePlayBal")) $("profilePlayBal").textContent = pBal;
+  if ($("profileMainBal")) $("profileMainBal").textContent = mBal;
+  const uName = authStorage.getItem("hulu_name") || "Tesfaye B.";
+  if ($("profilePlayerName")) $("profilePlayerName").textContent = uName;
+}
+
+if ($("tgUserAvatarBtn")) $("tgUserAvatarBtn").onclick = openPlayerProfileSheet;
+if ($("profileCloseBtn")) $("profileCloseBtn").onclick = closeAllInAppSheets;
+if ($("profileGoWalletBtn")) $("profileGoWalletBtn").onclick = () => openWalletSheet();
+if ($("profileRulesBtn")) $("profileRulesBtn").onclick = () => openInAppSheet("huluRulesModal");
+if ($("profileLogoutBtn")) $("profileLogoutBtn").onclick = () => { closeAllInAppSheets(); logout(); };
+
+// 4. In-App Wallet Sheet & Deposit
+let currentDepositAmount = 50;
+let currentDepositMethod = "Telebirr";
+
+function openWalletSheet() {
+  openInAppSheet("huluWalletModal");
+  const pBal = $("tgPlayBalance")?.textContent || "5.00 ETB";
+  const mBal = $("tgMainBalance")?.textContent || "0.00 ETB";
+  if ($("walletModalPlayBal")) $("walletModalPlayBal").textContent = pBal;
+  if ($("walletModalMainBal")) $("walletModalMainBal").textContent = mBal;
+  updateWalletDepositButton();
+}
+
+function updateWalletDepositButton() {
+  const btn = $("walletDepositBtn");
+  if (btn) btn.textContent = `✅ ${currentDepositAmount} ETB በ ${currentDepositMethod} አስገባ`;
+}
+
+if ($("tgUserBalancesBtn")) $("tgUserBalancesBtn").onclick = openWalletSheet;
+if ($("walletCloseBtn")) $("walletCloseBtn").onclick = closeAllInAppSheets;
+
+document.querySelectorAll(".qdep-chip").forEach(chip => {
+  chip.onclick = () => {
+    document.querySelectorAll(".qdep-chip").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    currentDepositAmount = Number(chip.dataset.amt) || 50;
+    updateWalletDepositButton();
+  };
+});
+
+if ($("payMethodTelebirr")) {
+  $("payMethodTelebirr").onclick = () => {
+    $("payMethodTelebirr").classList.add("active");
+    $("payMethodCbe")?.classList.remove("active");
+    currentDepositMethod = "Telebirr";
+    updateWalletDepositButton();
+  };
+}
+
+if ($("payMethodCbe")) {
+  $("payMethodCbe").onclick = () => {
+    $("payMethodCbe").classList.add("active");
+    $("payMethodTelebirr")?.classList.remove("active");
+    currentDepositMethod = "CBE Birr";
+    updateWalletDepositButton();
+  };
+}
+
+if ($("walletDepositBtn")) {
+  $("walletDepositBtn").onclick = () => {
+    const curVal = parseFloat($("tgPlayBalance")?.textContent || "5.00") || 0;
+    const newVal = (curVal + currentDepositAmount).toFixed(2);
+    if ($("tgPlayBalance")) $("tgPlayBalance").textContent = `${newVal} ETB`;
+    if ($("walletModalPlayBal")) $("walletModalPlayBal").textContent = `${newVal} ETB`;
+    if ($("profilePlayBal")) $("profilePlayBal").textContent = `${newVal} ETB`;
+    toast(`✅ ${currentDepositAmount} ETB በ ${currentDepositMethod} በተሳካ ሁኔታ ገቢ ተደርጓል! 🎉`);
+    if (typeof renderWinnersConfetti === "function") renderWinnersConfetti();
+    setTimeout(closeAllInAppSheets, 800);
+  };
+}
+
+if ($("walletWithdrawBtn")) {
+  $("walletWithdrawBtn").onclick = () => {
+    closeAllInAppSheets();
+    if ($("withdrawalModal")) {
+      $("withdrawalModal").hidden = false;
+    } else {
+      toast("የወጪ ሂሳብ ዝቅተኛው 50 ETB ነው");
+    }
+  };
+}
+
+if ($("walletHistoryBtn")) {
+  $("walletHistoryBtn").onclick = () => {
+    toast("📋 የቅርብ ጊዜ ግብይቶች: +50 ETB (Telebirr - ተጠናቋል)");
+  };
+}
+
+// 5. Brand Title & Audio chime
+if ($("tgBrandBtn")) {
+  $("tgBrandBtn").onclick = () => {
+    $("tgBrandBtn").style.transform = "scale(1.15)";
+    setTimeout(() => { if ($("tgBrandBtn")) $("tgBrandBtn").style.transform = ""; }, 250);
+    toast("🎮 ሁሉ ቢንጎ - የኢትዮጵያ ምርጥ የቀጥታ ቢንጎ መድረክ!");
+    closeAllInAppSheets();
+    switchToCardSelectionView();
+  };
+}
+
+// 6. Language Pill Toggle with Full Screen Translation
+let currentAppLang = "am";
+function toggleAppLanguage() {
+  currentAppLang = currentAppLang === "am" ? "en" : "am";
+  const isAm = currentAppLang === "am";
+  
+  const amSpan = document.querySelector(".lang-am");
+  const enSpan = document.querySelector(".lang-en");
+  if (amSpan) amSpan.classList.toggle("active", isAm);
+  if (enSpan) enSpan.classList.toggle("active", !isAm);
+
+  if ($("tgAppBackBtn")) $("tgAppBackBtn").textContent = isAm ? "⬅️ ተመለስ (Menu)" : "⬅️ Back (Menu)";
+  if ($("lblPlayBal")) $("lblPlayBal").textContent = isAm ? "መጫወቻ ሂሳብ" : "Play Balance";
+  if ($("lblMainBal")) $("lblMainBal").textContent = isAm ? "ዋና ሂሳብ" : "Main Balance";
+  if ($("lblNoticeTag")) $("lblNoticeTag").textContent = isAm ? "ዝግጅቶች" : "Events";
+  if ($("lblNoticeTitle")) $("lblNoticeTitle").textContent = isAm ? "ተጨማሪ ቦነስ" : "Extra Bonus";
+  if ($("lblNoticeSub")) $("lblNoticeSub").textContent = isAm ? "በቅርቡ ይጠብቁ!" : "Coming Soon!";
+  if ($("lblDerashBadge")) $("lblDerashBadge").textContent = isAm ? "ደራሽ" : "Jackpot";
+  if ($("lblCountdownHeading")) $("lblCountdownHeading").textContent = isAm ? "ጨዋታው ሊጀምር ነው" : "Game Starting Soon";
+  if ($("tgCardSelectTitle")) $("tgCardSelectTitle").textContent = isAm ? "ካርቴላ ይምረጡ (10 ብር)" : "Select Cartela (10 Birr)";
+  
+  const betLabel = document.querySelector("#tgTotalBetBtn .bet-label");
+  if (betLabel) betLabel.textContent = isAm ? "አጠቃላይ የመረጡት" : "Total Selected";
+
+  const homeLabel = document.querySelector("#tgNavHome .nav-label");
+  if (homeLabel) homeLabel.textContent = isAm ? "መነሻ" : "Home";
+  const rankLabel = document.querySelector("#tgNavRank .nav-label");
+  if (rankLabel) rankLabel.textContent = isAm ? "ደረጃ" : "Rank";
+  const profileLabel = document.querySelector("#tgNavProfile .nav-label");
+  if (profileLabel) profileLabel.textContent = isAm ? "ፕሮፋይል" : "Profile";
+  const boardLabel = document.querySelector("#tgNavBoard .nav-label");
+  if (boardLabel) boardLabel.textContent = isAm ? "ቦርሳ" : "Wallet";
+
+  toast(isAm ? "ቋንቋ ወደ አማርኛ ተቀይሯል" : "Language switched to English");
+}
+
+if ($("tgLangPillBtn")) {
+  $("tgLangPillBtn").onclick = toggleAppLanguage;
+}
+
+// 7. Notice Banner & Bonus Claim
+let hasClaimedBonus = false;
+if ($("tgNoticeCard")) {
+  $("tgNoticeCard").onclick = () => openInAppSheet("huluEventsModal");
+}
+if ($("eventsCloseBtn")) $("eventsCloseBtn").onclick = closeAllInAppSheets;
+
+if ($("claimBonusBtn")) {
+  $("claimBonusBtn").onclick = () => {
+    if (hasClaimedBonus) {
+      toast("ይህን ቦነስ ወስደዋል! ቀጣይ ዙር ይጠብቁ");
       return;
     }
-    toast(`ካርቴላዎች ተመርጠዋል! ድምር: ${selectedCardNumbers.size * 10} ETB`);
-    setTimeout(switchToLiveGameView, 600);
-  });
+    hasClaimedBonus = true;
+    const curVal = parseFloat($("tgPlayBalance")?.textContent || "5.00") || 0;
+    const newVal = (curVal + 20).toFixed(2);
+    if ($("tgPlayBalance")) $("tgPlayBalance").textContent = `${newVal} ETB`;
+    if ($("walletModalPlayBal")) $("walletModalPlayBal").textContent = `${newVal} ETB`;
+    $("claimBonusBtn").textContent = "✓ ተወስዷል (Claimed)";
+    $("claimBonusBtn").classList.remove("btn-gold");
+    $("claimBonusBtn").classList.add("btn-outline");
+    toast("🎁 20 ETB ነጻ መጫወቻ ቦነስ ተሰጥቶዎታል! መልካም እድል!");
+    if (typeof renderWinnersConfetti === "function") renderWinnersConfetti();
+  };
 }
 
-if($("tgLangPillBtn")) {
-  $("tgLangPillBtn").addEventListener("click", () => {
-    const am = document.querySelector(".lang-am");
-    const en = document.querySelector(".lang-en");
-    if (am && en) {
-      const isAm = am.classList.contains("active");
-      am.classList.toggle("active", !isAm);
-      en.classList.toggle("active", isAm);
+if ($("inviteFriendBtn")) {
+  $("inviteFriendBtn").onclick = () => {
+    try { navigator.clipboard.writeText("https://t.me/HabeshaBingoBot?start=ref77291"); } catch(e) {}
+    toast("🔗 የመጋበዣ ሊንክ ተቀድቷል! ለጓደኞችዎ ያጋሩ");
+  };
+}
+
+// 8. Derash Jackpot Info Modal
+if ($("tgDerashBox")) {
+  $("tgDerashBox").onclick = () => {
+    openInAppSheet("huluDerashModal");
+    const dAmount = $("tgCardSelPrize")?.textContent || "0 ETB";
+    if ($("modalDerashAmount")) $("modalDerashAmount").textContent = dAmount;
+    const count = selectedCardNumbers.size;
+    if ($("derashPlayerCount")) $("derashPlayerCount").textContent = `${Math.max(16, count * 10 + 16)} ተጫዋቾች`;
+  };
+}
+if ($("derashCloseBtn")) $("derashCloseBtn").onclick = closeAllInAppSheets;
+if ($("derashPlayNowBtn")) {
+  $("derashPlayNowBtn").onclick = () => {
+    closeAllInAppSheets();
+    handleTotalBetClick();
+  };
+}
+
+// 9. Golden 3D Balls Cluster & Lucky Balls
+if ($("tgBallsPyramid")) {
+  $("tgBallsPyramid").onclick = () => {
+    document.querySelectorAll(".mini-gold-ball").forEach(ball => {
+      ball.style.transform = "rotate(360deg) scale(1.15)";
+      setTimeout(() => { ball.style.transform = ""; }, 500);
+    });
+    openInAppSheet("huluLuckyBallsModal");
+  };
+}
+if ($("luckyCloseBtn")) $("luckyCloseBtn").onclick = closeAllInAppSheets;
+
+if ($("luckyQuickPickBtn")) {
+  $("luckyQuickPickBtn").onclick = () => {
+    selectedCardNumbers.clear();
+    selectedCardNumbers.add(468);
+    // Pick another available card in range
+    for (let c = currentCardRange.start; c <= currentCardRange.end; c++) {
+      if (c !== 468 && !takenCards.has(c)) {
+        selectedCardNumbers.add(c);
+        break;
+      }
     }
-  });
+    updateCardSelectionTotals();
+    renderCardSelectionGrid();
+    closeAllInAppSheets();
+    toast("🎲 2 እድለኛ ካርቴላዎች (#468 እና ተጨማሪ) ተመርጠዋል!");
+  };
 }
 
-if($("tgAppCloseBtn")) {
-  $("tgAppCloseBtn").addEventListener("click", () => {
-    closeAllTelegramModals();
-  });
+// 10. Countdown & Instant Start
+if ($("tgCountdownBox")) {
+  $("tgCountdownBox").onclick = () => {
+    openInAppSheet("huluCountdownModal");
+    const cVal = $("tgCardCountdown")?.textContent || "00:39";
+    if ($("modalCountdownVal")) $("modalCountdownVal").textContent = cVal;
+  };
+}
+if ($("countdownCloseBtn")) $("countdownCloseBtn").onclick = closeAllInAppSheets;
+
+if ($("instantStartBtn")) {
+  $("instantStartBtn").onclick = () => {
+    closeAllInAppSheets();
+    if (selectedCardNumbers.size === 0) selectedCardNumbers.add(468);
+    switchToLiveGameView();
+    toast("🚀 የቀጥታ ጨዋታው ተጀምሯል!");
+  };
 }
 
-if($("tgAppBackBtn")) {
-  $("tgAppBackBtn").addEventListener("click", () => {
-    closeAllTelegramModals();
-  });
+// 11. Selection Counter Hint
+if ($("tgSelectionCounterBox")) {
+  $("tgSelectionCounterBox").onclick = () => {
+    toast("በአንድ ዙር እስከ 4 ካርቴላ መምረጥ ይችላሉ (እያንዳንዱ 10 ETB)");
+  };
 }
 
-if($("tgNavHome")) {
-  $("tgNavHome").addEventListener("click", () => {
-    closeAllTelegramModals();
-  });
+// 12. Cartela Zoom Modal
+function openCartelaZoom(cardNum) {
+  openInAppSheet("huluCartelaZoomModal");
+  if ($("zoomCardTitle")) $("zoomCardTitle").textContent = `ሁሉ ካርቴላ #${cardNum}`;
+  const gridWrapper = $("zoomCardGrid");
+  if (gridWrapper) {
+    const numbers = getCartelaNumbers(cardNum);
+    let cellsHtml = "";
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 5; c++) {
+        const val = numbers[r][c];
+        const isFree = val === "FREE" || (r === 2 && c === 2);
+        cellsHtml += `<div class="zoom-cell ${isFree ? 'free' : ''}">${isFree ? '★' : val}</div>`;
+      }
+    }
+    gridWrapper.innerHTML = `
+      <div class="mcc-letters-row" style="margin-bottom: 6px; display: flex; justify-content: space-around; font-weight: 900;">
+        <span class="mcc-letter col-b" style="color:#38bdf8;">B</span>
+        <span class="mcc-letter col-i" style="color:#818cf8;">I</span>
+        <span class="mcc-letter col-n" style="color:#c084fc;">N</span>
+        <span class="mcc-letter col-g" style="color:#f472b6;">G</span>
+        <span class="mcc-letter col-o" style="color:#fb7185;">O</span>
+      </div>
+      <div class="zoom-grid">${cellsHtml}</div>
+    `;
+  }
+  const removeBtn = $("zoomRemoveCardBtn");
+  if (removeBtn) {
+    removeBtn.onclick = () => {
+      selectedCardNumbers.delete(cardNum);
+      document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.remove("selected"));
+      updateCardSelectionTotals();
+      closeAllInAppSheets();
+      toast(`ካርቴላ #${cardNum} ተወግዷል`);
+    };
+  }
+}
+if ($("zoomCloseBtn")) $("zoomCloseBtn").onclick = closeAllInAppSheets;
+if ($("zoomConfirmBtn")) $("zoomConfirmBtn").onclick = closeAllInAppSheets;
+
+// 13. Total Bet / Play Button Click
+function handleTotalBetClick() {
+  if (selectedCardNumbers.size === 0) {
+    selectedCardNumbers.add(468);
+    updateCardSelectionTotals();
+    renderCardSelectionGrid();
+    toast("እድለኛ ካርቴላ #468 ተመርጧል! ጨዋታው እየጀመረ ነው 🎮");
+  } else {
+    toast(`ካርቴላዎች ተመርጠዋል! ድምር: ${selectedCardNumbers.size * 10} ETB`);
+  }
+  setTimeout(switchToLiveGameView, 500);
 }
 
-if($("tgTrackBtn")) {
+if ($("tgTotalBetBtn")) {
+  $("tgTotalBetBtn").onclick = handleTotalBetClick;
+}
+
+// 14. Bottom Navigation Items
+if ($("tgNavHome")) {
+  $("tgNavHome").onclick = () => {
+    closeAllInAppSheets();
+    switchToCardSelectionView();
+  };
+}
+if ($("tgNavRank")) {
+  $("tgNavRank").onclick = () => {
+    closeAllInAppSheets();
+    switchToWinnersView();
+  };
+}
+if ($("tgNavProfile")) {
+  $("tgNavProfile").onclick = () => {
+    openPlayerProfileSheet();
+  };
+}
+if ($("tgNavBoard")) {
+  $("tgNavBoard").onclick = () => {
+    openWalletSheet();
+  };
+}
+
+// 15. Android Mock Navigation Keys
+if ($("androidBackKey")) $("androidBackKey").onclick = handleAppBack;
+if ($("androidHomeKey")) $("androidHomeKey").onclick = () => { closeAllInAppSheets(); switchToCardSelectionView(); };
+if ($("androidTasksKey")) $("androidTasksKey").onclick = () => openInAppSheet("huluAppSwitcherModal");
+if ($("androidA11yKey")) $("androidA11yKey").onclick = () => openInAppSheet("huluRulesModal");
+
+if ($("appSwitcherCloseBtn")) $("appSwitcherCloseBtn").onclick = closeAllInAppSheets;
+if ($("switchCardClassic")) $("switchCardClassic").onclick = () => { closeAllInAppSheets(); switchToCardSelectionView(); };
+if ($("switchCardVip")) $("switchCardVip").onclick = () => { closeAllInAppSheets(); if (typeof window.switchToVipRoomView === "function") window.switchToVipRoomView(); };
+if ($("switchCardLive")) $("switchCardLive").onclick = () => { closeAllInAppSheets(); switchToLiveGameView(); };
+
+if ($("rulesCloseBtn")) $("rulesCloseBtn").onclick = closeAllInAppSheets;
+if ($("rulesGotItBtn")) $("rulesGotItBtn").onclick = closeAllInAppSheets;
+
+// Numbers tracker toggle & Auto/Manual switcher
+if ($("tgTrackBtn")) {
   $("tgTrackBtn").addEventListener("click", () => {
     const table = $("huluBingoTableView");
     const chevron = $("tgTrackChevron");
@@ -1916,18 +2376,20 @@ if($("tgTrackBtn")) {
   });
 }
 
-if($("tgModeAuto") && $("tgModeManual")) {
+if ($("tgModeAuto") && $("tgModeManual")) {
   $("tgModeAuto").addEventListener("click", () => {
     $("tgModeAuto").classList.add("active");
     $("tgModeManual").classList.remove("active");
+    isAutoMode = true;
   });
   $("tgModeManual").addEventListener("click", () => {
     $("tgModeManual").classList.add("active");
     $("tgModeAuto").classList.remove("active");
+    isAutoMode = false;
   });
 }
 
-if($("tgSoundBtn")) {
+if ($("tgSoundBtn")) {
   let soundOn = true;
   $("tgSoundBtn").addEventListener("click", () => {
     soundOn = !soundOn;
@@ -1935,25 +2397,6 @@ if($("tgSoundBtn")) {
     toast(soundOn ? "Sound unmuted" : "Sound muted");
   });
 }
-
-const tgNavItems = ["tgNavHome", "tgNavRank", "tgNavProfile", "tgNavBoard"];
-tgNavItems.forEach(id => {
-  const btn = $(id);
-  if (btn) {
-    btn.addEventListener("click", () => {
-      if (id === "tgNavHome") {
-        switchToCardSelectionView();
-      } else if (id === "tgNavBoard") {
-        switchToLiveGameView();
-      } else if (id === "tgNavRank") {
-        switchToWinnersView();
-      } else if (id === "tgNavProfile") {
-        if ($("huluBingoWebAppModal")) $("huluBingoWebAppModal").hidden = true;
-        document.querySelector("#wallet")?.scrollIntoView({ behavior: "smooth" });
-      }
-    });
-  }
-});
 
 window.joinRoom = async function(id) {
   try {
