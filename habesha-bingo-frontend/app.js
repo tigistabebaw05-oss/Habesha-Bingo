@@ -1296,7 +1296,7 @@ function renderSelectedCartelasPreview() {
     return `
       <div class="mini-cartela-card" data-card="${c.id}">
         <div class="mini-cartela-header">
-          <span class="mini-cartela-brand">ሁሉ ካርቴላ</span>
+          <span class="mini-cartela-brand">ሀበሻ ካርቴላ</span>
           <span class="mini-cartela-badge">#${c.id}</span>
         </div>
         <div class="mini-cartela-cols">
@@ -1368,7 +1368,7 @@ function renderLiveSlotsGrid(calledSet) {
       html += `
         <div class="slot-container active-card">
           <div class="slot-card-header">
-            <span class="slot-card-title">ሁሉ ካርቴላ</span>
+            <span class="slot-card-title">ሀበሻ ካርቴላ</span>
             <span class="slot-card-badge">#${c.id}</span>
           </div>
           <div class="slot-cols-header">
