@@ -96,7 +96,7 @@ class TelegramBingoService {
               { command: "deposit", description: "📥 ገቢ አድርግ (ዋና ከ10 ብር / VIP ከ50 ብር)" },
               { command: "withdraw", description: "📤 ወጪ አድርግ / Withdraw Funds" },
               { command: "balance", description: "💰 ቀሪ ሂሳብ / Wallet Balance" },
-              { command: "play", description: "🎟 ዋና ጨዋታ ተጫወት (8 ETB)" },
+              { command: "play", description: "🎟 ዋና ጨዋታ ተጫወት (10 ETB)" },
               { command: "vip", description: "💎 VIP ክፍል ግባ (50 ETB)" },
               { command: "status", description: "📊 የቀጥታ ጨዋታ ሁኔታ" },
               { command: "card", description: "🎴 የቢንጎ ካርድዎን ይመልከቱ" },
@@ -493,7 +493,7 @@ class TelegramBingoService {
         [{ text: "🎮 ጨዋታውን ይክፈቱ (Play)", web_app: { url: webAppUrl } }],
         [{ text: "💰 ሂሳብ" }, { text: "📥 ገቢ ለማድረግ" }],
         [{ text: "📤 ወጪ ለማድረግ" }, { text: "💎 VIP ክፍል" }],
-        [{ text: "🎟 ትኬት ቁረጥ (8 ETB)" }, { text: "📊 የጨዋታ ሁኔታ" }],
+        [{ text: "🎟 ትኬት ቁረጥ (10 ETB)" }, { text: "📊 የጨዋታ ሁኔታ" }],
         [{ text: "🔗 ጋብዝ & አግኝ" }, { text: "⭐ Special Promoter" }],
         [{ text: "🆘 እርዳታ" }, { text: "📜 ደንቦች" }]
       ],
@@ -550,7 +550,7 @@ class TelegramBingoService {
         `💰 ዋና ሂሳብ: <b>${mainBal.toFixed(2)} ETB</b>\n` +
         `💎 VIP ሂሳብ: <b>${vipBal.toFixed(2)} ETB</b>\n\n` +
         `✅ <b>ሂሳብዎ ዝግጁ ነው!</b> አሁኑኑ መጫወት ይችላሉ፡\n` +
-        `🎮 ዋናው ጨዋታ: <b>8 ETB</b>\n` +
+        `🎮 ዋናው ጨዋታ: <b>10 ETB</b>\n` +
         `💎 VIP ክፍል: <b>50 ETB</b>\n\n` +
         `ከታች ካሉት አማራጮች ይምረጡ:`;
 
@@ -559,7 +559,7 @@ class TelegramBingoService {
           inline_keyboard: [
             [{ text: "🎮 ጨዋታውን ጀምር (Start Playing)", web_app: { url: playUrl } }],
             [
-              { text: "🎟 እዚሁ ትኬት ቁረጥ (8 ETB)", callback_data: "cmd_buy" },
+              { text: "🎟 እዚሁ ትኬት ቁረጥ (10 ETB)", callback_data: "cmd_buy" },
               { text: "💎 VIP ክፍል (50 ETB)", callback_data: "cmd_vip" }
             ],
             [
@@ -820,7 +820,7 @@ class TelegramBingoService {
         ]
       : [
           [{ text: "🎮 ጨዋታውን ጀምር (Start Playing)", web_app: { url: playUrl } }],
-          [{ text: "🎟 እዚሁ ዋና ትኬት ቁረጥ (8 ETB)", callback_data: "cmd_buy" }],
+          [{ text: "🎟 እዚሁ ዋና ትኬት ቁረጥ (10 ETB)", callback_data: "cmd_buy" }],
           [{ text: "💰 ሂሳብ ይመልከቱ (Balance)", callback_data: "cmd_balance" }]
         ];
 
@@ -1005,7 +1005,7 @@ class TelegramBingoService {
 
     const text = `💰 <b>የእርስዎ የዋሌት መረጃ (Wallet Information)</b>\n\n` +
       `👤 ተጠቃሚ: <b>${user.name}</b>\n` +
-      `💵 <b>ዋና ሂሳብ (Main Game):</b> <b>${mainBal} ETB</b> (መነሻ 8 ETB)\n` +
+      `💵 <b>ዋና ሂሳብ (Main Game):</b> <b>${mainBal} ETB</b> (መነሻ 10 ETB)\n` +
       `💎 <b>VIP ሂሳብ (VIP Room):</b> <b>${vipBal} ETB</b> (መነሻ 50 ETB)\n\n` +
       `ምን ማድረግ ይፈልጋሉ?`;
 
@@ -1017,7 +1017,7 @@ class TelegramBingoService {
             { text: "📤 ወጪ አድርግ (Withdraw)", callback_data: "cmd_withdraw" }
           ],
           [
-            { text: "🎟 ዋና ጨዋታ (8 ETB)", callback_data: "cmd_buy" },
+            { text: "🎟 ዋና ጨዋታ (10 ETB)", callback_data: "cmd_buy" },
             { text: "💎 VIP ክፍል (50 ETB)", callback_data: "cmd_vip" }
           ],
           [
@@ -1059,7 +1059,7 @@ class TelegramBingoService {
     const text = `🎉 <b>ሁሉ ቢንጎ ለመጫወት ዝግጁ ነዎት!</b>\n\n` +
       `👤 ተጫዋች: <b>${user ? user.name : "ተጫዋች"}</b>\n` +
       `💰 ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n` +
-      `🎟 የመግቢያ ክፍያ: <b>8.00 ETB</b>\n\n` +
+      `🎟 የመግቢያ ክፍያ: <b>10.00 ETB</b>\n\n` +
       `በ WebApp ውብ ገፅታ ለመጫወት ከታች ያለውን ይጫኑ ወይም እዚሁ ትኬት ይቁረጡ:`;
 
     await this.sendMessage(chatId, text, {
@@ -1067,7 +1067,7 @@ class TelegramBingoService {
         inline_keyboard: [
           [{ text: "🎮 በ WebApp ክፈት (Open Game)", web_app: { url: webAppUrl } }],
           [
-            { text: "🎟 እዚሁ ዋና ትኬት ቁረጥ (8 ETB)", callback_data: "cmd_buy" },
+            { text: "🎟 እዚሁ ዋና ትኬት ቁረጥ (10 ETB)", callback_data: "cmd_buy" },
             { text: "📊 የጨዋታ ሁኔታ (Status)", callback_data: "cmd_status" }
           ],
           [
@@ -1078,7 +1078,7 @@ class TelegramBingoService {
     });
   }
 
-  // Join Main Game (8 ETB)
+  // Join Main Game (10 ETB)
   async cmdJoinGame(chatId, user) {
     if (!user) {
       await this.sendMessage(chatId, "⚠️ እባክዎ መጀመሪያ /start በማለት አካውንትዎን ያግብሩ።");
@@ -1092,7 +1092,7 @@ class TelegramBingoService {
 
       let g = (await client.query("SELECT * FROM games WHERE status IN ('waiting', 'running') AND entry <= 20 ORDER BY id DESC LIMIT 1 FOR UPDATE")).rows[0];
       if (!g) {
-        const createGame = await client.query("INSERT INTO games(name, entry) VALUES('Main Game', 8.00) RETURNING *");
+        const createGame = await client.query("INSERT INTO games(name, entry) VALUES('Main Game', 10.00) RETURNING *");
         g = createGame.rows[0];
       }
 
@@ -1112,7 +1112,7 @@ class TelegramBingoService {
 
       // Check balance
       const walletRow = (await client.query("SELECT main_balance FROM wallets WHERE user_id = $1 FOR UPDATE", [user.id])).rows[0];
-      const entryFee = Number(g.entry || 8.00);
+      const entryFee = Number(g.entry || 10.00);
       if (!walletRow || Number(walletRow.main_balance) < entryFee) {
         await client.query("ROLLBACK");
         await this.sendMessage(
@@ -1456,7 +1456,7 @@ class TelegramBingoService {
   async cmdRules(chatId) {
     const text = `📜 <b>የቢንጎ ጨዋታ ህጎች እና ደንቦች</b>\n\n` +
       `1️⃣ <b>የጨዋታ አይነቶች:</b>\n` +
-      `• <b>ዋና ጨዋታ:</b> የመግቢያ ክፍያ 8 ETB\n` +
+      `• <b>ዋና ጨዋታ:</b> የመግቢያ ክፍያ 10 ETB\n` +
       `• <b>VIP ክፍል:</b> የመግቢያ ክፍያ 50 ETB\n\n` +
       `2️⃣ <b>የካርድ አወቃቀር:</b>\n` +
       `እያንዳንዱ ካርድ 5x5 የቢንጎ ሰንጠረዥ ይዞ B-I-N-G-O በሆኑ 5 ዓምዶች የተከፋፈሉ 25 ቁጥሮችን ይዟል።\n\n` +
@@ -1471,7 +1471,7 @@ class TelegramBingoService {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: "🎟 ዋና ጨዋታ ጀምር (8 ETB)", callback_data: "cmd_buy" },
+            { text: "🎟 ዋና ጨዋታ ጀምር (10 ETB)", callback_data: "cmd_buy" },
             { text: "💎 VIP ክፍል (50 ETB)", callback_data: "cmd_vip" }
           ],
           [{ text: "📥 ሂሳብ ገቢ አድርግ (Deposit)", callback_data: "cmd_deposit" }]
@@ -1514,7 +1514,7 @@ class TelegramBingoService {
   async cmdHelp(chatId, isGroup) {
     const text = `ℹ️ <b>የ HABESHA BINGO ጨዋታ መመሪያዎች</b>\n\n` +
       `1️⃣ <b>ገንዘብ ማስገባት:</b> <b>/deposit</b> በማለት ለዋና ጨዋታ ከ 10 ብር ጀምሮ ወይም ለ VIP ከ 50 ብር ጀምሮ ይሙሉ!\n` +
-      `2️⃣ <b>ትኬት መቁረጥ:</b> <b>/play</b> ወይም <b>/buy</b> ሲሉ ከሂሳብዎ 8 ETB ተቀንሶ 5x5 የቢንጎ ካርድ ይሰጥዎታል።\n` +
+      `2️⃣ <b>ትኬት መቁረጥ:</b> <b>/play</b> ወይም <b>/buy</b> ሲሉ ከሂሳብዎ 10 ETB ተቀንሶ 5x5 የቢንጎ ካርድ ይሰጥዎታል።\n` +
       `3️⃣ <b>VIP ክፍል:</b> <b>/vip</b> በማለት በ 50 ETB ከፍተኛ ሽልማት ባለው ክፍል ይጫወቱ!\n` +
       `4️⃣ <b>ቁጥሮች መጠራት:</b> ሲስተሙ በየ 5 ሰከንዱ አዳዲስ ቁጥሮችን ይጠራል፤ እዚህ ግሩፕ ላይ በቅጽበት ይለጠፋሉ።\n` +
       `5️⃣ <b>ቢንጎ ማሸነፍ:</b> በካርድዎ ላይ 5 ቁጥሮች በአግድም፣ በቁም ወይም በሰያፍ ሲሞሉ ወዲያውኑ <b>/bingo</b> ይበሉ!\n` +
@@ -1797,7 +1797,7 @@ class TelegramBingoService {
       await this.sendMessage(chatId, text, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🎟 ዋና ትኬት ቁረጥ (8 ETB)", callback_data: "cmd_buy" }],
+            [{ text: "🎟 ዋና ትኬት ቁረጥ (10 ETB)", callback_data: "cmd_buy" }],
             [{ text: "💎 VIP ክፍል (50 ETB)", callback_data: "cmd_vip" }]
           ]
         }
@@ -1822,7 +1822,7 @@ class TelegramBingoService {
       await this.sendMessage(chatId, "ℹ️ ለጨዋታ #" + g.id + " ትኬት አልቆረጡም። ትኬት ለመቁረጥ <b>/play</b> ይጫኑ።", {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🎟 ትኬት ቁረጥ (8 ETB)", callback_data: "cmd_buy" }],
+            [{ text: "🎟 ትኬት ቁረጥ (10 ETB)", callback_data: "cmd_buy" }],
             [{ text: "📥 ሂሳብ ገቢ አድርግ (Deposit)", callback_data: "cmd_deposit" }]
           ]
         }
