@@ -699,7 +699,16 @@ app.post("/api/wallet/deposit",auth,async(req,res)=>{
   const transactionId=result.rows[0].id;
 
   if (initialStatus === "completed") {
-    await changeBalance(pool, req.user.id, wallet, value);
+    await changeBalance(pool, {
+      userId: req.user.id,
+      wallet: wallet,
+      delta: value,
+      type: "deposit",
+      status: "completed",
+      method: method,
+      reference: reference,
+      transactionId: transactionId
+    });
   }
 
   if (typeof telegramService !== "undefined" && telegramService && telegramService.notifyDepositPending && !DEMO_MODE) {

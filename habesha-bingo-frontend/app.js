@@ -2136,19 +2136,52 @@ document.querySelectorAll(".winner-row-card").forEach(card => {
 });
 
 if($("tgTotalBetBtn")) {
-  $("tgTotalBetBtn").addEventListener("click", () => {
+  $("tgTotalBetBtn").addEventListener("click", async () => {
     if (selectedCardNumbers.size === 0) {
-      toast("እባክዎ መጀመሪያ ካርቴላ ይምረጡ! (Select a card first)", true);
-      return;
+      const bal = getPlayerMainBalance();
+      if (bal >= 10) {
+        selectedCardNumbers.add(468);
+        updateCardSelectionTotals();
+        renderCardSelectionGrid();
+      } else {
+        toast("እባክዎ መጀመሪያ ካርቴላ ይምረጡ ወይም ተቀማጭ ያድርጉ! (Select a card first)", true);
+        return;
+      }
     }
     const currentBal = getPlayerMainBalance();
-    const totalBet = selectedCardNumbers.size * 10;
+    const count = selectedCardNumbers.size;
+    const totalBet = count * 10;
     if (currentBal < totalBet) {
-      toast("⚠️ Insufficient balance! እባክዎ መጀመሪያ ተቀማጭ (Deposit) ያድርጉ።", true);
+      toast(`⚠️ Insufficient balance! የ ${totalBet} ETB ባላንስ ያስፈልጋል። እባክዎ ተቀማጭ (Deposit) ያድርጉ።`, true);
       return;
     }
-    toast(`ካርቴላዎች ተመርጠዋል! ድምር: ${totalBet} ETB`);
-    setTimeout(switchToLiveGameView, 600);
+
+    // Deduct from local wallet
+    if (state.wallet) {
+      state.wallet.main_balance = Math.max(0, currentBal - totalBet).toFixed(2);
+      if ($("mainBalance")) $("mainBalance").textContent = money(state.wallet.main_balance);
+      if ($("tgMainBalance")) $("tgMainBalance").textContent = money(state.wallet.main_balance);
+      if ($("tgPlayBalance")) $("tgPlayBalance").textContent = money(state.wallet.main_balance);
+      if ($("modalMainBalance")) $("modalMainBalance").textContent = money(state.wallet.main_balance);
+    }
+
+    // Sync with backend if authenticated
+    try {
+      if (authStorage.getItem("hulu_token")) {
+        api("/join", {
+          method: "POST",
+          body: JSON.stringify({
+            cardCount: count,
+            cartelaIds: Array.from(selectedCardNumbers)
+          })
+        }).catch(() => {});
+      }
+    } catch (err) {
+      console.warn("Join sync note:", err);
+    }
+
+    toast(`🎉 ${count} ካርቴላዎች ተመርጠዋል! (ድምር: ${totalBet} ETB)`);
+    setTimeout(switchToLiveGameView, 500);
   });
 }
 
