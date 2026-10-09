@@ -1520,10 +1520,21 @@ footer {
 .sound-btn {
   background: none;
   border: none;
-  color: var(--habesha-muted);
+  color: var(--habesha-gold, #f5b716);
   cursor: pointer;
   display: flex;
   align-items: center;
+  transition: opacity 0.2s, transform 0.15s, color 0.2s;
+  padding: 3px 5px;
+  border-radius: 6px;
+}
+
+.sound-btn:hover {
+  transform: scale(1.12);
+}
+
+.sound-btn.sound-active {
+  color: #10b981;
 }
 
 /* Stats Row */
@@ -1565,28 +1576,71 @@ footer {
   width: 58px;
   height: 58px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fff2b2 0%, #f5b716 55%, #946903 100%);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 20px rgba(245, 183, 22, 0.45);
+  background: radial-gradient(circle at 35% 25%, #ffffff 0%, #f1f5f9 42%, #e2e8f0 75%, #94a3b8 100%);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.95), inset 0 -4px 6px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 2px solid #ffe27a;
+  border: 2px solid #cbd5e1;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.bingo-3d-ball:hover {
+  transform: scale(1.05);
+}
+
+.bingo-3d-ball:active {
+  transform: scale(0.96);
+}
+
+.bingo-3d-ball.ball-pop-anim {
+  animation: bingoBallPop 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes bingoBallPop {
+  0% {
+    transform: scale(0.85);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  }
+  42% {
+    transform: scale(1.22);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65), 0 0 26px rgba(245, 183, 22, 0.9), 0 0 40px rgba(255, 255, 255, 0.8);
+  }
+  75% {
+    transform: scale(0.97);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.95), inset 0 -4px 6px rgba(0, 0, 0, 0.25);
+  }
 }
 
 .ball-letter {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 950;
-  color: #171100;
+  color: #ef4444;
   line-height: 1;
+  letter-spacing: 0.5px;
+  margin-bottom: -1px;
 }
 
 .ball-num {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 950;
-  color: #171100;
+  color: #0b1329;
   line-height: 1;
+  letter-spacing: -0.5px;
 }
+
+.c-b { color: #f59e0b !important; }
+.c-i { color: #ef4444 !important; }
+.c-n { color: #10b981 !important; }
+.c-g { color: #3b82f6 !important; }
+.c-o { color: #f97316 !important; }
 
 .hulu-tracker-card {
   background: rgba(14, 28, 48, 0.85);

@@ -123,13 +123,35 @@ class TelegramBingoService {
           console.warn("[Telegram] Could not set chat menu button:", mErr.message);
         }
 
-        // Start long-polling if webhook is not set
+        // Configure Webhook or fallback to polling with auto-recovery watchdog
+        const publicUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
         const webhookInfo = await this.apiCall("getWebhookInfo");
-        if (!webhookInfo?.result?.url) {
-          this.startPolling();
+        
+        if (publicUrl && !publicUrl.includes("localhost") && !publicUrl.includes("127.0.0.1")) {
+          const targetWebhook = `${publicUrl.replace(/\/$/, "")}/api/telegram/webhook`;
+          if (webhookInfo?.result?.url !== targetWebhook) {
+            console.log(`[Telegram] Setting webhook to: ${targetWebhook}...`);
+            await this.apiCall("setWebhook", {
+              url: targetWebhook,
+              secret_token: this.webhookSecret,
+              drop_pending_updates: false,
+              max_connections: 40
+            });
+            console.log(`[Telegram] ✅ Webhook successfully configured for @${this.botUsername}`);
+          } else {
+            console.log(`[Telegram] ✅ Webhook active at: ${webhookInfo.result.url}`);
+          }
+          this.stopPolling();
         } else {
-          console.log(`[Telegram] Webhook is active at: ${webhookInfo.result.url}`);
+          if (!webhookInfo?.result?.url) {
+            this.startPolling();
+          } else {
+            console.log(`[Telegram] Webhook is active at: ${webhookInfo.result.url}`);
+          }
         }
+
+        // Start continuous watchdog to ensure bot NEVER stays inactive
+        this.startWatchdog();
       } else {
         console.warn("[Telegram] getMe returned error:", me);
       }
@@ -212,6 +234,34 @@ class TelegramBingoService {
     if (this.polling) {
       this.pollingTimeout = setTimeout(() => this.pollLoop(), 1000);
     }
+  }
+
+  startWatchdog() {
+    if (this.watchdogInterval) clearInterval(this.watchdogInterval);
+    this.watchdogInterval = setInterval(async () => {
+      try {
+        const publicUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+        if (publicUrl && !publicUrl.includes("localhost") && !publicUrl.includes("127.0.0.1")) {
+          const info = await this.apiCall("getWebhookInfo");
+          const targetWebhook = `${publicUrl.replace(/\/$/, "")}/api/telegram/webhook`;
+          if (!info?.result?.url || info?.result?.url !== targetWebhook) {
+            console.warn(`[Telegram Watchdog] Webhook missing or altered, restoring to ${targetWebhook}...`);
+            await this.apiCall("setWebhook", {
+              url: targetWebhook,
+              secret_token: this.webhookSecret,
+              max_connections: 40
+            });
+          }
+        } else if (this.polling) {
+          if (!this.pollingTimeout) {
+            console.warn("[Telegram Watchdog] Restarting stalled polling loop...");
+            this.pollLoop();
+          }
+        }
+      } catch (err) {
+        console.warn("[Telegram Watchdog] Health check note:", err.message);
+      }
+    }, 5 * 60 * 1000);
   }
 
   async handleUpdate(update) {

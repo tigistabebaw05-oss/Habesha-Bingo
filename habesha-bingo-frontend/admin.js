@@ -135,25 +135,45 @@
   function renderUsers(users) {
     const el = $("usersBody");
     if (!el) return;
+    const myRole = String(storage.getItem("hulu_role") || localStorage.getItem("hulu_role") || "ADMIN").toUpperCase();
     el.innerHTML = users.map(user => {
       const role = String(user.role || "PLAYER").toUpperCase();
       const isActive = Boolean(user.is_active);
+      const isOwner = role === "OWNER";
+      const isAdmin = role === "ADMIN";
+
+      let actionHtml = "";
+      if (isOwner) {
+        actionHtml = `<span class="badge badge-owner-protected" style="background:rgba(255,215,0,0.15); color:#ffd700; border:1px solid rgba(255,215,0,0.4); padding:4px 10px; border-radius:6px; font-weight:700; font-size:11px; display:inline-block;">👑 Protected Owner</span>`;
+      } else if (isAdmin && myRole !== "OWNER") {
+        actionHtml = `<span style="color:var(--text-muted,#8e8ea0); font-size:12px;">Admin Account</span>`;
+      } else {
+        actionHtml = `<button class="table-action user-save" data-id="${user.id}" data-role="${role}" data-active="${String(isActive)}">${isActive ? "Disable" : "Enable"}</button>`;
+      }
+
       return `<tr>
-        <td>${escapeHtml(user.name)}</td>
-        <td>${escapeHtml(user.phone)}</td>
-        <td>${role}</td>
-        <td>${isActive ? "Active" : "Disabled"}</td>
-        <td>
-          <button class="table-action user-save" data-id="${user.id}" data-role="${role}" data-active="${String(isActive)}">${isActive ? "Disable" : "Enable"}</button>
-        </td>
+        <td><strong>${escapeHtml(user.name)}</strong></td>
+        <td><span style="font-family:monospace; font-weight:600;">${escapeHtml(user.phone)}</span></td>
+        <td><span style="${isOwner ? 'color:#ffd700; font-weight:700;' : isAdmin ? 'color:#00d2ff; font-weight:600;' : ''}">${role}</span></td>
+        <td><span style="color:${isActive ? '#2ecc71' : '#e74c3c'}; font-weight:600;">${isActive ? "Active" : "Disabled"}</span></td>
+        <td>${actionHtml}</td>
       </tr>`;
     }).join("") || `<tr><td colspan="5">No users.</td></tr>`;
   }
 
   function renderWallets(wallets) {
-    const el = $("walletsBody");
-    if (!el) return;
-    el.innerHTML = wallets.map(wallet => `<tr><td>${escapeHtml(wallet.name)}</td><td>${money(wallet.main_balance)}</td><td>${money(wallet.vip_balance)}</td></tr>`).join("") || `<tr><td colspan="3">No wallets.</td></tr>`;
+    const bodies = [ $("walletsBody"), $("ownerWalletsBody") ].filter(Boolean);
+    if (!bodies.length) return;
+    const content = (wallets && wallets.length) ? wallets.map(wallet => {
+      const mainBal = Number(wallet.main_balance || 0);
+      const vipBal = Number(wallet.vip_balance || 0);
+      return `<tr>
+        <td><strong>${escapeHtml(wallet.name || 'User #' + wallet.user_id)}</strong><br><small style="color:var(--text-muted,#8e8ea0); font-family:monospace;">${escapeHtml(wallet.phone || '—')}</small></td>
+        <td><strong style="color:var(--habesha-green-light,#2ecc71); font-size:14px;">${money(mainBal)}</strong></td>
+        <td><strong style="color:var(--habesha-gold,#f5b716); font-size:14px;">${money(vipBal)}</strong></td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--text-muted,#8e8ea0);">No wallets found.</td></tr>`;
+    bodies.forEach(el => el.innerHTML = content);
   }
 
   function renderGames(games) {
@@ -385,7 +405,11 @@
   document.addEventListener("click", async event => {
     const userSave = event.target.closest(".user-save");
     if (userSave) {
-      const id = userSave.dataset.id, role = userSave.dataset.role || "PLAYER";
+      const id = userSave.dataset.id, role = String(userSave.dataset.role || "PLAYER").toUpperCase();
+      if (role === "OWNER") {
+        showError("dashboardError", "Owner account is protected and cannot be disabled or changed.");
+        return;
+      }
       try {
         await api(`/admin/users/${id}`, {
           method: "PATCH",
@@ -630,14 +654,20 @@
     const el = $("ownerUsersBody");
     if (!el) return;
     el.innerHTML = users.map(user => {
+      const role = String(user.role || "PLAYER").toUpperCase();
       const isActive = Boolean(user.is_active);
+      const isOwner = role === "OWNER";
+      let actionHtml = "";
+      if (isOwner) {
+        actionHtml = `<span class="badge badge-owner-protected" style="background:rgba(255,215,0,0.15); color:#ffd700; border:1px solid rgba(255,215,0,0.4); padding:4px 10px; border-radius:6px; font-weight:700; font-size:11px; display:inline-block;">👑 Owner (Protected)</span>`;
+      } else {
+        actionHtml = `<button class="table-action user-save" data-id="${user.id}" data-role="${role}" data-active="${String(isActive)}">${isActive ? "Disable" : "Enable"}</button>`;
+      }
       return `<tr>
-        <td>${escapeHtml(user.name)}</td>
-        <td>${escapeHtml(user.phone)}</td>
-        <td>${isActive ? "Active" : "Disabled"}</td>
-        <td>
-          <button class="table-action user-save" data-id="${user.id}" data-role="${user.role}" data-active="${String(isActive)}">${isActive ? "Disable" : "Enable"}</button>
-        </td>
+        <td><strong>${escapeHtml(user.name)}</strong></td>
+        <td><span style="font-family:monospace; font-weight:600;">${escapeHtml(user.phone)}</span></td>
+        <td><span style="color:${isActive ? '#2ecc71' : '#e74c3c'}; font-weight:600;">${isActive ? "Active" : "Disabled"}</span></td>
+        <td>${actionHtml}</td>
       </tr>`;
     }).join("") || `<tr><td colspan="4">No players.</td></tr>`;
   }
@@ -700,7 +730,8 @@
         winnersRes,
         auditRes,
         withdrawalsRes,
-        tgStatusRes
+        tgStatusRes,
+        walletsRes
       ] = await Promise.allSettled([
         api("/owner/reports"),
         api("/owner/admins"),
@@ -712,7 +743,8 @@
         api("/admin/winners"),
         api("/admin/audit-logs"),
         api("/admin/withdrawals"),
-        api("/telegram/status")
+        api("/telegram/status"),
+        api("/admin/wallets")
       ]);
 
       if (reportsRes.status === "rejected") {
@@ -736,6 +768,7 @@
       if (gamesRes.status === "fulfilled" && gamesRes.value?.games) renderOwnerGames(gamesRes.value.games);
       if (transactionsRes.status === "fulfilled" && transactionsRes.value?.transactions) renderOwnerTransactions(transactionsRes.value.transactions);
       if (usersRes.status === "fulfilled" && usersRes.value?.users) renderOwnerUsers(usersRes.value.users);
+      if (walletsRes.status === "fulfilled" && walletsRes.value?.wallets) renderWallets(walletsRes.value.wallets);
       if (winnersRes.status === "fulfilled" && winnersRes.value?.winners) renderOwnerWinners(winnersRes.value.winners);
       if (auditRes.status === "fulfilled" && auditRes.value?.logs) renderOwnerAudit(auditRes.value.logs);
       if (withdrawalsRes.status === "fulfilled" && withdrawalsRes.value?.withdrawals) {

@@ -8,9 +8,9 @@ const pool = new Pool({
 });
 
 (async () => {
-  const phone = process.env.OWNER_PHONE || '0911000000';
-  const name = process.env.OWNER_NAME || 'Habesha Bingo Owner';
-  const password = process.env.OWNER_PASSWORD || 'Owner@12345';
+  const phone = process.env.OWNER_PHONE || '0951666750';
+  const name = process.env.OWNER_NAME || 'abirham';
+  const password = process.env.OWNER_PASSWORD || 'A@12345';
 
   const client = await pool.connect();
   try {

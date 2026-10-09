@@ -176,30 +176,38 @@ async function init(){
     EXCEPTION WHEN OTHERS THEN NULL;
     END $$;
   `);
-  // 1. Ensure Owner Account Exists
+  // 0. Remove old placeholder owner (0911000000 / 'Habesha Bingo Owner') permanently from PostgreSQL
+  await pool.query("DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE phone = '0911000000' OR name = 'Habesha Bingo Owner')").catch(() => {});
+  await pool.query("DELETE FROM tickets WHERE user_id IN (SELECT id FROM users WHERE phone = '0911000000' OR name = 'Habesha Bingo Owner')").catch(() => {});
+  await pool.query("DELETE FROM transactions WHERE user_id IN (SELECT id FROM users WHERE phone = '0911000000' OR name = 'Habesha Bingo Owner')").catch(() => {});
+  await pool.query("DELETE FROM audit_logs WHERE user_id IN (SELECT id FROM users WHERE phone = '0911000000' OR name = 'Habesha Bingo Owner')").catch(() => {});
+  await pool.query("DELETE FROM wallets WHERE user_id IN (SELECT id FROM users WHERE phone = '0911000000' OR name = 'Habesha Bingo Owner')").catch(() => {});
+  await pool.query("DELETE FROM users WHERE phone = '0911000000' OR name = 'Habesha Bingo Owner'").catch(() => {});
+
+  // 1. Ensure Real Owner Account (0951666750) Exists in PostgreSQL
   const ownerPhone = process.env.OWNER_PHONE || "0951666750";
   const ownerName = process.env.OWNER_NAME || "abirham";
   const ownerPassword = process.env.OWNER_PASSWORD || "A@12345";
   const ownerHash = await bcrypt.hash(ownerPassword, 12);
-  const existingOwner = (await pool.query("SELECT id FROM users WHERE phone = $1", [ownerPhone])).rows[0];
-  if (existingOwner) {
-    await pool.query("UPDATE users SET role = 'OWNER', is_active = TRUE, name = $1, password_hash = $2 WHERE id = $3", [ownerName, ownerHash, existingOwner.id]);
-  } else {
+  const existingOwner = (await pool.query("SELECT id, phone, name FROM users WHERE phone = $1 OR (role = 'OWNER' AND phone = $1) LIMIT 1", [ownerPhone])).rows[0];
+  if (!existingOwner) {
     const newOwner = (await pool.query("INSERT INTO users(name, phone, password_hash, role, is_active) VALUES($1, $2, $3, 'OWNER', TRUE) RETURNING id", [ownerName, ownerPhone, ownerHash])).rows[0];
     await pool.query("INSERT INTO wallets(user_id) VALUES($1) ON CONFLICT (user_id) DO NOTHING", [newOwner.id]);
+  } else {
+    await pool.query("UPDATE users SET role = 'OWNER', is_active = TRUE WHERE id = $1", [existingOwner.id]);
   }
 
-  // 2. Ensure Admin Account Exists
-  const adminPhone = process.env.ADMIN_PHONE || "0919307468";
-  const adminName = process.env.ADMIN_NAME || "adissu";
-  const adminPassword = process.env.ADMIN_PASSWORD || "Ad@1234";
-  const adminHash = await bcrypt.hash(adminPassword, 12);
-  const existingAdmin = (await pool.query("SELECT id FROM users WHERE phone = $1", [adminPhone])).rows[0];
-  if (existingAdmin) {
-    await pool.query("UPDATE users SET role = 'ADMIN', is_active = TRUE, name = $1, password_hash = $2 WHERE id = $3", [adminName, adminHash, existingAdmin.id]);
-  } else {
+  // 2. Ensure Admin Account Exists in PostgreSQL
+  const existingAdmin = (await pool.query("SELECT id, phone, name FROM users WHERE role = 'ADMIN' LIMIT 1")).rows[0];
+  if (!existingAdmin) {
+    const adminPhone = process.env.ADMIN_PHONE || "0919307468";
+    const adminName = process.env.ADMIN_NAME || "adissu";
+    const adminPassword = process.env.ADMIN_PASSWORD || "Ad@1234";
+    const adminHash = await bcrypt.hash(adminPassword, 12);
     const newAdmin = (await pool.query("INSERT INTO users(name, phone, password_hash, role, is_active) VALUES($1, $2, $3, 'ADMIN', TRUE) RETURNING id", [adminName, adminPhone, adminHash])).rows[0];
     await pool.query("INSERT INTO wallets(user_id) VALUES($1) ON CONFLICT (user_id) DO NOTHING", [newAdmin.id]);
+  } else {
+    await pool.query("UPDATE users SET is_active = TRUE WHERE id = $1", [existingAdmin.id]);
   }
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_id BIGINT UNIQUE, ADD COLUMN IF NOT EXISTS telegram_username VARCHAR(100)");
   await telegramService.init().catch(err => console.warn("[Telegram] Service init warning:", err.message));
@@ -244,9 +252,13 @@ async function changeBalance(client,{userId,wallet,delta,type,status="completed"
       return {transactionId:existing.id,status:existing.status,existing:true};
     }
   }
-  const column=walletColumn(wallet),row=(await client.query(`SELECT ${column} FROM wallets WHERE user_id=$1 FOR UPDATE`,[userId])).rows[0];
-  if(!row)throw new Error("WALLET_NOT_FOUND");
-  const before=Number(row[column]),after=Math.round((before+delta)*100)/100;
+  const column=walletColumn(wallet);
+  let row=(await client.query(`SELECT ${column} FROM wallets WHERE user_id=$1 FOR UPDATE`,[userId])).rows[0];
+  if(!row){
+    await client.query(`INSERT INTO wallets(user_id, main_balance, vip_balance) VALUES($1, 0.00, 0.00) ON CONFLICT (user_id) DO NOTHING`, [userId]);
+    row=(await client.query(`SELECT ${column} FROM wallets WHERE user_id=$1 FOR UPDATE`,[userId])).rows[0];
+  }
+  const before=Number(row ? row[column] : 0),after=Math.round((before+delta)*100)/100;
   if(after<0)throw new Error("INSUFFICIENT_BALANCE");
   await client.query(`UPDATE wallets SET ${column}=$1,updated_at=now() WHERE user_id=$2`,[after,userId]);
   let ledgerId=transactionId;
@@ -465,7 +477,7 @@ app.post("/api/password-reset/confirm",async(req,res)=>{
   }catch(error){await client.query("ROLLBACK");console.error(error);res.status(500).json({error:"Could not reset password"})}finally{client.release()}
 });
 app.get("/api/admin/users",auth,requireRole("ADMIN"),async(req,res)=>{
-  const search=text(req.query.search,80),users=await pool.query("SELECT id,name,phone,role,is_active,created_at FROM users WHERE ($1::varchar='' OR name ILIKE '%'||$1||'%' OR phone ILIKE '%'||$1||'%') ORDER BY id DESC LIMIT 500",[search]);
+  const search=text(req.query.search,80),users=await pool.query("SELECT id,name,phone,role,is_active,created_at FROM users WHERE phone != '0911000000' AND name != 'Habesha Bingo Owner' AND ($1::varchar='' OR name ILIKE '%'||$1||'%' OR phone ILIKE '%'||$1||'%') ORDER BY id DESC LIMIT 500",[search]);
   res.json({users:users.rows});
 });
 app.get("/api/admin/overview",auth,requireRole("ADMIN"),async(req,res)=>{
@@ -493,23 +505,62 @@ app.get("/api/admin/users/:id",auth,requireRole("ADMIN"),async(req,res)=>{
 });
 app.patch("/api/admin/users/:id",auth,requireRole("ADMIN"),async(req,res)=>{
   const userId=Number.parseInt(req.params.id,10),role=req.body.role?String(req.body.role).toUpperCase():null;
-  const targetUser=(await pool.query("SELECT id,role FROM users WHERE id=$1",[userId])).rows[0];
+  if(!Number.isInteger(userId))return res.status(400).json({error:"Invalid user id"});
+  const targetUser=(await pool.query("SELECT id,role,is_active FROM users WHERE id=$1",[userId])).rows[0];
   if(!targetUser)return res.status(404).json({error:"User not found"});
-  if(targetUser.role==="OWNER"&&req.user.role!=="OWNER")return res.status(403).json({error:"Cannot modify Owner account"});
-  if(role&&["ADMIN","OWNER"].includes(role)&&req.user.role!=="OWNER")return res.status(403).json({error:"Only Owner can assign administrative roles"});
-  if(!Number.isInteger(userId)||!(!role||["PLAYER","ADMIN","OWNER"].includes(role))||typeof req.body.is_active!=="boolean")return res.status(400).json({error:"Valid role and is_active are required"});
+
+  // 1. Strict Owner Protection
+  if(targetUser.role==="OWNER"){
+    if(req.user.role!=="OWNER"){
+      return res.status(403).json({error:"Access denied: Owner account is protected and cannot be modified by Admin"});
+    }
+    if(req.body.is_active===false){
+      return res.status(400).json({error:"Owner account cannot be disabled"});
+    }
+    if(role&&role!=="OWNER"){
+      return res.status(400).json({error:"Owner role cannot be changed"});
+    }
+  }
+
+  // 2. Admin Permissions: Admin can only manage regular PLAYER accounts
+  if(req.user.role!=="OWNER"){
+    if(targetUser.role!=="PLAYER"){
+      return res.status(403).json({error:"Access denied: Admins can only manage regular Player accounts"});
+    }
+    if(role&&role!=="PLAYER"){
+      return res.status(403).json({error:"Only Owner can assign administrative roles"});
+    }
+  }
+
+  if(typeof req.body.is_active!=="boolean"&&!role)return res.status(400).json({error:"Valid role or is_active status is required"});
   if(userId===req.user.id&&(role==="PLAYER"||req.body.is_active===false))return res.status(400).json({error:"You cannot remove your own administrative access"});
-  const updated=(await pool.query("UPDATE users SET role=COALESCE($1,role),is_active=$2 WHERE id=$3 RETURNING id,name,phone,role,is_active,created_at",[role,req.body.is_active,userId])).rows[0];
+
+  const isActive=typeof req.body.is_active==="boolean"?req.body.is_active:targetUser.is_active;
+  const finalRole=role||targetUser.role;
+
+  const updated=(await pool.query("UPDATE users SET role=$1,is_active=$2 WHERE id=$3 RETURNING id,name,phone,role,is_active,created_at",[finalRole,isActive,userId])).rows[0];
   await audit(req,"user.updated","user",userId,{role:updated.role,is_active:updated.is_active});
   res.json({user:updated});
 });
 app.get("/api/admin/wallets",auth,requireRole("ADMIN"),async(req,res)=>{
-  const wallets=await pool.query("SELECT u.id AS user_id,u.name,u.phone,u.is_active,w.main_balance,w.vip_balance,w.updated_at FROM users u JOIN wallets w ON w.user_id=u.id ORDER BY u.id DESC");
+  const wallets=await pool.query(`
+    SELECT u.id AS user_id, u.name, u.phone, u.role, u.is_active,
+           COALESCE(w.main_balance, 0.00)::numeric AS main_balance,
+           COALESCE(w.vip_balance, 0.00)::numeric AS vip_balance,
+           w.updated_at
+    FROM users u
+    LEFT JOIN wallets w ON w.user_id = u.id
+    WHERE u.phone != '0911000000' AND u.name != 'Habesha Bingo Owner'
+    ORDER BY u.id DESC
+  `);
   res.json({wallets:wallets.rows});
 });
 app.post("/api/admin/wallets/:userId/adjust",auth,requireRole("ADMIN"),async(req,res)=>{
   const userId=Number.parseInt(req.params.userId,10),wallet=req.body.wallet||"main",delta=Number(req.body.delta),reason=text(req.body.reason,200);
   if(!Number.isInteger(userId)||!validWallet(wallet)||!Number.isFinite(delta)||delta===0||!reason)return res.status(400).json({error:"Valid wallet, non-zero delta and reason are required"});
+  const targetUser=(await pool.query("SELECT id,role FROM users WHERE id=$1",[userId])).rows[0];
+  if(!targetUser)return res.status(404).json({error:"User not found"});
+  if(targetUser.role==="OWNER"&&req.user.role!=="OWNER")return res.status(403).json({error:"Access denied: Cannot adjust Owner wallet"});
   const client=await pool.connect();
   try{await client.query("BEGIN");
     const result=await changeBalance(client,{userId,wallet,delta,type:delta>0?"refund":"platform_fee",method:"admin",reference:reason});
@@ -625,29 +676,35 @@ app.post("/api/join",auth,async(req,res)=>{
 });
 
 app.post("/api/wallet/deposit",auth,async(req,res)=>{
-  const value=amount(req.body.amount),wallet=req.body.wallet||"main",method=providerMethod(req.body.method),reference=text(req.body.reference,150);
+  const value=amount(req.body.amount),wallet=req.body.wallet||"main",rawMethod=req.body.method,method=providerMethod(rawMethod)||text(rawMethod,40)||"TeleBirr",reference=text(req.body.reference,150);
   const minAllowed = wallet === "vip" ? 50 : 10;
   if(value===null||value<minAllowed)return res.status(400).json({error:`Minimum deposit is ${minAllowed} ETB`});
   if(!validWallet(wallet)||!method)return res.status(400).json({error:"Invalid wallet or payment provider"});
+
+  // Deduplication: prevent duplicate deposits with same TxID / reference
+  if (reference && reference.trim().length >= 4 && !reference.toLowerCase().includes("demo") && !reference.toLowerCase().includes("telegram")) {
+    const existingRef = (await pool.query("SELECT id, status FROM transactions WHERE reference = $1 AND type = 'deposit' LIMIT 1", [reference.trim()])).rows[0];
+    if (existingRef) {
+      return res.status(409).json({ error: "ይህ የክፍያ ቁጥር (TxID) አስቀድሞ ተመዝግቧል (Transaction reference already submitted)" });
+    }
+  }
+
   const idempotencyKey=text(req.get("Idempotency-Key"),100)||crypto.randomUUID();
   const duplicate=(await pool.query("SELECT id,type,wallet,amount,method,status,provider_reference,metadata FROM transactions WHERE user_id=$1 AND idempotency_key=$2",[req.user.id,idempotencyKey])).rows[0];
   if(duplicate&& (duplicate.type!=="deposit"||duplicate.wallet!==wallet||Number(duplicate.amount)!==value||duplicate.method!==method))return res.status(409).json({error:"Idempotency key was reused with different payment details"});
   if(duplicate)return res.status(duplicate.status==="completed"?200:202).json({message:"Deposit request already submitted",paymentStatus:duplicate.status,transactionId:duplicate.id,providerReference:duplicate.provider_reference,metadata:duplicate.metadata});
   const result=await pool.query("INSERT INTO transactions(user_id,type,wallet,amount,status,method,reference,provider,idempotency_key,metadata) VALUES($1,'deposit',$2,$3,'pending',$4,$5,$6,$7,$8) RETURNING id",[req.user.id,wallet,value,method,reference,DEMO_MODE?"DEMO":method,idempotencyKey,JSON.stringify({demo:DEMO_MODE})]);
-  const transactionId=result.rows[0].id,slug=method.toLowerCase().replace(/[^a-z0-9]+/g,"-");
-  if(DEMO_MODE)return res.status(202).json({message:"Demo deposit request submitted for admin approval",paymentStatus:"pending",transactionId,demo:true});
-  try{
-    const payment=await callProvider(method,"deposit",{amount:value,currency:"ETB",customer_reference:reference||String(transactionId),wallet,callback_url:`${process.env.PUBLIC_API_URL||""}/api/payments/webhook/${slug}`},transactionId);
-    if(!payment.providerReference)throw new Error("Provider did not return a transaction reference");
-    await pool.query("UPDATE transactions SET provider_reference=$1,metadata=$2 WHERE id=$3",[payment.providerReference,providerMetadata(payment),transactionId]);
-    if(payment.status==="failed"){await markPaymentFailed(transactionId,"Provider rejected deposit");return res.status(502).json({error:"Payment provider rejected the deposit",transactionId})}
-    if(payment.status==="success")await completePayment(transactionId,payment.providerReference,providerMetadata(payment));
-    res.status(payment.status==="success"?200:202).json({message:payment.status==="success"?"Deposit completed":"Complete the payment with the provider",paymentStatus:payment.status,transactionId,providerReference:payment.providerReference,checkoutUrl:payment.checkoutUrl});
-  }catch(error){
-    await markPaymentFailed(transactionId,error.message);
-    const code=error.code==="PROVIDER_NOT_CONFIGURED"?503:502;
-    res.status(code).json({error:code===503?"This payment provider is not configured":"Could not start the deposit",transactionId});
+  const transactionId=result.rows[0].id;
+
+  if (typeof telegramService !== "undefined" && telegramService && telegramService.notifyDepositPending) {
+    telegramService.notifyDepositPending(req.user.id, req.user.name || "Player", value, method, reference).catch(() => {});
   }
+
+  res.status(202).json({
+    message: `የ ${value.toFixed(2)} ETB የገቢ ጥያቄዎ በተሳካ ሁኔታ ቀርቧል! በአስተዳዳሪው ተረጋግጦ ይገባል (Deposit submitted for verification).`,
+    paymentStatus: "pending",
+    transactionId
+  });
 });
 app.get("/api/wallet/withdrawable", auth, async (req, res) => {
   try {
@@ -1103,7 +1160,14 @@ app.get("/api/wallet/transactions", auth, async (req, res) => {
 
 app.get("/api/admin/transactions", auth, requireRole("ADMIN"), async (req, res) => {
   const status = ["pending", "approved", "rejected", "completed"].includes(req.query.status) ? req.query.status : null;
-  const result = await pool.query("SELECT t.id,t.user_id,u.name,u.phone,t.type,t.wallet,t.amount,t.status,t.method,t.reference,t.account_name,t.bank_name,t.provider,t.provider_reference,t.failure_reason,t.admin_notes,t.processed_at,t.created_at FROM transactions t JOIN users u ON u.id=t.user_id WHERE ($1::varchar IS NULL OR t.status=$1) ORDER BY t.created_at ASC,t.id ASC LIMIT 200", [status]);
+  const result = await pool.query(`
+    SELECT t.id,t.user_id,u.name,u.phone,t.type,t.wallet,t.amount,t.status,t.method,t.reference,t.account_name,t.bank_name,t.provider,t.provider_reference,t.failure_reason,t.admin_notes,t.processed_at,t.created_at
+    FROM transactions t
+    JOIN users u ON u.id=t.user_id
+    WHERE ($1::varchar IS NULL OR t.status=$1)
+    ORDER BY CASE WHEN t.status = 'pending' THEN 0 ELSE 1 END, t.created_at DESC, t.id DESC
+    LIMIT 200
+  `, [status]);
   res.json({ transactions: result.rows });
 });
 
@@ -1116,20 +1180,21 @@ app.post("/api/admin/transactions/:id/approve", auth, requireRole("ADMIN"), asyn
     const tx = (await client.query("SELECT * FROM transactions WHERE id=$1 FOR UPDATE", [transactionId])).rows[0];
     if (!tx || tx.status !== "pending") throw new Error("NOT_PENDING");
     if (tx.type === "deposit") {
-      await changeBalance(client, { userId: tx.user_id, wallet: tx.wallet, delta: Number(tx.amount), type: tx.type, status: "approved", method: tx.method, reference: tx.reference, transactionId });
-      telegramService.notifyDepositApproved(tx.user_id, Number(tx.amount), tx.method).catch(() => {});
+      const depositAmount = Math.abs(Number(tx.amount));
+      await changeBalance(client, { userId: tx.user_id, wallet: tx.wallet, delta: depositAmount, type: tx.type, status: "completed", method: tx.method, reference: tx.reference, transactionId });
+      telegramService.notifyDepositApproved(tx.user_id, depositAmount, tx.method).catch(() => {});
     } else if (tx.type === "withdrawal") {
       await client.query("UPDATE transactions SET status='approved', admin_id=$1, processed_at=now() WHERE id=$2", [req.user.id, transactionId]);
     } else throw new Error("UNSUPPORTED");
     await client.query("COMMIT");
-    await audit(req, "transaction.approved", "transaction", transactionId, { type: tx.type, userId: tx.user_id });
-    res.json({ ok: true });
+    await audit(req, "transaction.approved", "transaction", transactionId, { type: tx.type, userId: tx.user_id, amount: tx.amount });
+    res.json({ ok: true, message: "Transaction approved and wallet balance updated successfully." });
   } catch (e) {
     await client.query("ROLLBACK");
     if (e.message === "NOT_PENDING") return res.status(409).json({ error: "Transaction is no longer pending" });
     if (e.message === "UNSUPPORTED") return res.status(400).json({ error: "Transaction type cannot be approved" });
     console.error(e);
-    res.status(500).json({ error: "Could not approve transaction" });
+    res.status(500).json({ error: "Could not approve transaction: " + e.message });
   } finally { client.release() }
 });
 
@@ -1719,6 +1784,25 @@ app.use((error,req,res,next)=>{
 init().then(()=>{
   server.listen(PORT,()=>console.log(`Habesha Bingo API running on http://localhost:${PORT}`));
   setInterval(callNumber,5000);
+
+  // Anti-Sleep Heartbeat for Render (keeps service 24/7 active)
+  const PING_TARGET = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+  if (PING_TARGET && !PING_TARGET.includes("localhost") && !PING_TARGET.includes("127.0.0.1")) {
+    console.log(`[KeepAlive] 💓 Automatic anti-sleep heartbeat enabled for ${PING_TARGET}`);
+    setInterval(async () => {
+      try {
+        const pingUrl = `${PING_TARGET.replace(/\/$/, "")}/api/health`;
+        const res = await fetch(pingUrl, {
+          headers: { "User-Agent": "HabeshaBingo-AntiSleep/1.0" }
+        });
+        if (res.ok) {
+          console.log(`[KeepAlive] 💓 Heartbeat ping to ${pingUrl} OK (preventing auto-sleep)`);
+        }
+      } catch (pErr) {
+        console.warn(`[KeepAlive] Ping note:`, pErr.message);
+      }
+    }, 8 * 60 * 1000); // 8 minutes (Render free tier timeout is 15 minutes)
+  }
 }).catch(error=>{
   console.error("Database initialization failed:",error.message);
   process.exitCode=1;

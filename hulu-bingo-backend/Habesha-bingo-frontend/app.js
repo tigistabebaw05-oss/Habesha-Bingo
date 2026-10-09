@@ -293,7 +293,7 @@ async function refresh(){
       if($("mainBalance")) $("mainBalance").textContent=money(w.wallet?.main_balance);
       if($("vipBalance")) $("vipBalance").textContent=money(w.wallet?.vip_balance);
       if($("tgMainBalance")) $("tgMainBalance").textContent=money(w.wallet?.main_balance);
-      if($("tgPlayBalance")) $("tgPlayBalance").textContent="8.00 ETB";
+      if($("tgPlayBalance")) $("tgPlayBalance").textContent=money(w.wallet?.main_balance);
 
       // Populate KYC name default if empty
       if ($("withdrawAccountNameInput") && !$("withdrawAccountNameInput").value) {
@@ -1226,6 +1226,249 @@ function getBingoLetter(num) {
   return "B";
 }
 
+// Amharic phonetic numbers for Bingo 1-75
+const AMHARIC_NUMBERS = {
+  1: "አንድ", 2: "ሁለት", 3: "ሦስት", 4: "አራት", 5: "አምስት",
+  6: "ስድስት", 7: "ሰባት", 8: "ስምንት", 9: "ዘጠኝ", 10: "አስር",
+  11: "አስራ አንድ", 12: "አስራ ሁለት", 13: "አስራ ሦስት", 14: "አስራ አራት", 15: "አስራ አምስት",
+  16: "አስራ ስድስት", 17: "አስራ ሰባት", 18: "አስራ ስምንት", 19: "አስራ ዘጠኝ", 20: "ሃያ",
+  21: "ሃያ አንድ", 22: "ሃያ ሁለት", 23: "ሃያ ሦስት", 24: "ሃያ አራት", 25: "ሃያ አምስት",
+  26: "ሃያ ስድስት", 27: "ሃያ ሰባት", 28: "ሃያ ስምንት", 29: "ሃያ ዘጠኝ", 30: "ሠላሳ",
+  31: "ሠላሳ አንድ", 32: "ሠላሳ ሁለት", 33: "ሠላሳ ሦስት", 34: "ሠላሳ አራት", 35: "ሠላሳ አምስት",
+  36: "ሠላሳ ስድስት", 37: "ሠላሳ ሰባት", 38: "ሠላሳ ስምንት", 39: "ሠላሳ ዘጠኝ", 40: "አርባ",
+  41: "አርባ አንድ", 42: "አርባ ሁለት", 43: "አርባ ሦስት", 44: "አርባ አራት", 45: "አርባ አምስት",
+  46: "አርባ ስድስት", 47: "አርባ ሰባት", 48: "አርባ ስምንት", 49: "አርባ ዘጠኝ", 50: "ኃምሳ",
+  51: "ኃምሳ አንድ", 52: "ኃምሳ ሁለት", 53: "ኃምሳ ሦስት", 54: "ኃምሳ አራት", 55: "ኃምሳ አምስት",
+  56: "ኃምሳ ስድስት", 57: "ኃምሳ ሰባት", 58: "ኃምሳ ስምንት", 59: "ኃምሳ ዘጠኝ", 60: "ስድሳ",
+  61: "ስድሳ አንድ", 62: "ስድሳ ሁለት", 63: "ስድሳ ሦስት", 64: "ስድሳ አራት", 65: "ስድሳ አምስት",
+  66: "ስድሳ ስድስት", 67: "ስድሳ ሰባት", 68: "ስድሳ ስምንት", 69: "ስድሳ ዘጠኝ", 70: "ሰባ",
+  71: "ሰባ አንድ", 72: "ሰባ ሁለት", 73: "ሰባ ሦስት", 74: "ሰባ አራት", 75: "ሰባ አምስት"
+};
+
+const AMHARIC_LETTERS = {
+  B: "ቢ",
+  I: "አይ",
+  N: "ኤን",
+  G: "ጂ",
+  O: "ኦ"
+};
+
+class BingoAnnouncer {
+  constructor() {
+    this.soundEnabled = localStorage.getItem("habesha_bingo_sound") !== "false";
+    this.audioCtx = null;
+    this.lastCalledNumber = null;
+    this.voiceLang = localStorage.getItem("habesha_bingo_voice_lang") || "en";
+    this.voices = [];
+    this.bestVoice = null;
+    this.initAudioContextOnUserGesture();
+    this.initVoices();
+  }
+
+  initVoices() {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const updateVoices = () => {
+      try {
+        this.voices = window.speechSynthesis.getVoices() || [];
+        const enVoices = this.voices.filter(v => v.lang && v.lang.toLowerCase().startsWith("en"));
+        this.bestVoice = enVoices.find(v => /google|natural|samantha|karen|daniel/i.test(v.name))
+          || enVoices.find(v => /david|zira|george|hazel|susan/i.test(v.name))
+          || enVoices[0]
+          || this.voices[0]
+          || null;
+      } catch (_) {}
+    };
+    updateVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = updateVoices;
+    }
+  }
+
+  initAudioContextOnUserGesture() {
+    if (typeof window === "undefined") return;
+    const unlock = () => {
+      try {
+        if (!this.audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) this.audioCtx = new AudioContextClass();
+        }
+        if (this.audioCtx && this.audioCtx.state === "suspended") {
+          this.audioCtx.resume();
+        }
+        if (window.speechSynthesis && window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+      } catch (err) {
+        console.warn("Audio unlock note:", err);
+      }
+    };
+    ["click", "touchstart", "pointerdown", "keydown"].forEach(evt => {
+      window.addEventListener(evt, unlock, { once: false, passive: true });
+    });
+  }
+
+  playChime() {
+    if (!this.soundEnabled) return;
+    try {
+      if (!this.audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) this.audioCtx = new AudioContextClass();
+      }
+      if (!this.audioCtx) return;
+      if (this.audioCtx.state === "suspended") {
+        this.audioCtx.resume();
+      }
+
+      const now = this.audioCtx.currentTime;
+
+      // Tone 1: Acoustic Ball Drop "pop"
+      const popOsc = this.audioCtx.createOscillator();
+      const popGain = this.audioCtx.createGain();
+      popOsc.type = "sine";
+      popOsc.frequency.setValueAtTime(280, now);
+      popOsc.frequency.exponentialRampToValueAtTime(100, now + 0.08);
+      popGain.gain.setValueAtTime(0.3, now);
+      popGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      popOsc.connect(popGain);
+      popGain.connect(this.audioCtx.destination);
+      popOsc.start(now);
+      popOsc.stop(now + 0.09);
+
+      // Tone 2 & 3: High crystal chime bells
+      const playBellTone = (freq, startTime, duration, vol) => {
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0.001, startTime);
+        gain.gain.linearRampToValueAtTime(vol, startTime + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration + 0.02);
+      };
+
+      playBellTone(659.25, now + 0.02, 0.32, 0.22); // E5
+      playBellTone(880.00, now + 0.06, 0.42, 0.26); // A5
+      playBellTone(1318.5, now + 0.10, 0.38, 0.18); // E6
+    } catch (e) {
+      console.warn("Chime play error:", e);
+    }
+  }
+
+  speakBall(letter, num) {
+    if (!this.soundEnabled) return;
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+
+    try {
+      window.speechSynthesis.cancel();
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+
+      // Check if Amharic voice is available when voiceLang is 'am'
+      const amVoice = this.voices.find(v => v.lang && v.lang.toLowerCase().startsWith("am"));
+      let textToSpeak = `${letter}, ${num}`;
+      let useAmharic = this.voiceLang === "am" && amVoice && AMHARIC_NUMBERS[num];
+
+      if (useAmharic) {
+        const amL = AMHARIC_LETTERS[letter] || letter;
+        textToSpeak = `${amL}, ${AMHARIC_NUMBERS[num]}`;
+      }
+
+      const utt = new SpeechSynthesisUtterance(textToSpeak);
+      utt.rate = 0.92;
+      utt.pitch = 1.05;
+      utt.volume = 1.0;
+
+      if (useAmharic && amVoice) {
+        utt.voice = amVoice;
+        utt.lang = amVoice.lang;
+      } else if (this.bestVoice) {
+        utt.voice = this.bestVoice;
+        utt.lang = this.bestVoice.lang || "en-US";
+      } else {
+        utt.lang = "en-US";
+      }
+
+      window.speechSynthesis.speak(utt);
+    } catch (err) {
+      console.warn("Speech synthesis announcement error:", err);
+    }
+  }
+
+  announceBall(num, force = false) {
+    const n = Number(num);
+    if (!Number.isInteger(n) || n < 1 || n > 75) return;
+    if (!force && this.lastCalledNumber === n) return;
+    this.lastCalledNumber = n;
+
+    const letter = getBingoLetter(n);
+
+    // Visual ball bounce / pop animation
+    const ballEl = document.getElementById("tgMainBall");
+    if (ballEl) {
+      ballEl.classList.remove("ball-pop-anim");
+      void ballEl.offsetWidth; // trigger reflow
+      ballEl.classList.add("ball-pop-anim");
+      setTimeout(() => ballEl.classList.remove("ball-pop-anim"), 700);
+    }
+
+    // Play Bell Chime immediately
+    this.playChime();
+
+    // Call out number via Voice after brief chime onset
+    setTimeout(() => {
+      this.speakBall(letter, n);
+    }, 180);
+  }
+
+  toggleSound() {
+    this.soundEnabled = !this.soundEnabled;
+    localStorage.setItem("habesha_bingo_sound", this.soundEnabled ? "true" : "false");
+    this.updateSoundButtonUI();
+
+    if (this.soundEnabled) {
+      this.playChime();
+      toast("ድምጽ በርቷል — Caller Voice: ON 🔊");
+      if (this.lastCalledNumber) {
+        setTimeout(() => {
+          this.announceBall(this.lastCalledNumber, true);
+        }, 220);
+      }
+    } else {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      toast("ድምጽ ጠፍቷል — Caller Voice: Muted 🔇");
+    }
+  }
+
+  updateSoundButtonUI() {
+    const btns = document.querySelectorAll("#tgSoundBtn, .sound-btn, .vip-sound-btn");
+    btns.forEach(btn => {
+      if (!btn) return;
+      btn.style.opacity = this.soundEnabled ? "1" : "0.38";
+      btn.title = this.soundEnabled ? "ድምጽ ለማጥፋት ይጫኑ (Voice ON)" : "ድምጽ ለማብራት ይጫኑ (Voice MUTED)";
+      btn.setAttribute("aria-label", this.soundEnabled ? "Mute Caller Voice" : "Unmute Caller Voice");
+      if (this.soundEnabled) {
+        btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
+        btn.classList.add("sound-active");
+      } else {
+        btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>`;
+        btn.classList.remove("sound-active");
+      }
+    });
+  }
+
+  reset() {
+    this.lastCalledNumber = null;
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  }
+}
+
+const bingoAnnouncer = new BingoAnnouncer();
+window.bingoAnnouncer = bingoAnnouncer;
+
 // Deterministic Cartela Presets & Seeded Generator
 const CARTELA_PRESETS = {
   468: {
@@ -1431,9 +1674,16 @@ function syncHuluWebApp(overrideNum, overrideList) {
     const selCount = selectedCardNumbers.size;
     selPrizeEl.textContent = `${selCount * 8} ETB`;
   }
-  if (ballLetterEl) ballLetterEl.textContent = getBingoLetter(currentNum);
+  const currentLetter = getBingoLetter(currentNum);
+  if (ballLetterEl) {
+    ballLetterEl.textContent = currentLetter;
+    ballLetterEl.className = `ball-letter c-${currentLetter.toLowerCase()}`;
+  }
   if (ballNumEl) ballNumEl.textContent = currentNum;
   if (trackerCount) trackerCount.innerHTML = `<span class="yellow-dot">●</span> ${calledCount}/75`;
+
+  // Announce current called ball with voice & chime
+  bingoAnnouncer.announceBall(currentNum);
 
   if (chipsContainer) {
     const recent = calledList.slice(-7).reverse();
@@ -1680,6 +1930,7 @@ function switchToLiveGameView() {
   // Initial called sequence matching Screenshots 3 & 4
   if (liveGameInterval) clearInterval(liveGameInterval);
   let liveCalled = [31];
+  bingoAnnouncer.reset();
   syncHuluWebApp(31, liveCalled);
 
   // Progressive caller sequence: calls 60 (on card #468), then 23 (on card #468)
@@ -1902,14 +2153,42 @@ if($("tgModeAuto") && $("tgModeManual")) {
   });
 }
 
-if($("tgSoundBtn")) {
-  let soundOn = true;
-  $("tgSoundBtn").addEventListener("click", () => {
-    soundOn = !soundOn;
-    $("tgSoundBtn").style.opacity = soundOn ? "1" : "0.35";
-    toast(soundOn ? "Sound unmuted" : "Sound muted");
+// Caller Sound & Voice Controls
+document.querySelectorAll("#tgSoundBtn, .sound-btn, .vip-sound-btn").forEach(btn => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    bingoAnnouncer.toggleSound();
+  });
+});
+bingoAnnouncer.updateSoundButtonUI();
+
+// Click Big Ball to replay voice announcement
+const mainBallEl = $("tgMainBall");
+if (mainBallEl) {
+  mainBallEl.title = "ቁጥሩን በድምጽ ለመስማት ይጫኑ (Click to replay caller voice)";
+  mainBallEl.addEventListener("click", () => {
+    const curNum = $("tgBallNumber")?.textContent;
+    if (curNum && Number(curNum) >= 1 && Number(curNum) <= 75) {
+      bingoAnnouncer.announceBall(Number(curNum), true);
+    }
   });
 }
+
+// Voice Language Switcher (EN / አማርኛ)
+document.querySelectorAll(".vip-lang-pill .lang-opt").forEach(opt => {
+  opt.addEventListener("click", () => {
+    document.querySelectorAll(".vip-lang-pill .lang-opt").forEach(o => o.classList.remove("active"));
+    opt.classList.add("active");
+    const isAm = opt.textContent.includes("አማ");
+    bingoAnnouncer.voiceLang = isAm ? "am" : "en";
+    localStorage.setItem("habesha_bingo_voice_lang", bingoAnnouncer.voiceLang);
+    toast(isAm ? "የድምጽ ቋንቋ፡ አማርኛ ተመርጧል" : "Caller Voice: English selected");
+    const curNum = $("tgBallNumber")?.textContent;
+    if (curNum && Number(curNum) >= 1 && Number(curNum) <= 75) {
+      bingoAnnouncer.announceBall(Number(curNum), true);
+    }
+  });
+});
 
 const tgNavItems = ["tgNavHome", "tgNavRank", "tgNavProfile", "tgNavBoard"];
 tgNavItems.forEach(id => {
