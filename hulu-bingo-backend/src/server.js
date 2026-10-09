@@ -693,17 +693,28 @@ app.post("/api/wallet/deposit",auth,async(req,res)=>{
   const duplicate=(await pool.query("SELECT id,type,wallet,amount,method,status,provider_reference,metadata FROM transactions WHERE user_id=$1 AND idempotency_key=$2",[req.user.id,idempotencyKey])).rows[0];
   if(duplicate&& (duplicate.type!=="deposit"||duplicate.wallet!==wallet||Number(duplicate.amount)!==value||duplicate.method!==method))return res.status(409).json({error:"Idempotency key was reused with different payment details"});
   if(duplicate)return res.status(duplicate.status==="completed"?200:202).json({message:"Deposit request already submitted",paymentStatus:duplicate.status,transactionId:duplicate.id,providerReference:duplicate.provider_reference,metadata:duplicate.metadata});
-  const result=await pool.query("INSERT INTO transactions(user_id,type,wallet,amount,status,method,reference,provider,idempotency_key,metadata) VALUES($1,'deposit',$2,$3,'pending',$4,$5,$6,$7,$8) RETURNING id",[req.user.id,wallet,value,method,reference,DEMO_MODE?"DEMO":method,idempotencyKey,JSON.stringify({demo:DEMO_MODE})]);
+  
+  const initialStatus = DEMO_MODE ? "completed" : "pending";
+  const result=await pool.query("INSERT INTO transactions(user_id,type,wallet,amount,status,method,reference,provider,idempotency_key,metadata) VALUES($1,'deposit',$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id",[req.user.id,wallet,value,initialStatus,method,reference,DEMO_MODE?"DEMO":method,idempotencyKey,JSON.stringify({demo:DEMO_MODE})]);
   const transactionId=result.rows[0].id;
 
-  if (typeof telegramService !== "undefined" && telegramService && telegramService.notifyDepositPending) {
+  if (initialStatus === "completed") {
+    await changeBalance(pool, req.user.id, wallet, value);
+  }
+
+  if (typeof telegramService !== "undefined" && telegramService && telegramService.notifyDepositPending && !DEMO_MODE) {
     telegramService.notifyDepositPending(req.user.id, req.user.name || "Player", value, method, reference).catch(() => {});
   }
 
-  res.status(202).json({
-    message: `የ ${value.toFixed(2)} ETB የገቢ ጥያቄዎ በተሳካ ሁኔታ ቀርቧል! በአስተዳዳሪው ተረጋግጦ ይገባል (Deposit submitted for verification).`,
-    paymentStatus: "pending",
-    transactionId
+  const updatedWallet = (await pool.query("SELECT main_balance, vip_balance FROM wallets WHERE user_id=$1", [req.user.id])).rows[0] || { main_balance: "0.00", vip_balance: "0.00" };
+
+  res.status(initialStatus === "completed" ? 200 : 202).json({
+    message: initialStatus === "completed"
+      ? `የ ${value.toFixed(2)} ETB ገቢ በተሳካ ሁኔታ ወደ ዋሌትዎ ገብቷል! አሁኑኑ ካርቴላ መምረጥ ይችላሉ።`
+      : `የ ${value.toFixed(2)} ETB የገቢ ጥያቄዎ በተሳካ ሁኔታ ቀርቧል! በአስተዳዳሪው ተረጋግጦ ይገባል (Deposit submitted for verification).`,
+    paymentStatus: initialStatus,
+    transactionId,
+    wallet: updatedWallet
   });
 });
 app.get("/api/wallet/withdrawable", auth, async (req, res) => {

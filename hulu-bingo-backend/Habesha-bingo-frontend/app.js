@@ -1017,11 +1017,14 @@ window.openDepositInstructionFlow = function(method = "TeleBirr") {
 window.confirmDepositFlow1 = async function() {
   const method = window.currentDepositMethod || "TeleBirr";
   const target = window.currentDepositTarget || "🎮 Main Game";
-  const amount = window.currentDepositAmount || 100;
+  const inputAmt = $("depositAmountInput") ? Number($("depositAmountInput").value) : 100;
+  const amount = (inputAmt && inputAmt >= 10) ? inputAmt : (window.currentDepositAmount || 100);
+  const txid = $("depositTxidInput") ? $("depositTxidInput").value.trim() : "";
   const isVip = target.toLowerCase().includes("vip");
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const reference = txid || `TeleBirr-TX-${Date.now().toString().slice(-6)}`;
 
-  // Update local wallet so player can play immediately
+  // Optimistically credit local wallet
   if (!state.wallet) state.wallet = { main_balance: "0.00", vip_balance: "0.00" };
   if (isVip) {
     state.wallet.vip_balance = (Number(state.wallet.vip_balance || 0) + amount).toFixed(2);
@@ -1029,19 +1032,26 @@ window.confirmDepositFlow1 = async function() {
     state.wallet.main_balance = (Number(state.wallet.main_balance || 0) + amount).toFixed(2);
   }
 
+  // Update DOM balance displays immediately
+  if ($("mainBalance")) $("mainBalance").textContent = money(state.wallet.main_balance);
+  if ($("tgMainBalance")) $("tgMainBalance").textContent = money(state.wallet.main_balance);
+  if ($("tgPlayBalance")) $("tgPlayBalance").textContent = money(state.wallet.main_balance);
+  if ($("modalMainBalance")) $("modalMainBalance").textContent = money(state.wallet.main_balance);
+  if ($("modalVipBalance")) $("modalVipBalance").textContent = money(state.wallet.vip_balance);
+
   const chatContainer = $("telegramDepositChatState");
   const msgBox = $("depositChatMessages");
   if (chatContainer && msgBox) {
     msgBox.innerHTML += `
       <div class="chat-message user-message" style="align-self: flex-end;">
-        1 <small class="msg-time">${now} <span style="color: #4caf50;">✓✓</span></small>
+        ${escapeHtml(txid || "TxID / SMS Submitted")} <small class="msg-time">${now} <span style="color: #4caf50;">✓✓</span></small>
       </div>
       <div class="chat-message bot-message" style="text-align: left; line-height: 1.6;">
         <div style="font-weight: bold; color: #4caf50; font-size: 15px;">✅ የገቢ ጥያቄዎ ተጠናቋል!</div>
         <div style="margin-top: 8px;">መጠን: <b>${amount} ETB</b><br>ዘዴ: <b>${escapeHtml(method)}</b></div>
-        <div style="margin-top: 8px;">🎯 Target: <b>${escapeHtml(target)}</b></div>
-        <div style="margin-top: 8px; color: #22c55e; font-weight: 600;">🎉 ገንዘቡ ወደ ዋሌትዎ ገብቷል! አሁኑኑ ጨዋታውን መጀመር ይችላሉ።</div>
-        <button class="keyboard-btn full-width" id="btnDepositPlayNow" type="button" style="margin-top: 10px; background: #22c55e; color: #ffffff; font-weight: bold; border-radius: 8px; border: none; padding: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">🎮 ጨዋታውን ጀምር (Start Playing)</button>
+        <div style="margin-top: 4px;">TxID: <code>${escapeHtml(reference)}</code></div>
+        <div style="margin-top: 8px; color: #22c55e; font-weight: 600;">🎉 ${amount} ETB ወደ ዋሌትዎ ገብቷል! አሁኑኑ ካርቴላ መምረጥ ይችላሉ።</div>
+        <button class="keyboard-btn full-width" id="btnDepositPlayNow" type="button" style="margin-top: 10px; background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; font-weight: bold; border-radius: 8px; border: none; padding: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 15px;">🎮 ካርቴላ ምረጥ & ተጫወት (Select Cartela & Play)</button>
         <small class="msg-time">${now}</small>
       </div>
     `;
@@ -1068,14 +1078,20 @@ window.confirmDepositFlow1 = async function() {
   try {
     const token = authStorage.getItem("hulu_token");
     if (token) {
-      await api("/wallet/deposit", {
-        method: method,
-        amount: amount,
-        wallet: isVip ? "vip" : "main",
-        reference: `Telegram WebApp Deposit (${amount} ETB - ${method})`
+      const res = await api("/wallet/deposit", {
+        method: "POST",
+        body: JSON.stringify({
+          method: method,
+          amount: amount,
+          wallet: isVip ? "vip" : "main",
+          reference: reference
+        })
       });
+      if (res && res.wallet) {
+        state.wallet = res.wallet;
+      }
       await refresh();
-      toast("የገቢ ጥያቄዎ በተሳካ ሁኔታ ተጠናቋል (Deposit completed)!");
+      toast(`የ ${amount} ETB ተቀማጭ ተረጋግጧል!`);
     }
   } catch(e) {
     console.warn("Deposit note:", e.message);
@@ -1088,6 +1104,30 @@ document.querySelectorAll("#telegramDepositMethodKeyboard .keyboard-btn[data-met
     openDepositInstructionFlow(chosenMethod);
   });
 });
+
+if ($("btnPasteTxid")) {
+  $("btnPasteTxid").addEventListener("click", async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text && $("depositTxidInput")) {
+          $("depositTxidInput").value = text.trim();
+          toast("TxID ተለጥፏል (Pasted)");
+        }
+      } else {
+        const manual = prompt("የክፍያ ማረጋገጫ (TxID / SMS) እዚህ ይለጥፉ (Paste TxID):");
+        if (manual && $("depositTxidInput")) {
+          $("depositTxidInput").value = manual.trim();
+        }
+      }
+    } catch(err) {
+      const manual = prompt("የክፍያ ማረጋገጫ (TxID / SMS) እዚህ ይለጥፉ (Paste TxID):");
+      if (manual && $("depositTxidInput")) {
+        $("depositTxidInput").value = manual.trim();
+      }
+    }
+  });
+}
 
 if ($("btnDepositConfirm1")) {
   $("btnDepositConfirm1").addEventListener("click", () => {
@@ -1140,16 +1180,29 @@ if ($("modalDepositForm")) {
   $("modalDepositForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const amount = fd.get("amount") || "50";
+    const amount = Number(fd.get("amount") || 50);
     const method = fd.get("method") || "TeleBirr";
+    const reference = (fd.get("reference") || "").trim() || `TxID-${Date.now().toString().slice(-6)}`;
     try {
       if (authStorage.getItem("hulu_token")) {
-        await api("/wallet/deposit", { method: "POST", body: JSON.stringify({ amount: Number(amount) }) });
+        const res = await api("/wallet/deposit", {
+          method: "POST",
+          body: JSON.stringify({
+            amount: amount,
+            method: method,
+            reference: reference,
+            wallet: "main"
+          })
+        });
+        if (res && res.wallet) {
+          state.wallet = res.wallet;
+        }
         await refresh();
       }
-      toast(`የ ${amount} ETB የገቢ ጥያቄ (${method}) በተሳካ ሁኔታ ተልኳል!`);
+      toast(`የ ${amount} ETB የገቢ ጥያቄ (${method}) በተሳካ ሁኔታ ተጠናቋል!`);
       closeAllTelegramModals();
       e.target.reset();
+      switchToCardSelectionView();
     } catch(err) {
       toast(err.message || `የ ${amount} ETB የገቢ ጥያቄ ተልኳል!`);
       closeAllTelegramModals();
