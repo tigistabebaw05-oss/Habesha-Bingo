@@ -448,7 +448,11 @@ app.post("/api/logout",auth,async(req,res)=>{
 });
 app.get("/api/me",auth,async(req,res)=>{
   const u=(await pool.query("SELECT id,name,phone,role FROM users WHERE id=$1",[req.user.id])).rows[0];
-  const w=(await pool.query("SELECT main_balance,vip_balance FROM wallets WHERE user_id=$1",[req.user.id])).rows[0];
+  let w=(await pool.query("SELECT main_balance,vip_balance FROM wallets WHERE user_id=$1",[req.user.id])).rows[0];
+  if (!w) {
+    await pool.query("INSERT INTO wallets(user_id, main_balance, vip_balance) VALUES($1, 0.00, 0.00) ON CONFLICT (user_id) DO NOTHING", [req.user.id]);
+    w=(await pool.query("SELECT main_balance,vip_balance FROM wallets WHERE user_id=$1",[req.user.id])).rows[0];
+  }
   if(!u||!w)return res.status(401).json({error:"Account not found"});
   res.json({user:{...u,role:String(u.role).toUpperCase()},wallet:w});
 });

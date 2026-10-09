@@ -5,6 +5,25 @@ const authStorage = window.sessionStorage;
 localStorage.removeItem("hulu_token");
 let state = { game:null, ticket:null, called:new Set(), socket:null };
 
+function updateAllBalanceDisplays(mainBal, vipBal) {
+  const m = Number(mainBal || 0);
+  const v = Number(vipBal || 0);
+  if (!state.wallet) state.wallet = { main_balance: m.toFixed(2), vip_balance: v.toFixed(2) };
+  else {
+    state.wallet.main_balance = m.toFixed(2);
+    state.wallet.vip_balance = v.toFixed(2);
+  }
+  const str = money(m);
+  const vipStr = money(v);
+  if ($("mainBalance")) $("mainBalance").textContent = str;
+  if ($("tgMainBalance")) $("tgMainBalance").textContent = str;
+  if ($("tgPlayBalance")) $("tgPlayBalance").textContent = str;
+  if ($("modalMainBalance")) $("modalMainBalance").textContent = str;
+  if ($("vipBalance")) $("vipBalance").textContent = vipStr;
+  if ($("modalVipBalance")) $("modalVipBalance").textContent = vipStr;
+}
+window.updateAllBalanceDisplays = updateAllBalanceDisplays;
+
 // Auto-authenticate via auth_token URL param or Telegram WebApp initData
 async function initTelegramSession() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -19,6 +38,8 @@ async function initTelegramSession() {
         authStorage.setItem("hulu_role", res.user.role || "PLAYER");
         authStorage.setItem("hulu_name", res.user.name || "Player");
         state.wallet = res.wallet;
+        updateAllBalanceDisplays(res.wallet?.main_balance, res.wallet?.vip_balance);
+        await refresh();
         syncAuthUi();
         const bal = Number(res.wallet?.main_balance || 0);
         if (viewParam === "vip") {
@@ -45,6 +66,8 @@ async function initTelegramSession() {
           authStorage.setItem("hulu_role", data.user?.role || "PLAYER");
           authStorage.setItem("hulu_name", data.user?.name || tgUser.first_name);
           state.wallet = data.wallet;
+          updateAllBalanceDisplays(data.wallet?.main_balance, data.wallet?.vip_balance);
+          await refresh();
           syncAuthUi();
           const bal = Number(data.wallet?.main_balance || 0);
           if (viewParam === "vip") {
@@ -56,6 +79,12 @@ async function initTelegramSession() {
       } catch (e) {
         console.warn("Telegram WebApp login error:", e);
       }
+    } else {
+      await refresh();
+    }
+  } else {
+    if (authStorage.getItem("hulu_token")) {
+      await refresh();
     }
   }
 }
@@ -479,10 +508,28 @@ $("authForm").addEventListener("submit",async e=>{
   finally{$("authSubmit").disabled=false}
 });
 
-$("depositForm").addEventListener("submit",async e=>{
-  e.preventDefault(); const f=new FormData(e.target);
-  const button=e.target.querySelector("button");button.disabled=true;
-  try{await api("/wallet/deposit",{method:"POST",headers:{"Idempotency-Key":crypto.randomUUID()},body:JSON.stringify(Object.fromEntries(f))});toast("Deposit request submitted");e.target.reset()}catch(x){toast(x.message,true)}finally{button.disabled=false}
+$("depositForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const button = e.target.querySelector("button");
+  button.disabled = true;
+  try {
+    const res = await api("/wallet/deposit", {
+      method: "POST",
+      headers: { "Idempotency-Key": crypto.randomUUID() },
+      body: JSON.stringify(Object.fromEntries(f))
+    });
+    if (res.wallet) {
+      updateAllBalanceDisplays(res.wallet.main_balance, res.wallet.vip_balance);
+    }
+    await refresh();
+    toast(res.message || "የገቢ ጥያቄዎ በተሳካ ሁኔታ ተጠናቋል (Deposit completed)!");
+    e.target.reset();
+  } catch (x) {
+    toast(x.message, true);
+  } finally {
+    button.disabled = false;
+  }
 });
 if ($("withdrawMaxBtn")) {
   $("withdrawMaxBtn").addEventListener("click", () => {
@@ -1954,6 +2001,13 @@ function switchToCardSelectionView() {
   if ($("tgBingoBtn")) $("tgBingoBtn").hidden = true;
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavHome")?.classList.add("active");
+  
+  if (state.wallet) {
+    updateAllBalanceDisplays(state.wallet.main_balance, state.wallet.vip_balance);
+  }
+  if (authStorage.getItem("hulu_token")) {
+    refresh().catch(() => {});
+  }
   
   updateCardSelectionTotals();
   renderCardSelectionGrid();
