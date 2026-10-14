@@ -2302,8 +2302,16 @@ class TelegramBingoService {
         w = (await client.query(`SELECT ${col} FROM wallets WHERE user_id = $1 FOR UPDATE`, [tx.user_id])).rows[0];
       }
       const before = Number(w ? w[col] : 0);
-      const after = Math.round((before + depositAmount) * 100) / 100;
-      await client.query(`UPDATE wallets SET ${col} = $1, updated_at = now() WHERE user_id = $2`, [after, tx.user_id]);
+      try {
+        await client.query(`UPDATE wallets SET ${col} = $1, updated_at = now() WHERE user_id = $2`, [after, tx.user_id]);
+      } catch (uErr) {
+        if (uErr.message && uErr.message.includes("updated_at")) {
+          await client.query(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()`);
+          await client.query(`UPDATE wallets SET ${col} = $1, updated_at = now() WHERE user_id = $2`, [after, tx.user_id]);
+        } else {
+          throw uErr;
+        }
+      }
       await client.query(
         "UPDATE transactions SET status = 'approved', balance_before = $1, balance_after = $2, admin_id = $3, processed_at = now() WHERE id = $4",
         [before, after, adminUserId, transactionId]

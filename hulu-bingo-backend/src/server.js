@@ -160,6 +160,7 @@ async function init(){
     ON CONFLICT (key) DO NOTHING
   `);
   await pool.query("UPDATE games SET entry = 10 WHERE status = 'waiting' AND entry = 8");
+  await pool.query("ALTER TABLE wallets ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE, ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'PLAYER'");
   await pool.query("ALTER TABLE payment_accounts ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE");
   await pool.query("UPDATE payment_accounts SET is_active = TRUE WHERE LOWER(method) LIKE '%tele%'");
@@ -267,7 +268,16 @@ async function changeBalance(client,{userId,wallet,delta,type,status="completed"
   }
   const before=Number(row ? row[column] : 0),after=Math.round((before+delta)*100)/100;
   if(after<0)throw new Error("INSUFFICIENT_BALANCE");
-  await client.query(`UPDATE wallets SET ${column}=$1,updated_at=now() WHERE user_id=$2`,[after,userId]);
+  try {
+    await client.query(`UPDATE wallets SET ${column}=$1,updated_at=now() WHERE user_id=$2`,[after,userId]);
+  } catch (uErr) {
+    if (uErr.message && uErr.message.includes("updated_at")) {
+      await client.query(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()`);
+      await client.query(`UPDATE wallets SET ${column}=$1,updated_at=now() WHERE user_id=$2`,[after,userId]);
+    } else {
+      throw uErr;
+    }
+  }
   let ledgerId=transactionId;
   if(transactionId){
     await client.query("UPDATE transactions SET amount=$1,balance_before=$2,balance_after=$3,status=$4 WHERE id=$5",[delta,before,after,status,transactionId]);
