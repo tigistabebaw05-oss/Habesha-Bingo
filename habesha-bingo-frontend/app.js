@@ -53,7 +53,16 @@ async function initTelegramSession() {
     }
   } else if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
     const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-    if (!authStorage.getItem("hulu_token")) {
+    let needsLogin = !authStorage.getItem("hulu_token");
+    if (!needsLogin) {
+      try {
+        const check = await api("/me");
+        if (!check || !check.user) needsLogin = true;
+      } catch (err) {
+        needsLogin = true;
+      }
+    }
+    if (needsLogin) {
       try {
         const resp = await fetch(`${API}/telegram/webapp-login`, {
           method: "POST",
