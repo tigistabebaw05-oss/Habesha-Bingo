@@ -1182,7 +1182,7 @@ class TelegramBingoService {
       }
 
       const after = Math.round((before - amount) * 100) / 100;
-      await client.query("UPDATE wallets SET main_balance=$1, updated_at=now() WHERE user_id=$2", [after, user.id]);
+      await client.query("UPDATE wallets SET main_balance=$1 WHERE user_id=$2", [after, user.id]);
 
       await client.query(
         `INSERT INTO transactions (user_id, type, wallet, amount, balance_before, balance_after, status, method, reference, provider)
@@ -1354,7 +1354,7 @@ class TelegramBingoService {
 
       // Deduct entry
       const newBal = Math.round((Number(walletRow.main_balance) - entryFee) * 100) / 100;
-      await client.query("UPDATE wallets SET main_balance = $1, updated_at = now() WHERE user_id = $2", [newBal, user.id]);
+      await client.query("UPDATE wallets SET main_balance = $1 WHERE user_id = $2", [newBal, user.id]);
       await client.query(
         "INSERT INTO transactions (user_id, type, wallet, amount, balance_before, balance_after, status, method, reference) VALUES ($1, 'game_entry', 'main', $2, $3, $4, 'completed', 'telegram', $5)",
         [user.id, -entryFee, Number(walletRow.main_balance), newBal, "Main Game #" + g.id]
@@ -1485,7 +1485,7 @@ class TelegramBingoService {
       const newMain = Math.round((main - 50) * 100) / 100;
       const newVip = Math.round((vip + 50) * 100) / 100;
 
-      await client.query("UPDATE wallets SET main_balance=$1, vip_balance=$2, updated_at=now() WHERE user_id=$3", [newMain, newVip, user.id]);
+      await client.query("UPDATE wallets SET main_balance=$1, vip_balance=$2 WHERE user_id=$3", [newMain, newVip, user.id]);
       await client.query("COMMIT");
 
       await this.sendMessage(
@@ -1553,11 +1553,11 @@ class TelegramBingoService {
       if (vipBal >= entryFee) {
         usedWallet = "vip";
         const newVip = Math.round((vipBal - entryFee) * 100) / 100;
-        await client.query("UPDATE wallets SET vip_balance = $1, updated_at = now() WHERE user_id = $2", [newVip, user.id]);
+        await client.query("UPDATE wallets SET vip_balance = $1 WHERE user_id = $2", [newVip, user.id]);
       } else if (mainBal >= entryFee) {
         usedWallet = "main";
         const newMain = Math.round((mainBal - entryFee) * 100) / 100;
-        await client.query("UPDATE wallets SET main_balance = $1, updated_at = now() WHERE user_id = $2", [newMain, user.id]);
+        await client.query("UPDATE wallets SET main_balance = $1 WHERE user_id = $2", [newMain, user.id]);
       } else {
         await client.query("ROLLBACK");
         await this.sendMessage(
@@ -2129,7 +2129,7 @@ class TelegramBingoService {
 
       const wallet = (await client.query(`SELECT ${wCol} FROM wallets WHERE user_id = $1 FOR UPDATE`, [user.id])).rows[0];
       const newBal = Math.round((Number(wallet[wCol]) + prize) * 100) / 100;
-      await client.query(`UPDATE wallets SET ${wCol} = $1, updated_at = now() WHERE user_id = $2`, [newBal, user.id]);
+      await client.query(`UPDATE wallets SET ${wCol} = $1 WHERE user_id = $2`, [newBal, user.id]);
       await client.query(
         "INSERT INTO transactions (user_id, type, wallet, amount, balance_before, balance_after, status, method, reference) VALUES ($1, 'prize', $2, $3, $4, $5, 'completed', 'telegram', $6)",
         [user.id, targetWallet, prize, Number(wallet[wCol]), newBal, "Bingo Prize Game #" + g.id]
@@ -2302,16 +2302,7 @@ class TelegramBingoService {
         w = (await client.query(`SELECT ${col} FROM wallets WHERE user_id = $1 FOR UPDATE`, [tx.user_id])).rows[0];
       }
       const before = Number(w ? w[col] : 0);
-      try {
-        await client.query(`UPDATE wallets SET ${col} = $1, updated_at = now() WHERE user_id = $2`, [after, tx.user_id]);
-      } catch (uErr) {
-        if (uErr.message && uErr.message.includes("updated_at")) {
-          await client.query(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()`);
-          await client.query(`UPDATE wallets SET ${col} = $1, updated_at = now() WHERE user_id = $2`, [after, tx.user_id]);
-        } else {
-          throw uErr;
-        }
-      }
+      await client.query(`UPDATE wallets SET ${col} = $1 WHERE user_id = $2`, [after, tx.user_id]);
       await client.query(
         "UPDATE transactions SET status = 'approved', balance_before = $1, balance_after = $2, admin_id = $3, processed_at = now() WHERE id = $4",
         [before, after, adminUserId, transactionId]

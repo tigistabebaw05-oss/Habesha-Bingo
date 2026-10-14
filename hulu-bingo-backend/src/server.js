@@ -57,6 +57,9 @@ app.get(["/admin.html","/owner.html"],(req,res)=>res.redirect("/"));
 
 async function init(){
   if(!SECRET||SECRET.length<32||SECRET==="replace-with-a-long-random-secret")throw new Error("JWT_SECRET must be a random value of at least 32 characters");
+  try {
+    await pool.query("ALTER TABLE wallets ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now(), ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now()");
+  } catch (_) {}
   await pool.query(`
   CREATE TABLE IF NOT EXISTS users(
     id BIGSERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, phone VARCHAR(30) UNIQUE NOT NULL,
@@ -268,16 +271,7 @@ async function changeBalance(client,{userId,wallet,delta,type,status="completed"
   }
   const before=Number(row ? row[column] : 0),after=Math.round((before+delta)*100)/100;
   if(after<0)throw new Error("INSUFFICIENT_BALANCE");
-  try {
-    await client.query(`UPDATE wallets SET ${column}=$1,updated_at=now() WHERE user_id=$2`,[after,userId]);
-  } catch (uErr) {
-    if (uErr.message && uErr.message.includes("updated_at")) {
-      await client.query(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()`);
-      await client.query(`UPDATE wallets SET ${column}=$1,updated_at=now() WHERE user_id=$2`,[after,userId]);
-    } else {
-      throw uErr;
-    }
-  }
+  await client.query(`UPDATE wallets SET ${column}=$1 WHERE user_id=$2`,[after,userId]);
   let ledgerId=transactionId;
   if(transactionId){
     await client.query("UPDATE transactions SET amount=$1,balance_before=$2,balance_after=$3,status=$4 WHERE id=$5",[delta,before,after,status,transactionId]);
@@ -520,7 +514,7 @@ app.get("/api/admin/users/:id",auth,requireRole("ADMIN"),async(req,res)=>{
   if(!Number.isInteger(userId))return res.status(400).json({error:"Invalid user id"});
   const user=(await pool.query("SELECT id,name,phone,role,is_active,created_at FROM users WHERE id=$1",[userId])).rows[0];
   if(!user)return res.status(404).json({error:"User not found"});
-  const wallet=(await pool.query("SELECT main_balance,vip_balance,updated_at FROM wallets WHERE user_id=$1",[userId])).rows[0];
+  const wallet=(await pool.query("SELECT main_balance,vip_balance FROM wallets WHERE user_id=$1",[userId])).rows[0];
   const transactions=(await pool.query("SELECT id,type,wallet,amount,status,reference,created_at FROM transactions WHERE user_id=$1 ORDER BY id DESC LIMIT 100",[userId])).rows;
   res.json({user,wallet,transactions});
 });
@@ -567,8 +561,7 @@ app.get("/api/admin/wallets",auth,requireRole("ADMIN"),async(req,res)=>{
   const wallets=await pool.query(`
     SELECT u.id AS user_id, u.name, u.phone, u.role, u.is_active,
            COALESCE(w.main_balance, 0.00)::numeric AS main_balance,
-           COALESCE(w.vip_balance, 0.00)::numeric AS vip_balance,
-           w.updated_at
+           COALESCE(w.vip_balance, 0.00)::numeric AS vip_balance
     FROM users u
     LEFT JOIN wallets w ON w.user_id = u.id
     WHERE u.phone != '0911000000' AND u.name != 'Habesha Bingo Owner'
@@ -1116,7 +1109,7 @@ app.post("/api/admin/withdrawals/:id/reject", auth, requireRole("ADMIN"), async 
     const beforeBal = Number(wRow[walletCol]);
     const afterBal = Math.round((beforeBal + refundAmount) * 100) / 100;
 
-    await client.query(`UPDATE wallets SET ${walletCol} = $1, updated_at = now() WHERE user_id = $2`, [afterBal, tx.user_id]);
+    await client.query(`UPDATE wallets SET ${walletCol} = $1 WHERE user_id = $2`, [afterBal, tx.user_id]);
 
     await client.query(
       "UPDATE transactions SET status = 'rejected', failure_reason = $1, admin_id = $2, processed_at = now() WHERE id = $3",
