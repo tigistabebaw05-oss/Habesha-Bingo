@@ -450,6 +450,60 @@ class TelegramBingoService {
       await this.sendMessage(chatId, "✅ <b>ቋንቋ ወደ አማርኛ ተቀይሯል!</b>", { reply_markup: this.getMainKeyboard() });
     } else if (data === "lang_en") {
       await this.sendMessage(chatId, "✅ <b>Language set to English!</b>", { reply_markup: this.getMainKeyboard() });
+    } else if (data.startsWith("admin_dep_approve:")) {
+      const txId = Number(data.split(":")[1]);
+      const isAdmin = await this.isAuthorizedAdmin(chatId, from, user);
+      if (isAdmin) {
+        const ok = await this.approveDepositTransaction(txId, user?.id || 1);
+        if (ok) {
+          try {
+            await this.apiCall("answerCallbackQuery", { callback_query_id: cq.id, text: "✅ ተቀማጩ በተሳካ ሁኔታ ጸድቋል!" });
+            if (cq.message) {
+              await this.apiCall("editMessageText", {
+                chat_id: chatId,
+                message_id: cq.message.message_id,
+                text: `${cq.message.text || ""}\n\n✅ <b>በ ${user?.name || from.first_name || "Admin"} ጸድቋል (Approved)!</b>`,
+                parse_mode: "HTML"
+              });
+            }
+          } catch (_) {}
+        } else {
+          try {
+            await this.apiCall("answerCallbackQuery", { callback_query_id: cq.id, text: "⚠️ ይህ ጥያቄ አስቀድሞ ተስተናግዷል ወይም አልተገኘም።", show_alert: true });
+          } catch (_) {}
+        }
+      } else {
+        try {
+          await this.apiCall("answerCallbackQuery", { callback_query_id: cq.id, text: "⛔ ይህን ለማድረግ የአድሚን ፈቃድ ያስፈልጋል።", show_alert: true });
+        } catch (_) {}
+      }
+    } else if (data.startsWith("admin_dep_reject:")) {
+      const txId = Number(data.split(":")[1]);
+      const isAdmin = await this.isAuthorizedAdmin(chatId, from, user);
+      if (isAdmin) {
+        const ok = await this.rejectDepositTransaction(txId, user?.id || 1);
+        if (ok) {
+          try {
+            await this.apiCall("answerCallbackQuery", { callback_query_id: cq.id, text: "❌ ተቀማጩ ውድቅ ተደርጓል!" });
+            if (cq.message) {
+              await this.apiCall("editMessageText", {
+                chat_id: chatId,
+                message_id: cq.message.message_id,
+                text: `${cq.message.text || ""}\n\n❌ <b>በ ${user?.name || from.first_name || "Admin"} ውድቅ ተደርጓል (Rejected).</b>`,
+                parse_mode: "HTML"
+              });
+            }
+          } catch (_) {}
+        } else {
+          try {
+            await this.apiCall("answerCallbackQuery", { callback_query_id: cq.id, text: "⚠️ ይህ ጥያቄ አስቀድሞ ተስተናግዷል ወይም አልተገኘም።", show_alert: true });
+          } catch (_) {}
+        }
+      } else {
+        try {
+          await this.apiCall("answerCallbackQuery", { callback_query_id: cq.id, text: "⛔ ይህን ለማድረግ የአድሚን ፈቃድ ያስፈልጋል።", show_alert: true });
+        } catch (_) {}
+      }
     }
   }
 
@@ -755,15 +809,28 @@ class TelegramBingoService {
     let receiverName = "Tirualem";
     let receiverPhone = "0951666750";
 
-    if (method === "CBE Birr") {
-      receiverName = "Abrham";
-      receiverPhone = "0951666750";
-    } else if (method === "MPesa") {
-      receiverName = "Abrham";
-      receiverPhone = "0726666750";
-    } else if (method === "E-Birr") {
-      receiverName = "Abdu";
-      receiverPhone = "0919307468";
+    try {
+      const acc = (await this.pool.query("SELECT account_number, account_name FROM payment_accounts WHERE method ILIKE $1 AND is_active = TRUE LIMIT 1", [method])).rows[0];
+      if (acc) {
+        receiverName = acc.account_name;
+        receiverPhone = acc.account_number;
+      }
+    } catch (_) {}
+
+    if (!receiverPhone) {
+      if (method === "TeleBirr") {
+        receiverName = "Tirualem";
+        receiverPhone = "0951666750";
+      } else if (method === "CBE Birr") {
+        receiverName = "Abrham";
+        receiverPhone = "0951666750";
+      } else if (method === "MPesa") {
+        receiverName = "Abrham";
+        receiverPhone = "0726666750";
+      } else if (method === "E-Birr") {
+        receiverName = "Abdu";
+        receiverPhone = "0919307468";
+      }
     }
 
     const text = `🔄 <b>የክፍያ መመሪያ (${method})</b>\n\n` +
@@ -782,64 +849,186 @@ class TelegramBingoService {
     });
   }
 
-  // Step 5: Complete Deposit & Record Transaction
-  async cmdDepositComplete(chatId, user, inputMessage) {
-    const currentState = this.userState.get(chatId) || {};
-    const target = currentState.target || "🎮 ዋና ጨዋታ";
-    const method = currentState.method || "TeleBirr";
-    let amount = currentState.amount || 10;
-    let txnId = "—";
+  escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
 
-    const trimmed = (inputMessage || "").trim();
-    if (trimmed !== "1" && trimmed !== "dep_confirm") {
-      const amtMatch = trimmed.match(/(?:ETB|Birr|ብር|\$)\s*([0-9]+(?:\.[0-9]{1,2})?)/i) ||
-                       trimmed.match(/([0-9]+(?:\.[0-9]{1,2})?)\s*(?:ETB|Birr|ብር)/i);
-      if (amtMatch) amount = Number(amtMatch[1]);
+  async isAuthorizedAdmin(chatId, from, user) {
+    if (user && (user.role === "ADMIN" || user.role === "OWNER")) return true;
+    if (user && (user.phone === process.env.OWNER_PHONE || user.phone === process.env.ADMIN_PHONE)) return true;
+    if (process.env.ADMIN_TELEGRAM_ID && String(from?.id) === String(process.env.ADMIN_TELEGRAM_ID)) return true;
+    if (chatId) {
+      try {
+        const member = await this.apiCall("getChatMember", { chat_id: chatId, user_id: from.id });
+        if (member && (member.status === "creator" || member.status === "administrator")) {
+          if (user?.id) {
+            this.pool.query("UPDATE users SET role = 'ADMIN' WHERE id = $1", [user.id]).catch(() => {});
+          }
+          return true;
+        }
+      } catch (_) {}
+    }
+    return false;
+  }
 
-      const txnMatch = trimmed.match(/(?:Txn\s*ID|Transaction\s*ID|የግብይት\s*ቁጥር|ቁጥር|Txn|Ref)[:\s]*([A-Za-z0-9]+)/i);
-      if (txnMatch) {
-        txnId = txnMatch[1];
-      } else if (trimmed.length <= 40 && /^[A-Za-z0-9_-]+$/.test(trimmed)) {
-        txnId = trimmed;
-      } else {
-        txnId = trimmed.slice(0, 30);
+  parseReceipt(text) {
+    if (!text || typeof text !== "string") return null;
+    const raw = text.trim();
+    if (raw.length < 4) return null;
+
+    let amount = null;
+    let txnId = null;
+    let method = "TeleBirr";
+
+    // 1. Detect method
+    const lower = raw.toLowerCase();
+    if (lower.includes("cbe") || raw.includes("ንግድ ባንክ") || raw.includes("ሲቢኢ") || lower.includes("commercial bank")) {
+      method = "CBE Birr";
+    } else if (lower.includes("mpesa") || lower.includes("m-pesa") || raw.includes("ኤምፔሳ")) {
+      method = "MPesa";
+    } else if (lower.includes("ebirr") || lower.includes("e-birr") || raw.includes("ኢ-ብር")) {
+      method = "E-Birr";
+    } else if (lower.includes("telebirr") || raw.includes("ቴሌብር") || raw.includes("ቴሌ")) {
+      method = "TeleBirr";
+    }
+
+    // 2. Detect TxID / Reference code
+    const labelMatch = raw.match(/(?:Txn\s*ID|Transaction\s*(?:ID|No|Number)?|የግብይት(?:\s*መለያ)?\s*ቁጥር|መለያ\s*ቁጥር|ትራንዛክሽን\s*(?:መለያ)?\s*ቁጥር|Ref(?:\s*No|\s*Number)?|Reference|Trans\s*ID)[:\s=]+([A-Za-z0-9_-]+)/i);
+    if (labelMatch) {
+      txnId = labelMatch[1].trim();
+    }
+
+    // CBE FT code e.g. FT2428819034
+    if (!txnId) {
+      const ftMatch = raw.match(/\b(FT[0-9A-Za-z]{8,24})\b/i);
+      if (ftMatch) {
+        txnId = ftMatch[1].trim();
+        method = "CBE Birr";
       }
     }
 
-    const isDemo = process.env.DEMO_MODE !== "false";
+    // Direct TxID input (single alphanumeric code, length 6 to 35)
+    if (!txnId && /^[A-Za-z0-9_-]{6,35}$/.test(raw)) {
+      txnId = raw;
+    }
+
+    // Look for 10-14 digit number in text that isn't a phone number (not starting with 09, 07, 251)
+    if (!txnId) {
+      const digitMatches = raw.match(/\b([1-9][0-9]{9,13})\b/g);
+      if (digitMatches && digitMatches.length > 0) {
+        const candidate = digitMatches.find(d => !d.startsWith("09") && !d.startsWith("07") && !d.startsWith("251"));
+        if (candidate) txnId = candidate;
+      }
+    }
+
+    // 3. Detect Amount (prioritize transfer words over balance)
+    const transferMatch = raw.match(/(?:transferred|received|sent|paid|ክፍያ|አስተላልፈዋል)\s*(?:ETB|Birr|ብር)?\s*([0-9]+(?:\.[0-9]{1,2})?)/i) ||
+                         raw.match(/([0-9]+(?:\.[0-9]{1,2})?)\s*(?:ETB|Birr|ብር)\s*(?:አስተላልፈዋል|ተከፍሏል|ተላልፏል)/i);
+    if (transferMatch) {
+      amount = Number(transferMatch[1]);
+    } else {
+      const lines = raw.split(/\r?\n/);
+      for (const line of lines) {
+        if (/balance|ቀሪ/i.test(line)) continue;
+        const lineAmt = line.match(/(?:ETB|Birr|ብር)\s*([0-9]+(?:\.[0-9]{1,2})?)/i) ||
+                        line.match(/([0-9]+(?:\.[0-9]{1,2})?)\s*(?:ETB|Birr|ብር)/i);
+        if (lineAmt) {
+          amount = Number(lineAmt[1]);
+          break;
+        }
+      }
+      if (!amount) {
+        const anyAmt = raw.match(/(?:ETB|Birr|ብር)\s*([0-9]+(?:\.[0-9]{1,2})?)/i) ||
+                       raw.match(/([0-9]+(?:\.[0-9]{1,2})?)\s*(?:ETB|Birr|ብር)/i);
+        if (anyAmt) amount = Number(anyAmt[1]);
+      }
+    }
+
+    return { amount, txnId, method };
+  }
+
+  // Step 5: Complete Deposit & Record Transaction (REAL MONEY ONLY)
+  async cmdDepositComplete(chatId, user, inputMessage, parsedReceipt = null) {
+    const currentState = this.userState.get(chatId) || {};
+    const target = currentState.target || "🎮 ዋና ጨዋታ";
     const isVip = target.includes("VIP");
     const walletType = isVip ? "vip" : "main";
-    const wCol = isVip ? "vip_balance" : "main_balance";
+    const minDeposit = isVip ? 50 : 10;
 
+    const trimmed = (inputMessage || "").trim();
+    const parsed = parsedReceipt || this.parseReceipt(trimmed) || {};
+    let method = parsed.method || currentState.method || "TeleBirr";
+    let amount = parsed.amount || currentState.amount || minDeposit;
+    let txnId = parsed.txnId;
+
+    if (!txnId && trimmed.length >= 4 && trimmed.length <= 40 && /^[A-Za-z0-9_-]+$/.test(trimmed)) {
+      txnId = trimmed;
+    }
+
+    // STRICT REAL MONEY CHECK: Require valid transaction ID
+    if (!txnId || txnId === "—" || txnId === "-" || txnId.length < 4) {
+      this.userState.set(chatId, { step: "deposit_confirm", target, method, amount });
+      await this.sendMessage(
+        chatId,
+        "⚠️ <b>ትክክለኛ የግብይት ማረጋገጫ ቁጥር (TxID / SMS) አላስገቡም!</b>\n\n" +
+        `እባክዎ <b>${amount} ETB</b> በ ${method} ከላኩ በኋላ ከባንክ የደረሰዎትን የማረጋገጫ ቁጥር (TxID) ወይም ሙሉውን SMS እዚህ መልሰው ይላኩ/ይለጥፉ:`,
+        {
+          reply_markup: {
+            inline_keyboard: [[{ text: "❌ አቋርጥ (Cancel)", callback_data: "cmd_cancel" }]]
+          }
+        }
+      );
+      return;
+    }
+
+    if (amount < minDeposit) {
+      amount = minDeposit;
+    }
+
+    // Prevent duplicate submission of same TxID
+    if (txnId && txnId.length >= 4) {
+      const dup = (await this.pool.query("SELECT id, status FROM transactions WHERE reference = $1 AND type = 'deposit' LIMIT 1", [txnId])).rows[0];
+      if (dup) {
+        await this.sendMessage(
+          chatId,
+          "⚠️ <b>ይህ የክፍያ ቁጥር (TxID) አስቀድሞ ተመዝግቧል!</b>\n\nእባክዎ አዲስ ያደረጉትን ክፍያ ማረጋገጫ ያስገቡ ወይም አድሚን ያነጋግሩ።"
+        );
+        return;
+      }
+    }
+
+    let transactionId = null;
     if (user && this.pool) {
       try {
-        if (isDemo) {
-          await this.pool.query(
-            `UPDATE wallets SET ${wCol} = ${wCol} + $1, updated_at = now() WHERE user_id = $2`,
-            [amount, user.id]
-          );
-        }
-        await this.pool.query(
+        // REAL MONEY: Never credit demo balance automatically! Always set to pending awaiting admin approval!
+        const ins = await this.pool.query(
           `INSERT INTO transactions (user_id, type, wallet, amount, status, method, reference, provider, provider_reference, metadata)
-           VALUES ($1, 'deposit', $2, $3, $4, $5, $6, $7, $8, $9)`,
+           VALUES ($1, 'deposit', $2, $3, 'pending', $4, $5, $6, $7, $8) RETURNING id`,
           [
             user.id,
             walletType,
             amount,
-            isDemo ? "completed" : "pending",
             method,
-            `Telegram Deposit (${method})`,
+            txnId,
             method,
-            txnId !== "—" && txnId !== "-" ? txnId : null,
+            txnId,
             JSON.stringify({
               source: "telegram_bot",
               chat_id: chatId,
               target,
               raw_input: trimmed,
-              demo: isDemo
+              demo: false
             })
           ]
         );
+        transactionId = ins.rows[0]?.id;
+
+        // Alert the admin group & admins with 1-click Approve/Reject buttons
+        await this.notifyDepositPending(user.id, user.name, amount, method, txnId, user.phone, transactionId, trimmed);
       } catch (dbErr) {
         console.warn("[Telegram] Could not save deposit transaction:", dbErr.message);
       }
@@ -847,35 +1036,21 @@ class TelegramBingoService {
 
     this.userState.delete(chatId);
 
-    const playUrl = await this.getWebAppUrl(user);
-    const confirmationText = isDemo
-      ? `✅ <b>የገቢ ጥያቄዎ በተሳካ ሁኔታ ተጠናቋል!</b>\n\n` +
-        `💰 መጠን: <b>${amount} ETB</b>\n` +
-        `💳 ዘዴ: <b>${method}</b>\n` +
-        `🔢 Txn ID: <b>${txnId}</b>\n` +
-        `🎯 ዋሌት: <b>${isVip ? "💎 VIP ዋሌት" : "🎮 ዋና ዋሌት"}</b>\n\n` +
-        `🎉 <b>ገንዘቡ ወደ ዋሌትዎ ገብቷል!</b> አሁኑኑ ጨዋታውን ለመጀመር ከታች ያለውን <b>"🎮 ጨዋታውን ጀምር (Start Playing)"</b> ይጫኑ!`
-      : `✅ <b>የገቢ ጥያቄዎ በተሳካ ሁኔታ ተልኳል!</b>\n\n` +
-        `💰 መጠን: <b>${amount} ETB</b>\n` +
-        `💳 ዘዴ: <b>${method}</b>\n` +
-        `🔢 Txn ID: <b>${txnId}</b>\n` +
-        `🎯 ዋሌት: <b>${isVip ? "💎 VIP ዋሌት" : "🎮 ዋና ዋሌት"}</b>\n\n` +
-        `⏳ <i>አድሚን ክፍያውን እንዳረጋገጠ በደቂቃዎች ውስጥ ወደ ሂሳብዎ ይገባል!</i>`;
-
-    const nextButtons = isVip
-      ? [
-          [{ text: "💎 VIP ክፍል በ WebApp ክፈት", web_app: { url: `${playUrl}&view=vip` } }],
-          [{ text: "🎟 የ VIP ትኬት ቁረጥ (50 ETB)", callback_data: "cmd_buy_vip" }],
-          [{ text: "💰 ሂሳብ ይመልከቱ (Balance)", callback_data: "cmd_balance" }]
-        ]
-      : [
-          [{ text: "🎮 ጨዋታውን ጀምር (Start Playing)", web_app: { url: playUrl } }],
-          [{ text: "🎟 እዚሁ ዋና ትኬት ቁረጥ (10 ETB)", callback_data: "cmd_buy" }],
-          [{ text: "💰 ሂሳብ ይመልከቱ (Balance)", callback_data: "cmd_balance" }]
-        ];
+    const confirmationText = `📩 <b>የክፍያ ማረጋገጫ ደረሰኝዎ ደርሶናል!</b>\n\n` +
+      `💰 መጠን: <b>${amount.toFixed(2)} ETB</b>\n` +
+      `💳 ዘዴ: <b>${method}</b>\n` +
+      `🔢 Txn ID: <code>${txnId}</code>\n` +
+      `🎯 ዋሌት: <b>${isVip ? "💎 VIP ዋሌት" : "🎮 ዋና ዋሌት"}</b>\n\n` +
+      `⏳ <b>አድሚን ክፍያው መግባቱን እንዳረጋገጠ ወዲያውኑ ገቢ ይደረጋል (ይለቀቃል)!</b>\n` +
+      `<i>ብር ሲገባ ወዲያውኑ መልእክት ይደርስዎታል።</i>`;
 
     await this.sendMessage(chatId, confirmationText, {
-      reply_markup: { inline_keyboard: nextButtons }
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "💰 ቀሪ ሂሳብ ይመልከቱ (Balance)", callback_data: "cmd_balance" }],
+          [{ text: "🆘 እርዳታ (Support)", callback_data: "cmd_support" }]
+        ]
+      }
     });
   }
 
@@ -1649,6 +1824,15 @@ class TelegramBingoService {
       return;
     }
 
+    // Direct Receipt SMS or TxID paste detection:
+    // When a player transfers Birr and pastes the confirmation SMS or TxID at any time:
+    const receiptCandidate = this.parseReceipt(text);
+    const hasReceiptKeywords = /telebirr|cbe|mpesa|ebirr|የግብይት|አስተላልፈዋል|transferred|transaction\s*(?:id|no|num)|txnid|txn\s*id|ft[0-9a-z]{8,}/i.test(text);
+    if ((receiptCandidate && receiptCandidate.txnId && (receiptCandidate.txnId.length >= 6 || hasReceiptKeywords)) || hasReceiptKeywords) {
+      await this.cmdDepositComplete(chatId, user, text, receiptCandidate);
+      return;
+    }
+
     // Ongoing State handling: withdraw_amount
     if (state?.step === "withdraw_amount") {
       const match = text.match(/([0-9]+(?:\.[0-9]{1,2})?)/);
@@ -2050,6 +2234,121 @@ class TelegramBingoService {
       `👥 ተጫዋቾች: <b>${playerCount}</b>\n\n` +
       `ትኬት ለመቁረጥ <b>/play</b> ይጫኑ ወይም በድረ-ገጹ ይሳተፉ!`
     );
+  }
+
+  async notifyDepositPending(userId, userName, amount, method, reference, userPhone, transactionId, rawSms = "") {
+    if (!this.token) return;
+    try {
+      const amtStr = Number(amount || 0).toFixed(2);
+      const cleanSms = rawSms && rawSms !== reference ? rawSms.slice(0, 250) : "";
+      const text = `🚨 <b>አዲስ የገቢ ጥያቄ (New Deposit Request) #${transactionId || ""}!</b>\n\n` +
+        `👤 ተጫዋች: <b>${userName || "Player"}</b> (ID: ${userId}${userPhone ? `, 📞 <code>${userPhone}</code>` : ""})\n` +
+        `💰 መጠን: <b>${amtStr} ETB</b>\n` +
+        `💳 የክፍያ ዘዴ: <b>${method || "TeleBirr"}</b>\n` +
+        `🔢 የማረጋገጫ ቁጥር (TxID): <code>${reference || "—"}</code>\n` +
+        `⏰ ሰዓት: <b>${new Date().toLocaleTimeString()}</b>\n\n` +
+        (cleanSms ? `📄 <b>የተላከው ደረሰኝ/SMS:</b>\n<i>${this.escapeHtml(cleanSms)}</i>\n\n` : "") +
+        `👉 <i>እባክዎ Telebirr/CBE ሂሳብዎን ካረጋገጡ በኋላ ከታች ባለው ቁልፍ ያጽድቁ:</i>`;
+
+      const keyboard = transactionId ? {
+        inline_keyboard: [
+          [
+            { text: `✅ አጽድቅ (${amtStr} ETB አስገባ)`, callback_data: `admin_dep_approve:${transactionId}` },
+            { text: `❌ ውድቅ አድርግ`, callback_data: `admin_dep_reject:${transactionId}` }
+          ]
+        ]
+      } : undefined;
+
+      // 1. Send to linked Telegram Group
+      if (this.groupId) {
+        await this.sendMessage(this.groupId, text, keyboard ? { reply_markup: keyboard } : {});
+      }
+
+      // 2. Also send directly to active Admins / Owners
+      if (this.pool) {
+        try {
+          const adminRows = (await this.pool.query("SELECT telegram_id FROM users WHERE role IN ('ADMIN', 'OWNER') AND telegram_id IS NOT NULL")).rows;
+          for (const a of adminRows) {
+            if (a.telegram_id && Number(a.telegram_id) !== Number(this.groupId)) {
+              this.sendMessage(a.telegram_id, text, keyboard ? { reply_markup: keyboard } : {}).catch(() => {});
+            }
+          }
+        } catch (_) {}
+      }
+      if (process.env.ADMIN_TELEGRAM_ID && Number(process.env.ADMIN_TELEGRAM_ID) !== Number(this.groupId)) {
+        this.sendMessage(process.env.ADMIN_TELEGRAM_ID, text, keyboard ? { reply_markup: keyboard } : {}).catch(() => {});
+      }
+    } catch (e) {
+      console.warn("[Telegram] notifyDepositPending warning:", e.message);
+    }
+  }
+
+  async approveDepositTransaction(transactionId, adminUserId) {
+    if (!this.pool || !transactionId) return false;
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const tx = (await client.query("SELECT * FROM transactions WHERE id = $1 FOR UPDATE", [transactionId])).rows[0];
+      if (!tx || tx.status !== "pending" || tx.type !== "deposit") {
+        await client.query("ROLLBACK");
+        return false;
+      }
+      const depositAmount = Math.abs(Number(tx.amount));
+      const col = tx.wallet === "vip" ? "vip_balance" : "main_balance";
+
+      let w = (await client.query(`SELECT ${col} FROM wallets WHERE user_id = $1 FOR UPDATE`, [tx.user_id])).rows[0];
+      if (!w) {
+        await client.query("INSERT INTO wallets(user_id, main_balance, vip_balance) VALUES ($1, 0, 0) ON CONFLICT (user_id) DO NOTHING", [tx.user_id]);
+        w = (await client.query(`SELECT ${col} FROM wallets WHERE user_id = $1 FOR UPDATE`, [tx.user_id])).rows[0];
+      }
+      const before = Number(w ? w[col] : 0);
+      const after = Math.round((before + depositAmount) * 100) / 100;
+      await client.query(`UPDATE wallets SET ${col} = $1, updated_at = now() WHERE user_id = $2`, [after, tx.user_id]);
+      await client.query(
+        "UPDATE transactions SET status = 'approved', balance_before = $1, balance_after = $2, admin_id = $3, processed_at = now() WHERE id = $4",
+        [before, after, adminUserId, transactionId]
+      );
+      await client.query("COMMIT");
+
+      // Notify player on Telegram
+      this.notifyDepositApproved(tx.user_id, depositAmount, tx.method).catch(() => {});
+      return true;
+    } catch (e) {
+      await client.query("ROLLBACK");
+      console.error("[Telegram] approveDepositTransaction error:", e.message);
+      return false;
+    } finally {
+      client.release();
+    }
+  }
+
+  async rejectDepositTransaction(transactionId, adminUserId) {
+    if (!this.pool || !transactionId) return false;
+    try {
+      const res = await this.pool.query(
+        "UPDATE transactions SET status = 'rejected', admin_id = $1, processed_at = now() WHERE id = $2 AND status = 'pending' AND type = 'deposit' RETURNING user_id, amount, method",
+        [adminUserId, transactionId]
+      );
+      if (res.rowCount > 0) {
+        const tx = res.rows[0];
+        const uRes = await this.pool.query("SELECT telegram_id FROM users WHERE id = $1", [tx.user_id]);
+        const tgId = uRes.rows[0]?.telegram_id;
+        if (tgId) {
+          await this.sendMessage(
+            tgId,
+            `❌ <b>የገቢ ጥያቄዎ ውድቅ ተደርጓል (Deposit Rejected)</b>\n\n` +
+            `መጠን: <b>${Math.abs(Number(tx.amount)).toFixed(2)} ETB</b>\n` +
+            `ዘዴ: <b>${tx.method}</b>\n\n` +
+            `ያስገቡት የክፍያ ማረጋገጫ (TxID) በባንክ አልተገኘም። እባክዎ ትክክለኛውን ከባንክ የደረሰዎትን SMS/TxID አስገብተው እንደገና ይሞክሩ።`
+          );
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("[Telegram] rejectDepositTransaction error:", e.message);
+      return false;
+    }
   }
 
   async notifyDepositApproved(userId, amount, method) {

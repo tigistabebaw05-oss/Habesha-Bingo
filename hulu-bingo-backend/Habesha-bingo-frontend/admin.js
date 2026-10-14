@@ -185,7 +185,34 @@
   function renderTransactions(transactions) {
     const el = $("transactionsBody");
     if (!el) return;
-    el.innerHTML = transactions.map(transaction => `<tr><td>${escapeHtml(transaction.name)}</td><td>${escapeHtml(transaction.type)}</td><td>${escapeHtml(transaction.wallet)}</td><td>${money(transaction.amount)}</td><td>${escapeHtml(transaction.status)}</td><td>${transaction.status==="pending"?`<button class="table-action transaction-action" data-action="approve" data-id="${transaction.id}">Approve</button> <button class="table-action danger transaction-action" data-action="reject" data-id="${transaction.id}">Reject</button>`:""}</td></tr>`).join("") || `<tr><td colspan="6">No transactions.</td></tr>`;
+    el.innerHTML = transactions.map(transaction => {
+      const isPending = transaction.status === "pending";
+      const badge = transaction.status === "approved" || transaction.status === "completed"
+        ? `<span style="background:rgba(16,185,129,0.15);color:#10b981;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;">${escapeHtml(transaction.status.toUpperCase())}</span>`
+        : transaction.status === "pending"
+        ? `<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;">PENDING</span>`
+        : `<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;">${escapeHtml(transaction.status.toUpperCase())}</span>`;
+
+      return `<tr>
+        <td>
+          <strong>${escapeHtml(transaction.name)}</strong>
+          ${transaction.phone ? `<br><small style="color:var(--habesha-muted);">${escapeHtml(transaction.phone)}</small>` : ""}
+        </td>
+        <td><span style="font-weight:bold;color:${transaction.type==='deposit'?'#10b981':'#ef4444'}">${escapeHtml(transaction.type.toUpperCase())}</span></td>
+        <td>${escapeHtml(transaction.wallet)}</td>
+        <td><strong style="color:var(--habesha-gold);">${money(transaction.amount)}</strong></td>
+        <td>
+          ${badge}
+          ${transaction.reference ? `<br><small style="color:#94a3b8;">${escapeHtml(transaction.method || "Tx")}: <code style="color:#facc15;">${escapeHtml(transaction.reference)}</code></small>` : ""}
+        </td>
+        <td>
+          ${isPending ? `
+            <button class="table-action transaction-action" data-action="approve" data-id="${transaction.id}" style="background:#10b981;color:#fff;">Approve</button>
+            <button class="table-action danger transaction-action" data-action="reject" data-id="${transaction.id}">Reject</button>
+          ` : `—`}
+        </td>
+      </tr>`;
+    }).join("") || `<tr><td colspan="6">No transactions.</td></tr>`;
   }
 
   function renderWinners(winners) {
@@ -235,14 +262,19 @@
   function renderPaymentAccounts(accounts) {
     const t = $("paymentAccountsBody");
     if (!t) return;
-    t.innerHTML = accounts.map(a => `<tr>
-      <td>${escapeHtml(a.method)}</td>
-      <td>${escapeHtml(a.account_number)}</td>
+    const list = (accounts && accounts.length) ? accounts : [{ id: 1, method: "TeleBirr", account_number: "0951666750", account_name: "Tirualem", is_active: true }];
+    t.innerHTML = list.map(a => `<tr>
+      <td><strong>${escapeHtml(a.method)}</strong></td>
+      <td><code>${escapeHtml(a.account_number)}</code></td>
       <td>${escapeHtml(a.account_name)}</td>
-      <td><span class="status ${a.is_active ? 'running' : 'cancelled'}">${a.is_active ? 'Active' : 'Inactive'}</span></td>
       <td>
-        <button class="btn btn-outline toggle-payment-btn" data-id="${a.id}" data-active="${!a.is_active}">${a.is_active ? 'Disable' : 'Enable'}</button>
-        <button class="btn btn-outline delete-payment-btn" data-id="${a.id}" style="color:var(--habesha-red); border-color:var(--habesha-red);">Delete</button>
+        <span class="status-badge ${a.is_active ? 'completed' : 'rejected'}" style="${a.is_active ? 'background:#10b98122;color:#10b981;border:1px solid #10b981;font-weight:bold;padding:3px 8px;border-radius:6px;' : 'background:#ef444422;color:#ef4444;border:1px solid #ef4444;font-weight:bold;padding:3px 8px;border-radius:6px;'}">
+          ${a.is_active ? '● Active' : '○ Disabled'}
+        </span>
+      </td>
+      <td>
+        <button class="btn btn-outline toggle-payment-btn" data-id="${a.id}" data-active="${!a.is_active}" style="${a.is_active ? 'border-color:#ef4444;color:#ef4444;' : 'border-color:#10b981;color:#10b981;'}">${a.is_active ? 'Disable' : 'Enable'}</button>
+        <button class="btn btn-outline delete-payment-btn" data-id="${a.id}" style="color:var(--habesha-red); border-color:var(--habesha-red); margin-left:4px;">Delete</button>
       </td>
     </tr>`).join("");
   }
@@ -538,14 +570,20 @@
 
     const togglePayment = event.target.closest(".toggle-payment-btn");
     if (togglePayment) {
+      const nextActive = togglePayment.dataset.active === "true";
+      togglePayment.disabled = true;
       try {
         await api(`/admin/payment-accounts/${togglePayment.dataset.id}`, {
           method: "PATCH",
-          body: JSON.stringify({ is_active: togglePayment.dataset.active === "true" })
+          body: JSON.stringify({ is_active: nextActive })
         });
-        await loadDashboard();
+        if ($("paymentAccountsBody")) await loadDashboard();
+        if ($("ownerPaymentAccountsBody") && typeof loadOwnerDashboard === "function") await loadOwnerDashboard();
       } catch (e) {
         showError("dashboardError", e.message);
+        if ($("ownerDashboardError")) showError("ownerDashboardError", e.message);
+      } finally {
+        togglePayment.disabled = false;
       }
       return;
     }
@@ -554,9 +592,11 @@
     if (deletePayment && confirm("Are you sure you want to delete this payment account?")) {
       try {
         await api(`/admin/payment-accounts/${deletePayment.dataset.id}`, { method: "DELETE" });
-        await loadDashboard();
+        if ($("paymentAccountsBody")) await loadDashboard();
+        if ($("ownerPaymentAccountsBody") && typeof loadOwnerDashboard === "function") await loadOwnerDashboard();
       } catch (e) {
         showError("dashboardError", e.message);
+        if ($("ownerDashboardError")) showError("ownerDashboardError", e.message);
       }
       return;
     }
@@ -626,14 +666,19 @@
   function renderOwnerPaymentAccounts(accounts) {
     const t = $("ownerPaymentAccountsBody");
     if (!t) return;
-    t.innerHTML = accounts.map(a => `<tr>
-      <td>${escapeHtml(a.method)}</td>
-      <td>${escapeHtml(a.account_number)}</td>
+    const list = (accounts && accounts.length) ? accounts : [{ id: 1, method: "TeleBirr", account_number: "0951666750", account_name: "Tirualem", is_active: true }];
+    t.innerHTML = list.map(a => `<tr>
+      <td><strong>${escapeHtml(a.method)}</strong></td>
+      <td><code>${escapeHtml(a.account_number)}</code></td>
       <td>${escapeHtml(a.account_name)}</td>
-      <td><span class="status ${a.is_active ? 'running' : 'cancelled'}">${a.is_active ? 'Active' : 'Inactive'}</span></td>
       <td>
-        <button class="btn btn-outline toggle-payment-btn" data-id="${a.id}" data-active="${!a.is_active}">${a.is_active ? 'Disable' : 'Enable'}</button>
-        <button class="btn btn-outline delete-payment-btn" data-id="${a.id}" style="color:var(--habesha-red); border-color:var(--habesha-red);">Delete</button>
+        <span class="status-badge ${a.is_active ? 'completed' : 'rejected'}" style="${a.is_active ? 'background:#10b98122;color:#10b981;border:1px solid #10b981;font-weight:bold;padding:3px 8px;border-radius:6px;' : 'background:#ef444422;color:#ef4444;border:1px solid #ef4444;font-weight:bold;padding:3px 8px;border-radius:6px;'}">
+          ${a.is_active ? '● Active' : '○ Disabled'}
+        </span>
+      </td>
+      <td>
+        <button class="btn btn-outline toggle-payment-btn" data-id="${a.id}" data-active="${!a.is_active}" style="${a.is_active ? 'border-color:#ef4444;color:#ef4444;' : 'border-color:#10b981;color:#10b981;'}">${a.is_active ? 'Disable' : 'Enable'}</button>
+        <button class="btn btn-outline delete-payment-btn" data-id="${a.id}" style="color:var(--habesha-red); border-color:var(--habesha-red); margin-left:4px;">Delete</button>
       </td>
     </tr>`).join("");
   }
@@ -647,7 +692,34 @@
   function renderOwnerTransactions(transactions) {
     const el = $("ownerTransactionsBody");
     if (!el) return;
-    el.innerHTML = transactions.map(transaction => `<tr><td>${escapeHtml(transaction.name)}</td><td>${escapeHtml(transaction.type)}</td><td>${escapeHtml(transaction.wallet)}</td><td>${money(transaction.amount)}</td><td>${escapeHtml(transaction.status)}</td><td>${transaction.status==="pending"?`<button class="table-action transaction-action" data-action="approve" data-id="${transaction.id}">Approve</button> <button class="table-action danger transaction-action" data-action="reject" data-id="${transaction.id}">Reject</button>`:""}</td></tr>`).join("") || `<tr><td colspan="6">No transactions.</td></tr>`;
+    el.innerHTML = transactions.map(transaction => {
+      const isPending = transaction.status === "pending";
+      const badge = transaction.status === "approved" || transaction.status === "completed"
+        ? `<span style="background:rgba(16,185,129,0.15);color:#10b981;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;">${escapeHtml(transaction.status.toUpperCase())}</span>`
+        : transaction.status === "pending"
+        ? `<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;">PENDING</span>`
+        : `<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;">${escapeHtml(transaction.status.toUpperCase())}</span>`;
+
+      return `<tr>
+        <td>
+          <strong>${escapeHtml(transaction.name)}</strong>
+          ${transaction.phone ? `<br><small style="color:var(--habesha-muted);">${escapeHtml(transaction.phone)}</small>` : ""}
+        </td>
+        <td><span style="font-weight:bold;color:${transaction.type==='deposit'?'#10b981':'#ef4444'}">${escapeHtml(transaction.type.toUpperCase())}</span></td>
+        <td>${escapeHtml(transaction.wallet)}</td>
+        <td><strong style="color:var(--habesha-gold);">${money(transaction.amount)}</strong></td>
+        <td>
+          ${badge}
+          ${transaction.reference ? `<br><small style="color:#94a3b8;">${escapeHtml(transaction.method || "Tx")}: <code style="color:#facc15;">${escapeHtml(transaction.reference)}</code></small>` : ""}
+        </td>
+        <td>
+          ${isPending ? `
+            <button class="table-action transaction-action" data-action="approve" data-id="${transaction.id}" style="background:#10b981;color:#fff;">Approve</button>
+            <button class="table-action danger transaction-action" data-action="reject" data-id="${transaction.id}">Reject</button>
+          ` : `—`}
+        </td>
+      </tr>`;
+    }).join("") || `<tr><td colspan="6">No transactions.</td></tr>`;
   }
 
   function renderOwnerUsers(users) {

@@ -139,6 +139,6 @@ SELECT 'Main Game'
 WHERE NOT EXISTS (SELECT 1 FROM games WHERE status IN ('waiting', 'running'));
 
 INSERT INTO app_settings(key, value)
-VALUES ('demo_mode', 'true'), ('demo_entry_amount', '10'), ('demo_min_deposit', '50'),
+VALUES ('demo_mode', 'false'), ('demo_entry_amount', '10'), ('demo_min_deposit', '10'),
        ('demo_min_withdrawal', '100'), ('demo_number_max', '150')
 ON CONFLICT (key) DO NOTHING;

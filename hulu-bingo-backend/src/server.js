@@ -12,7 +12,7 @@ const path=require("path");
 const pool=require("../db");
 const {callProvider,providerStatus,verifyWebhook}=require("./payments");
 const TelegramBingoService = require("./telegram");
-const DEMO_MODE=process.env.DEMO_MODE!=="false";
+const DEMO_MODE = false;
 
 const app=express(), server=http.createServer(app);
 const corsOptions = {
@@ -149,7 +149,7 @@ async function init(){
     ADD COLUMN IF NOT EXISTS admin_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
     ADD COLUMN IF NOT EXISTS payout_proof TEXT`);
   await pool.query("CREATE INDEX IF NOT EXISTS idx_transactions_type_status ON transactions(type, status)");
-  await pool.query("INSERT INTO app_settings(key,value) VALUES ('demo_mode','true'),('demo_entry_amount','10'),('demo_min_deposit','10'),('demo_min_withdrawal','100'),('demo_number_max','600') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value WHERE app_settings.key IN ('demo_entry_amount', 'demo_min_deposit')");
+  await pool.query("INSERT INTO app_settings(key,value) VALUES ('demo_mode','false'),('demo_entry_amount','10'),('demo_min_deposit','10'),('demo_min_withdrawal','100'),('demo_number_max','600') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value WHERE app_settings.key IN ('demo_mode', 'demo_entry_amount', 'demo_min_deposit')");
   await pool.query(`
     INSERT INTO app_settings(key, value) VALUES 
       ('telegram_bot_token', '8608274368:AAE_kGjR_P61Ev2BQPbLgTdvoBYPyAJ1bPg'),
@@ -162,10 +162,17 @@ async function init(){
   await pool.query("UPDATE games SET entry = 10 WHERE status = 'waiting' AND entry = 8");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE, ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'PLAYER'");
   await pool.query("ALTER TABLE payment_accounts ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE");
-  const telebirrAcc = (await pool.query("SELECT id FROM payment_accounts WHERE method = 'TeleBirr'")).rows[0];
+  await pool.query("UPDATE payment_accounts SET is_active = TRUE WHERE LOWER(method) LIKE '%tele%'");
+  const telebirrAcc = (await pool.query("SELECT id FROM payment_accounts WHERE method ILIKE '%tele%'")).rows[0];
   if (!telebirrAcc) {
     await pool.query(
       "INSERT INTO payment_accounts (method, account_number, account_name, is_active) VALUES ('TeleBirr', '0951666750', 'Tirualem', TRUE)"
+    );
+  }
+  const cbeAcc = (await pool.query("SELECT id FROM payment_accounts WHERE method ILIKE '%cbe%'")).rows[0];
+  if (!cbeAcc) {
+    await pool.query(
+      "INSERT INTO payment_accounts (method, account_number, account_name, is_active) VALUES ('CBE Birr', '0951666750', 'Abrham', TRUE)"
     );
   }
   await pool.query(`
@@ -685,6 +692,10 @@ app.post("/api/wallet/deposit",auth,async(req,res)=>{
   if(value===null||value<minAllowed)return res.status(400).json({error:`Minimum deposit is ${minAllowed} ETB`});
   if(!validWallet(wallet)||!method)return res.status(400).json({error:"Invalid wallet or payment provider"});
 
+  if (!DEMO_MODE && (!reference || reference.trim().length < 4 || reference.toLowerCase().includes("demo"))) {
+    return res.status(400).json({ error: "ትክክለኛ የክፍያ ማረጋገጫ ቁጥር (TxID / Reference) ማስገባት ግዴታ ነው" });
+  }
+
   // Deduplication: prevent duplicate deposits with same TxID / reference
   if (reference && reference.trim().length >= 4 && !reference.toLowerCase().includes("demo") && !reference.toLowerCase().includes("telegram")) {
     const existingRef = (await pool.query("SELECT id, status FROM transactions WHERE reference = $1 AND type = 'deposit' LIMIT 1", [reference.trim()])).rows[0];
@@ -716,7 +727,7 @@ app.post("/api/wallet/deposit",auth,async(req,res)=>{
   }
 
   if (typeof telegramService !== "undefined" && telegramService && telegramService.notifyDepositPending && !DEMO_MODE) {
-    telegramService.notifyDepositPending(req.user.id, req.user.name || "Player", value, method, reference).catch(() => {});
+    telegramService.notifyDepositPending(req.user.id, req.user.name || "Player", value, method, reference, req.user.phone, transactionId).catch(() => {});
   }
 
   const updatedWallet = (await pool.query("SELECT main_balance, vip_balance FROM wallets WHERE user_id=$1", [req.user.id])).rows[0] || { main_balance: "0.00", vip_balance: "0.00" };
@@ -1279,7 +1290,15 @@ app.post("/api/admin/support/:id/reply",auth,requireRole("ADMIN"),async(req,res)
 
 app.get("/api/payment-accounts", async (req, res) => {
   try {
-    const accounts = (await pool.query("SELECT id, method, account_number, account_name FROM payment_accounts WHERE is_active = TRUE ORDER BY id ASC")).rows;
+    let accounts = (await pool.query("SELECT id, method, account_number, account_name FROM payment_accounts WHERE is_active = TRUE ORDER BY id ASC")).rows;
+    if (!accounts.length) {
+      await pool.query("UPDATE payment_accounts SET is_active = TRUE WHERE LOWER(method) LIKE '%tele%'");
+      accounts = (await pool.query("SELECT id, method, account_number, account_name FROM payment_accounts WHERE is_active = TRUE ORDER BY id ASC")).rows;
+    }
+    if (!accounts.length) {
+      await pool.query("INSERT INTO payment_accounts (method, account_number, account_name, is_active) VALUES ('TeleBirr', '0951666750', 'Tirualem', TRUE) ON CONFLICT DO NOTHING");
+      accounts = (await pool.query("SELECT id, method, account_number, account_name FROM payment_accounts WHERE is_active = TRUE ORDER BY id ASC")).rows;
+    }
     res.json({ accounts });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1296,7 +1315,7 @@ app.post("/api/admin/payment-accounts", auth, requireRole("ADMIN"), async (req, 
     const { method, account_number, account_name } = req.body;
     if (!method || !account_number || !account_name) return res.status(400).json({ error: "Missing fields" });
     const newAccount = (await pool.query(
-      "INSERT INTO payment_accounts (method, account_number, account_name) VALUES ($1, $2, $3) RETURNING *",
+      "INSERT INTO payment_accounts (method, account_number, account_name, is_active) VALUES ($1, $2, $3, TRUE) RETURNING *",
       [String(method), String(account_number), String(account_name)]
     )).rows[0];
     res.json({ account: newAccount });
@@ -1308,9 +1327,18 @@ app.patch("/api/admin/payment-accounts/:id", auth, requireRole("ADMIN"), async (
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid id" });
     const { method, account_number, account_name, is_active } = req.body;
+    const fields = [];
+    const values = [];
+    let idx = 1;
+    if (method !== undefined) { fields.push(`method = $${idx++}`); values.push(method); }
+    if (account_number !== undefined) { fields.push(`account_number = $${idx++}`); values.push(account_number); }
+    if (account_name !== undefined) { fields.push(`account_name = $${idx++}`); values.push(account_name); }
+    if (is_active !== undefined) { fields.push(`is_active = $${idx++}`); values.push(Boolean(is_active)); }
+    if (fields.length === 0) return res.status(400).json({ error: "No fields to update" });
+    values.push(id);
     const updated = (await pool.query(
-      "UPDATE payment_accounts SET method = COALESCE($1, method), account_number = COALESCE($2, account_number), account_name = COALESCE($3, account_name), is_active = COALESCE($4, is_active) WHERE id = $5 RETURNING *",
-      [method, account_number, account_name, is_active, id]
+      `UPDATE payment_accounts SET ${fields.join(", ")} WHERE id = $${idx} RETURNING *`,
+      values
     )).rows[0];
     if(!updated) return res.status(404).json({error: "Not found"});
     res.json({ account: updated });

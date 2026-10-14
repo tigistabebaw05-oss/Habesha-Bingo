@@ -17,7 +17,7 @@ function updateAllBalanceDisplays(mainBal, vipBal) {
   const vipStr = money(v);
   if ($("mainBalance")) $("mainBalance").textContent = str;
   if ($("tgMainBalance")) $("tgMainBalance").textContent = str;
-  if ($("tgPlayBalance")) $("tgPlayBalance").textContent = str;
+  if ($("tgPlayBalance")) $("tgPlayBalance").textContent = "8.00 ETB";
   if ($("modalMainBalance")) $("modalMainBalance").textContent = str;
   if ($("vipBalance")) $("vipBalance").textContent = vipStr;
   if ($("modalVipBalance")) $("modalVipBalance").textContent = vipStr;
@@ -322,7 +322,7 @@ async function refresh(){
       if($("mainBalance")) $("mainBalance").textContent=money(w.wallet?.main_balance);
       if($("vipBalance")) $("vipBalance").textContent=money(w.wallet?.vip_balance);
       if($("tgMainBalance")) $("tgMainBalance").textContent=money(w.wallet?.main_balance);
-      if($("tgPlayBalance")) $("tgPlayBalance").textContent=money(w.wallet?.main_balance);
+      if($("tgPlayBalance")) $("tgPlayBalance").textContent="8.00 ETB";
 
       // Populate KYC name default if empty
       if ($("withdrawAccountNameInput") && !$("withdrawAccountNameInput").value) {
@@ -398,14 +398,9 @@ function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;",
 $("joinBtn").addEventListener("click",async()=>{
   try{
     if(!authStorage.getItem("hulu_token")){
-      const rndPhone = "09" + Math.floor(10000000 + Math.random()*90000000);
-      const reg = await api("/register", {method:"POST", body: JSON.stringify({name: "Player " + rndPhone.slice(-4), phone: rndPhone, password: "Password@123"})}).catch(()=>null);
-      if(reg?.token){
-        authStorage.setItem("hulu_token", reg.token);
-        authStorage.setItem("hulu_name", reg.user.name);
-        authStorage.setItem("hulu_role", reg.user.role);
-        await api("/wallet/deposit", {method:"POST", body: JSON.stringify({amount: 100, wallet: "main", method: "TeleBirr", reference: "DemoJoin"})}).catch(()=>{});
-      }
+      openAuthModal("login");
+      toast("እባክዎ ጨዋታውን ለመጀመር መጀመሪያ ይግቡ ወይም ይመዝገቡ (Please login to play)");
+      return;
     }
     await api("/join",{method:"POST"});
     toast("You joined the game!");
@@ -511,6 +506,11 @@ $("authForm").addEventListener("submit",async e=>{
 $("depositForm").addEventListener("submit", async e => {
   e.preventDefault();
   const f = new FormData(e.target);
+  const ref = String(f.get("reference") || "").trim();
+  if (!ref || ref.length < 4) {
+    toast("እባክዎ ከባንክ (Telebirr/CBE) የደረሰዎትን የክፍያ ማረጋገጫ ቁጥር (TxID) ያስገቡ", true);
+    return;
+  }
   const button = e.target.querySelector("button");
   button.disabled = true;
   try {
@@ -519,11 +519,11 @@ $("depositForm").addEventListener("submit", async e => {
       headers: { "Idempotency-Key": crypto.randomUUID() },
       body: JSON.stringify(Object.fromEntries(f))
     });
-    if (res.wallet) {
+    if (res.wallet && res.paymentStatus === "completed") {
       updateAllBalanceDisplays(res.wallet.main_balance, res.wallet.vip_balance);
     }
     await refresh();
-    toast(res.message || "የገቢ ጥያቄዎ በተሳካ ሁኔታ ተጠናቋል (Deposit completed)!");
+    toast(res.message || "የገቢ ጥያቄዎ በተሳካ ሁኔታ ቀርቧል!");
     e.target.reset();
   } catch (x) {
     toast(x.message, true);
@@ -845,6 +845,8 @@ window.openTelegramModal = function(modalId) {
     showSupportTab("new");
   } else if (modalId === "roomsModal" && typeof renderRooms === "function") {
     renderRooms();
+  } else if (modalId === "depositModal") {
+    if (typeof loadPaymentAccounts === "function") loadPaymentAccounts();
   }
 
   const target = document.getElementById(modalId);
@@ -1012,35 +1014,19 @@ window.openDepositInstructionFlow = function(method = "TeleBirr") {
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     let instructionBody = "";
-    if (method === "CBE Birr") {
-      instructionBody = `
-        1. Deposite yadereginewun ETB በ CBE Birr ወደዚህ ይላኩ፡<br>
-        <b>0951666750 (Abrham)</b><br><br>
-        2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።<br><br>
-        3. የ መልክቱን ID (sms ሙሉውን) እዚህ ጋር ይለጥፉ (past)
-      `;
-    } else if (method === "MPesa" || method === "M-Pesa") {
-      instructionBody = `
-        1. Depisite yadereginewun ETB በ MPesa ወደዚህ ይላኩ:<br>
-        <b>0726666750 (Abrham)</b><br><br>
-        2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።<br><br>
-        3. የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):
-      `;
-    } else if (method === "E-Birr") {
-      instructionBody = `
-        1. Deposite yetederegew ETB በ E-Birr ወደዚህ ይላኩ:<br>
-        <b>0919307468(Abdu)</b><br><br>
-        2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።<br><br>
-        3. የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):
-      `;
-    } else {
-      instructionBody = `
-        Depisite yaderegutin birrETB በ TeleBirr ወደዚህ ይላኩ:<br>
-        <b>0951666750(Tirualem)</b><br><br>
-        ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።<br><br>
-        የ መልክቱን ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):
-      `;
+    let matchedAcc = null;
+    if (window.activePaymentAccounts && window.activePaymentAccounts.length) {
+      matchedAcc = window.activePaymentAccounts.find(a => a.method && a.method.toLowerCase().includes(method.toLowerCase().slice(0, 4)));
     }
+    const accNum = matchedAcc?.account_number || (method === "MPesa" ? "0726666750" : method === "E-Birr" ? "0919307468" : "0951666750");
+    const accName = matchedAcc?.account_name || (method === "MPesa" ? "Abrham" : method === "E-Birr" ? "Abdu" : method === "CBE Birr" ? "Abrham" : "Tirualem");
+
+    instructionBody = `
+      1. Deposite ያደረጉትን ብር በ <b>${escapeHtml(method)}</b> ወደዚህ ይላኩ:<br>
+      <b>${escapeHtml(accNum)} (${escapeHtml(accName)})</b><br><br>
+      2. ከባንክ የሚደርስዎትን የክፍያ ማረጋገጫ (Txn ID) ኮፒ ያድርጉ።<br><br>
+      3. የደረሰዎትን Transaction ID (ወይም SMS ሙሉውን) እዚህ ጋር ይለጥፉ (Paste):
+    `;
 
     msgBox.innerHTML += `
       <div class="chat-message user-message" style="align-self: flex-end;">
@@ -1069,58 +1055,33 @@ window.confirmDepositFlow1 = async function() {
   const txid = $("depositTxidInput") ? $("depositTxidInput").value.trim() : "";
   const isVip = target.toLowerCase().includes("vip");
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const reference = txid || `TeleBirr-TX-${Date.now().toString().slice(-6)}`;
 
-  // Optimistically credit local wallet
-  if (!state.wallet) state.wallet = { main_balance: "0.00", vip_balance: "0.00" };
-  if (isVip) {
-    state.wallet.vip_balance = (Number(state.wallet.vip_balance || 0) + amount).toFixed(2);
-  } else {
-    state.wallet.main_balance = (Number(state.wallet.main_balance || 0) + amount).toFixed(2);
+  if (!txid || txid.length < 4) {
+    toast("እባክዎ ከባንክ (Telebirr/CBE) የደረሰዎትን የክፍያ ማረጋገጫ ቁጥር (TxID) ያስገቡ", true);
+    return;
   }
+  const reference = txid;
 
-  // Update DOM balance displays immediately
-  if ($("mainBalance")) $("mainBalance").textContent = money(state.wallet.main_balance);
-  if ($("tgMainBalance")) $("tgMainBalance").textContent = money(state.wallet.main_balance);
-  if ($("tgPlayBalance")) $("tgPlayBalance").textContent = money(state.wallet.main_balance);
-  if ($("modalMainBalance")) $("modalMainBalance").textContent = money(state.wallet.main_balance);
-  if ($("modalVipBalance")) $("modalVipBalance").textContent = money(state.wallet.vip_balance);
+  if ($("telegramDepositConfirmKeyboard")) $("telegramDepositConfirmKeyboard").hidden = true;
+  if ($("telegramKeyboard")) $("telegramKeyboard").hidden = false;
 
   const chatContainer = $("telegramDepositChatState");
   const msgBox = $("depositChatMessages");
   if (chatContainer && msgBox) {
     msgBox.innerHTML += `
       <div class="chat-message user-message" style="align-self: flex-end;">
-        ${escapeHtml(txid || "TxID / SMS Submitted")} <small class="msg-time">${now} <span style="color: #4caf50;">✓✓</span></small>
+        ${escapeHtml(txid)} <small class="msg-time">${now} <span style="color: #4caf50;">✓✓</span></small>
       </div>
       <div class="chat-message bot-message" style="text-align: left; line-height: 1.6;">
-        <div style="font-weight: bold; color: #4caf50; font-size: 15px;">✅ የገቢ ጥያቄዎ ተጠናቋል!</div>
+        <div style="font-weight: bold; color: #f59e0b; font-size: 15px;">⏳ የገቢ ጥያቄዎ ተልኳል (Awaiting Verification)</div>
         <div style="margin-top: 8px;">መጠን: <b>${amount} ETB</b><br>ዘዴ: <b>${escapeHtml(method)}</b></div>
         <div style="margin-top: 4px;">TxID: <code>${escapeHtml(reference)}</code></div>
-        <div style="margin-top: 8px; color: #22c55e; font-weight: 600;">🎉 ${amount} ETB ወደ ዋሌትዎ ገብቷል! አሁኑኑ ካርቴላ መምረጥ ይችላሉ።</div>
-        <button class="keyboard-btn full-width" id="btnDepositPlayNow" type="button" style="margin-top: 10px; background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; font-weight: bold; border-radius: 8px; border: none; padding: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 15px;">🎮 ካርቴላ ምረጥ & ተጫወት (Select Cartela & Play)</button>
+        <div style="margin-top: 8px; color: #cbd5e1; font-size: 13px;">የላኩት ክፍያ በአስተዳዳሪው እንደተረጋገጠ (በደቂቃዎች ውስጥ) በቀጥታ ወደ ዋሌትዎ ይገባል። እናመሰግናለን!</div>
         <small class="msg-time">${now}</small>
       </div>
     `;
     chatContainer.scrollTop = chatContainer.scrollHeight;
-
-    setTimeout(() => {
-      const playBtn = $("btnDepositPlayNow");
-      if (playBtn) {
-        playBtn.onclick = () => {
-          closeAllTelegramModals();
-          if (isVip) {
-            window.switchToVipRoomView();
-          } else {
-            switchToCardSelectionView();
-          }
-        };
-      }
-    }, 50);
   }
-
-  if ($("telegramDepositConfirmKeyboard")) $("telegramDepositConfirmKeyboard").hidden = true;
-  if ($("telegramKeyboard")) $("telegramKeyboard").hidden = false;
 
   try {
     const token = authStorage.getItem("hulu_token");
@@ -1134,13 +1095,17 @@ window.confirmDepositFlow1 = async function() {
           reference: reference
         })
       });
-      if (res && res.wallet) {
+      if (res && res.paymentStatus === "completed" && res.wallet) {
         state.wallet = res.wallet;
+        updateAllBalanceDisplays(res.wallet.main_balance, res.wallet.vip_balance);
+        toast(`የ ${amount} ETB ተቀማጭ ተረጋግጧል!`);
+      } else {
+        toast(res.message || "የገቢ ጥያቄዎ ቀርቧል! በአስተዳዳሪው ተረጋግጦ ይገባል");
       }
       await refresh();
-      toast(`የ ${amount} ETB ተቀማጭ ተረጋግጧል!`);
     }
   } catch(e) {
+    toast(e.message, true);
     console.warn("Deposit note:", e.message);
   }
 };
@@ -1229,7 +1194,13 @@ if ($("modalDepositForm")) {
     const fd = new FormData(e.target);
     const amount = Number(fd.get("amount") || 50);
     const method = fd.get("method") || "TeleBirr";
-    const reference = (fd.get("reference") || "").trim() || `TxID-${Date.now().toString().slice(-6)}`;
+    const reference = (fd.get("reference") || "").trim();
+    if (!reference || reference.length < 4) {
+      toast("እባክዎ ከባንክ የደረሰዎትን የክፍያ ማረጋገጫ ቁጥር (TxID / SMS) ያስገቡ", true);
+      return;
+    }
+    const button = e.target.querySelector("button");
+    if (button) button.disabled = true;
     try {
       if (authStorage.getItem("hulu_token")) {
         const res = await api("/wallet/deposit", {
@@ -1241,18 +1212,21 @@ if ($("modalDepositForm")) {
             wallet: "main"
           })
         });
-        if (res && res.wallet) {
+        if (res && res.paymentStatus === "completed" && res.wallet) {
           state.wallet = res.wallet;
+          updateAllBalanceDisplays(res.wallet.main_balance, res.wallet.vip_balance);
+          toast(`የ ${amount} ETB ተቀማጭ ተረጋግጧል!`);
+        } else {
+          toast(res.message || "የገቢ ጥያቄዎ ቀርቧል! በአስተዳዳሪው ተረጋግጦ ይገባል");
         }
         await refresh();
       }
-      toast(`የ ${amount} ETB የገቢ ጥያቄ (${method}) በተሳካ ሁኔታ ተጠናቋል!`);
       closeAllTelegramModals();
       e.target.reset();
-      switchToCardSelectionView();
     } catch(err) {
-      toast(err.message || `የ ${amount} ETB የገቢ ጥያቄ ተልኳል!`);
-      closeAllTelegramModals();
+      toast(err.message || `የ ${amount} ETB የገቢ ጥያቄ ተልኳል!`, true);
+    } finally {
+      if (button) button.disabled = false;
     }
   });
 }
@@ -2215,7 +2189,7 @@ if($("tgTotalBetBtn")) {
       state.wallet.main_balance = Math.max(0, currentBal - totalBet).toFixed(2);
       if ($("mainBalance")) $("mainBalance").textContent = money(state.wallet.main_balance);
       if ($("tgMainBalance")) $("tgMainBalance").textContent = money(state.wallet.main_balance);
-      if ($("tgPlayBalance")) $("tgPlayBalance").textContent = money(state.wallet.main_balance);
+      if ($("tgPlayBalance")) $("tgPlayBalance").textContent = "8.00 ETB";
       if ($("modalMainBalance")) $("modalMainBalance").textContent = money(state.wallet.main_balance);
     }
 
@@ -2441,17 +2415,73 @@ async function loadMyTickets() {
 async function loadPaymentAccounts() {
   try {
     const res = await api("/payment-accounts");
-    const accounts = res.accounts || [];
-    if(accounts.length === 0) return;
-    let html = "<div style=\"font-size:12px;color:var(--habesha-gold, #f3ca56);margin-bottom:5px;text-transform:uppercase;\">Send Deposit To:</div><ul style=\"list-style:none;padding:0;margin:0;font-size:13px;line-height:1.4;\">";
-    accounts.forEach(a => {
-      html += `<li style="margin-bottom:4px;"><strong>${a.method}</strong>: ${a.account_number} (${a.account_name})</li>`;
+    let accounts = res && res.accounts ? res.accounts : [];
+    if (!accounts.length) {
+      accounts = [{ id: 1, method: "TeleBirr", account_number: "0951666750", account_name: "Tirualem", is_active: true }];
+    }
+    window.activePaymentAccounts = accounts;
+
+    const renderBox = (containerId) => {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      let html = `
+        <div style="font-size:12px;color:var(--habesha-gold, #f3ca56);margin-bottom:8px;font-weight:700;display:flex;align-items:center;justify-content:space-between;letter-spacing:0.5px;">
+          <span>📱 የክፍያ መላኪያ ሂሳቦች (DEPOSIT ACCOUNTS)</span>
+          <span style="font-size:10px;background:#10b98122;color:#10b981;border:1px solid #10b98144;padding:2px 6px;border-radius:10px;">ACTIVE</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+      `;
+      accounts.forEach(a => {
+        const isTele = (a.method || "").toLowerCase().includes("tele");
+        html += `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid ${isTele ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.08)'};">
+            <div>
+              <div style="font-weight:bold;color:${isTele ? '#60a5fa' : '#fff'};font-size:13px;display:flex;align-items:center;gap:5px;">
+                ${isTele ? '📱' : '🏦'} ${escapeHtml(a.method)}
+                ${isTele ? '<span style="font-size:10px;background:#3b82f622;color:#60a5fa;padding:1px 5px;border-radius:4px;">RECOMMENDED</span>' : ''}
+              </div>
+              <div style="font-size:12px;color:#cbd5e1;margin-top:2px;">
+                ስም: <b>${escapeHtml(a.account_name)}</b>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <code style="font-size:14px;font-weight:bold;color:#facc15;background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:4px;letter-spacing:0.5px;">${escapeHtml(a.account_number)}</code>
+            </div>
+          </div>
+        `;
+      });
+      html += `</div>`;
+      el.innerHTML = html;
+      el.style.display = "block";
+    };
+
+    renderBox("paymentAccountsContainer");
+    renderBox("modalPaymentAccountsContainer");
+
+    // Ensure TeleBirr is present and selected in method selects
+    ["#depositForm select[name='method']", "#modalDepositForm select[name='method']"].forEach(selector => {
+      const select = document.querySelector(selector);
+      if (select) {
+        let hasTele = false;
+        for (let i = 0; i < select.options.length; i++) {
+          if (select.options[i].value.toLowerCase().includes("tele")) {
+            hasTele = true;
+            break;
+          }
+        }
+        if (!hasTele) {
+          const opt = document.createElement("option");
+          opt.value = "TeleBirr";
+          opt.textContent = "TeleBirr";
+          select.prepend(opt);
+        }
+      }
     });
-    html += "</ul>";
-    if(document.getElementById("paymentAccountsContainer")) { document.getElementById("paymentAccountsContainer").innerHTML = html; document.getElementById("paymentAccountsContainer").style.display = "block"; }
-    if(document.getElementById("modalPaymentAccountsContainer")) { document.getElementById("modalPaymentAccountsContainer").innerHTML = html; document.getElementById("modalPaymentAccountsContainer").style.display = "block"; }
-  } catch(e) { console.error(e); }
+  } catch(e) {
+    console.error("loadPaymentAccounts note:", e);
+  }
 }
+window.loadPaymentAccounts = loadPaymentAccounts;
 loadPaymentAccounts();
 
 // Check if launched with deposit query parameter

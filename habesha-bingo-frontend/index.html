@@ -111,8 +111,23 @@
       </div>
       <div class="forms-grid">
         <form class="panel" id="depositForm">
-          <div class="eyebrow">DEPOSIT</div><h3>ገንዘብ አስገባ (Add Funds)</h3>
-          <div id="paymentAccountsContainer" class="payment-accounts-container" style="display:none; padding:10px; background:var(--habesha-bg-alt); border-radius:8px; margin-bottom:10px;"></div>
+          <div id="paymentAccountsContainer" class="payment-accounts-container" style="display:block; padding:12px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:8px; margin-bottom:12px;">
+            <div style="font-size:12px;color:var(--habesha-gold, #f3ca56);margin-bottom:8px;font-weight:700;display:flex;align-items:center;justify-content:space-between;letter-spacing:0.5px;">
+              <span>📱 የክፍያ መላኪያ ሂሳብ (DEPOSIT ACCOUNT)</span>
+              <span style="font-size:10px;background:#10b981;color:#fff;padding:2px 8px;border-radius:10px;font-weight:bold;">● ACTIVE</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(0,0,0,0.25);border-radius:6px;border:1px solid rgba(59,130,246,0.3);">
+              <div>
+                <div style="font-weight:bold;color:#60a5fa;font-size:13px;display:flex;align-items:center;gap:5px;">
+                  📱 TeleBirr <span style="font-size:10px;background:#3b82f622;color:#60a5fa;padding:1px 5px;border-radius:4px;">RECOMMENDED</span>
+                </div>
+                <div style="font-size:12px;color:#cbd5e1;margin-top:2px;">ስም: <b>Tirualem</b></div>
+              </div>
+              <div style="text-align:right;">
+                <code style="font-size:15px;font-weight:bold;color:#facc15;background:rgba(0,0,0,0.4);padding:4px 8px;border-radius:4px;letter-spacing:0.5px;">0951666750</code>
+              </div>
+            </div>
+          </div>
           <label>Wallet (ዋሌት)<select name="wallet"><option value="main">🎮 ዋና ጨዋታ (Main Game)</option><option value="vip">💎 VIP ክፍል (VIP Room)</option></select></label>
           <label>የክፍያ ዘዴ (Method)<select name="method"><option>TeleBirr</option><option>CBE Birr</option><option>M-Pesa</option><option>E-Birr</option></select></label>
           <label>የብር መጠን (Amount)<input name="amount" type="number" min="10" value="10"></label>
@@ -465,8 +480,23 @@
       </div>
       <h2>📥 ገንዘብ አስገባ (Deposit)</h2>
       <p style="color: var(--habesha-muted); font-size: 13px; margin-bottom: 15px;">የፈለጉትን የክፍያ አማራጭ በመጠቀም ሂሳብዎን ይሙሉ (ቴሌብር፣ CBE Birr፣ M-Pesa)</p>
-      <form id="modalDepositForm" style="display: flex; flex-direction: column; gap: 12px;">
-        <div id="modalPaymentAccountsContainer" class="payment-accounts-container" style="display:none; padding:10px; background:#07182c; border:1px solid #294963; border-radius:8px;"></div>
+        <div id="modalPaymentAccountsContainer" class="payment-accounts-container" style="display:block; padding:12px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:8px;">
+          <div style="font-size:12px;color:var(--habesha-gold, #f3ca56);margin-bottom:8px;font-weight:700;display:flex;align-items:center;justify-content:space-between;letter-spacing:0.5px;">
+            <span>📱 የክፍያ መላኪያ ሂሳብ (DEPOSIT ACCOUNT)</span>
+            <span style="font-size:10px;background:#10b981;color:#fff;padding:2px 8px;border-radius:10px;font-weight:bold;">● ACTIVE</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(0,0,0,0.25);border-radius:6px;border:1px solid rgba(59,130,246,0.3);">
+            <div>
+              <div style="font-weight:bold;color:#60a5fa;font-size:13px;display:flex;align-items:center;gap:5px;">
+                📱 TeleBirr <span style="font-size:10px;background:#3b82f622;color:#60a5fa;padding:1px 5px;border-radius:4px;">RECOMMENDED</span>
+              </div>
+              <div style="font-size:12px;color:#cbd5e1;margin-top:2px;">ስም: <b>Tirualem</b></div>
+            </div>
+            <div style="text-align:right;">
+              <code style="font-size:15px;font-weight:bold;color:#facc15;background:rgba(0,0,0,0.4);padding:4px 8px;border-radius:4px;letter-spacing:0.5px;">0951666750</code>
+            </div>
+          </div>
+        </div>
         <label>የክፍያ ዘዴ
           <select name="method" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;">
             <option>TeleBirr</option>
@@ -476,7 +506,7 @@
           </select>
         </label>
         <label>የገንዘብ መጠን (ETB)
-          <input name="amount" type="number" min="50" value="50" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;">
+          <input name="amount" type="number" min="10" value="10" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;">
         </label>
         <label>የክፍያ ማረጋገጫ ቁጥር (Txn Reference)
           <input name="reference" placeholder="ምሳሌ፡ FT234892..." style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;">
@@ -1212,7 +1242,7 @@
           <section class="panel admin-section"><div class="section-title"><h2>Winners</h2></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Game</th><th>Prize</th></tr></thead><tbody id="winnersBody"></tbody></table></div></section>
           <section class="panel admin-section"><div class="section-title"><h2>Audit log</h2></div><div class="table-wrap"><table><thead><tr><th>Action</th><th>Entity</th><th>Time</th></tr></thead><tbody id="auditBody"></tbody></table></div></section>
           <section class="panel admin-section"><div class="section-title"><h2>Demo settings</h2></div><form id="settingsForm" class="settings-form"><label>Entry amount<input name="demo_entry_amount" type="number" min="1" max="1000000" required></label><label>Minimum deposit<input name="demo_min_deposit" type="number" min="1" max="1000000" required></label><label>Minimum withdrawal<input name="demo_min_withdrawal" type="number" min="1" max="1000000" required></label><label>Number range maximum<input name="demo_number_max" type="number" min="1" max="150" required></label><button class="btn btn-gold full">Save demo settings</button></form></section>
-          <section class="panel admin-section wide"><div class="section-title"><h2>Payment Accounts</h2></div><form id="paymentAccountForm" class="settings-form" style="display:flex;gap:10px;margin-bottom:10px;align-items:flex-end;"><label>Method<select name="method"><option>TeleBirr</option><option>CBE Birr</option><option>M-Pesa</option><option>E-Birr</option></select></label><label>Account / Phone<input name="account_number" type="text" required></label><label>Account Name<input name="account_name" type="text" required></label><button class="btn btn-gold">Add Account</button></form><div class="table-wrap"><table><thead><tr><th>Method</th><th>Account / Phone</th><th>Account Name</th><th>Status</th><th>Actions</th></tr></thead><tbody id="paymentAccountsBody"></tbody></table></div></section>
+          <section class="panel admin-section wide"><div class="section-title"><h2>Payment Accounts</h2></div><form id="paymentAccountForm" class="settings-form" style="display:flex;gap:10px;margin-bottom:10px;align-items:flex-end;"><label>Method<select name="method"><option>TeleBirr</option><option>CBE Birr</option><option>M-Pesa</option><option>E-Birr</option></select></label><label>Account / Phone<input name="account_number" type="text" placeholder="0951666750" required></label><label>Account Name<input name="account_name" type="text" placeholder="Tirualem" required></label><button class="btn btn-gold">Add Account</button></form><div class="table-wrap"><table><thead><tr><th>Method</th><th>Account / Phone</th><th>Account Name</th><th>Status</th><th>Actions</th></tr></thead><tbody id="paymentAccountsBody"><tr><td><strong>📱 TeleBirr</strong></td><td><code>0951666750</code></td><td>Tirualem</td><td><span class="status-badge completed" style="background:#10b98122;color:#10b981;border:1px solid #10b981;padding:3px 8px;border-radius:6px;font-weight:bold;">● Active</span></td><td><button class="table-action danger toggle-payment-btn" data-id="1" data-active="false">Disable</button></td></tr></tbody></table></div></section>
           <section class="panel admin-section wide"><div class="section-title"><h2>Recent activity</h2></div><div class="table-wrap"><table><thead><tr><th>Action</th><th>Entity</th><th>Date</th></tr></thead><tbody id="activityBody"></tbody></table></div></section>
         </div>
         <p class="admin-error" id="dashboardError" hidden></p>
@@ -1333,7 +1363,7 @@
                 <thead>
                   <tr><th>Method</th><th>Account / Phone</th><th>Account Name</th><th>Status</th><th>Actions</th></tr>
                 </thead>
-                <tbody id="ownerPaymentAccountsBody"></tbody>
+                <tbody id="ownerPaymentAccountsBody"><tr><td><strong>📱 TeleBirr</strong></td><td><code>0951666750</code></td><td>Tirualem</td><td><span class="status-badge completed" style="background:#10b98122;color:#10b981;border:1px solid #10b981;padding:3px 8px;border-radius:6px;font-weight:bold;">● Active</span></td><td><button class="table-action danger toggle-payment-btn" data-id="1" data-active="false">Disable</button></td></tr></tbody>
               </table>
             </div>
           </section>
