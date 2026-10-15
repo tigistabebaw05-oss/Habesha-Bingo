@@ -262,7 +262,7 @@
   function renderPaymentAccounts(accounts) {
     const t = $("paymentAccountsBody");
     if (!t) return;
-    const list = (accounts && accounts.length) ? accounts : [{ id: 1, method: "TeleBirr", account_number: "0951666750", account_name: "Tirualem", is_active: true }];
+    const list = (accounts && accounts.length) ? accounts : [{ id: 1, method: "TeleBirr", account_number: "0951666750", account_name: "Abrham", is_active: true }];
     t.innerHTML = list.map(a => `<tr>
       <td><strong>${escapeHtml(a.method)}</strong></td>
       <td><code>${escapeHtml(a.account_number)}</code></td>
@@ -666,7 +666,7 @@
   function renderOwnerPaymentAccounts(accounts) {
     const t = $("ownerPaymentAccountsBody");
     if (!t) return;
-    const list = (accounts && accounts.length) ? accounts : [{ id: 1, method: "TeleBirr", account_number: "0951666750", account_name: "Tirualem", is_active: true }];
+    const list = (accounts && accounts.length) ? accounts : [{ id: 1, method: "TeleBirr", account_number: "0951666750", account_name: "Abrham", is_active: true }];
     t.innerHTML = list.map(a => `<tr>
       <td><strong>${escapeHtml(a.method)}</strong></td>
       <td><code>${escapeHtml(a.account_number)}</code></td>

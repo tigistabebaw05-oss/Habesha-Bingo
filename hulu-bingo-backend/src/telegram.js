@@ -295,8 +295,28 @@ class TelegramBingoService {
       if (!message) return;
 
       const chat = message.chat;
-      const from = message.from;
-      const text = (message.text || "").trim();
+      const rawText = (message.text || message.caption || "").trim();
+      const text = rawText;
+
+      // Handle photo/screenshot uploads during deposit confirmation
+      if (!text && message.photo && message.photo.length > 0 && chat) {
+        const state = this.userState.get(chat.id);
+        if (state?.step === "deposit_confirm") {
+          await this.sendMessage(
+            chat.id,
+            "📸 <b>የደረሰኝ ፎቶ ደርሶናል!</b>\n\n" +
+            "እባክዎ ከደረሰኙ ላይ ያለውን ባለ 10 ፊደል/ቁጥር የማረጋገጫ ቁጥር (TxID - ለምሳሌ፡ <code>DA8109HG73</code>) ወይም ሙሉውን የባንክ/ቴሌብር SMS ጽፈው/ኮፒ አድርገው ይላኩ፤ ወዲያውኑ ገቢ ይደረግልዎታል።",
+            {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "❌ አቋርጥ (Cancel)", callback_data: "cmd_cancel" }]
+                ]
+              }
+            }
+          );
+          return;
+        }
+      }
 
       // Group auto-discovery
       if (chat && (chat.type === "group" || chat.type === "supergroup")) {
@@ -387,6 +407,13 @@ class TelegramBingoService {
       };
       const method = methodMap[methodKey] || "TeleBirr";
       await this.cmdDepositStep4_Instruction(chatId, user, method);
+    } else if (data.startsWith("dep_switch:")) {
+      const newMethod = data.split(":")[1];
+      const currentState = this.userState.get(chatId) || {};
+      const target = currentState.target || "🎮 ዋና ጨዋታ";
+      const amount = currentState.amount || 10;
+      this.userState.set(chatId, { step: "deposit_confirm", target, method: newMethod, amount });
+      await this.cmdDepositStep4_Instruction(chatId, user, newMethod);
     } else if (data === "dep_confirm") {
       await this.sendMessage(chatId, `📲 <b>የግብይት ቁጥር (Txn ID) ያስገቡ</b>\n\nከባንክ የደረሰዎትን የክፍያ ማረጋገጫ ቁጥር (Txn ID) ወይም ሙሉውን SMS እዚህ መልሰው ይላኩ/ይለጥፉ:`, {
         reply_markup: {
@@ -806,20 +833,20 @@ class TelegramBingoService {
     const amount = currentState.amount || 10;
     this.userState.set(chatId, { step: "deposit_confirm", target, method, amount });
 
-    let receiverName = "Tirualem";
+    let receiverName = "Abrham";
     let receiverPhone = "0951666750";
 
     try {
       const acc = (await this.pool.query("SELECT account_number, account_name FROM payment_accounts WHERE method ILIKE $1 AND is_active = TRUE LIMIT 1", [method])).rows[0];
       if (acc) {
-        receiverName = acc.account_name;
+        receiverName = acc.account_name === "Tirualem" ? "Abrham" : acc.account_name;
         receiverPhone = acc.account_number;
       }
     } catch (_) {}
 
     if (!receiverPhone) {
       if (method === "TeleBirr") {
-        receiverName = "Tirualem";
+        receiverName = "Abrham";
         receiverPhone = "0951666750";
       } else if (method === "CBE Birr") {
         receiverName = "Abrham";
@@ -879,43 +906,69 @@ class TelegramBingoService {
 
   parseReceipt(text) {
     if (!text || typeof text !== "string") return null;
-    const raw = text.trim();
+    let raw = text.trim();
     if (raw.length < 4) return null;
 
     let amount = null;
     let txnId = null;
-    let method = "TeleBirr";
+    let method = null;
 
-    // 1. Detect method
     const lower = raw.toLowerCase();
+
+    // 1. Detect method from text keywords
     if (lower.includes("cbe") || raw.includes("ንግድ ባንክ") || raw.includes("ሲቢኢ") || lower.includes("commercial bank")) {
       method = "CBE Birr";
     } else if (lower.includes("mpesa") || lower.includes("m-pesa") || raw.includes("ኤምፔሳ")) {
       method = "MPesa";
-    } else if (lower.includes("ebirr") || lower.includes("e-birr") || raw.includes("ኢ-ብር")) {
+    } else if (lower.includes("ebirr") || lower.includes("e-birr") || raw.includes("ኢ-ብር") || raw.includes("ኢብር")) {
       method = "E-Birr";
-    } else if (lower.includes("telebirr") || raw.includes("ቴሌብር") || raw.includes("ቴሌ")) {
+    } else if (lower.includes("telebirr") || raw.includes("ቴሌብር") || raw.includes("ቴሌ") || lower.includes("tele") || lower.includes("127")) {
       method = "TeleBirr";
     }
 
-    // 2. Detect TxID / Reference code
-    const labelMatch = raw.match(/(?:Txn\s*ID|Transaction\s*(?:ID|No|Number)?|የግብይት(?:\s*መለያ)?\s*ቁጥር|መለያ\s*ቁጥር|ትራንዛክሽን\s*(?:መለያ)?\s*ቁጥር|Ref(?:\s*No|\s*Number)?|Reference|Trans\s*ID)[:\s=]+([A-Za-z0-9_-]+)/i);
+    // 2. Detect TxID / Reference code with flexible labels (supports Txt ID, TxID, Txn ID, Transaction ID, Ref, Amharic labels, etc.)
+    const labelMatch = raw.match(
+      /(?:Txn\s*(?:\.?\s*ID|No|Number)?|Txt\s*(?:\.?\s*ID|No|Number)?|Tx\s*(?:\.?\s*ID|No|Number)?|Trx\s*(?:\.?\s*ID|No|Number)?|Trans\s*(?:\.?\s*ID|No|Number)?|Transaction\s*(?:ID|No|Number|Code|Ref)?|Ref(?:\s*No|\s*Number)?|Reference|Receipt\s*(?:ID|No|Number)?|የግብይት(?:\s*መለያ)?\s*ቁጥር(?:ዎ|ህ|ሽ|ኦ)?|መለያ\s*ቁጥር(?:ዎ|ህ|ሽ|ኦ)?|ትራንዛክሽን\s*(?:መለያ)?\s*ቁጥር(?:ዎ|ህ|ሽ|ኦ)?)(?:[:\s=.-]+|\s+(?:is|ነው|ናት)\s+)+([A-Za-z0-9_-]+)/i
+    );
     if (labelMatch) {
-      txnId = labelMatch[1].trim();
+      txnId = labelMatch[1].trim().replace(/[.።,]+$/, "");
     }
 
     // CBE FT code e.g. FT2428819034
     if (!txnId) {
       const ftMatch = raw.match(/\b(FT[0-9A-Za-z]{8,24})\b/i);
       if (ftMatch) {
-        txnId = ftMatch[1].trim();
-        method = "CBE Birr";
+        txnId = ftMatch[1].trim().replace(/[.።,]+$/, "");
+        if (!method) method = "CBE Birr";
       }
     }
 
-    // Direct TxID input (single alphanumeric code, length 6 to 35)
-    if (!txnId && /^[A-Za-z0-9_-]{6,35}$/.test(raw)) {
-      txnId = raw;
+    // Telebirr 10-char standard transaction code pattern (e.g. DA8109HG73, DB42B1Y6B1)
+    if (!txnId) {
+      const teleMatch = raw.match(/\b([A-Za-z]{2}[0-9A-Za-z]{8})\b/);
+      if (teleMatch) {
+        const cand = teleMatch[1].trim();
+        if (!/^(TRANSFERRED|TRANSACTION|COMMERCIAL|HabeshaBin)$/i.test(cand)) {
+          txnId = cand;
+          if (!method) method = "TeleBirr";
+        }
+      }
+    }
+
+    // Stripped label prefix (e.g. "Txt ID DA8109HG73" or "TxID: 1029384756")
+    if (!txnId) {
+      const stripped = raw.replace(/^(?:Txt\s*ID|Tx\s*ID|TxID|Txn\s*ID|Transaction\s*ID|ID)[:\s=-]*/i, "").trim().replace(/[.።,]+$/, "");
+      if (/^[A-Za-z0-9_-]{6,35}$/.test(stripped)) {
+        txnId = stripped;
+      }
+    }
+
+    // Direct TxID input (single alphanumeric code, length 6 to 35, strip trailing punctuation)
+    if (!txnId) {
+      const cleanRaw = raw.replace(/[.።,;!]+$/, "").trim();
+      if (/^[A-Za-z0-9_-]{6,35}$/.test(cleanRaw)) {
+        txnId = cleanRaw;
+      }
     }
 
     // Look for 10-14 digit number in text that isn't a phone number (not starting with 09, 07, 251)
@@ -924,6 +977,14 @@ class TelegramBingoService {
       if (digitMatches && digitMatches.length > 0) {
         const candidate = digitMatches.find(d => !d.startsWith("09") && !d.startsWith("07") && !d.startsWith("251"));
         if (candidate) txnId = candidate;
+      }
+    }
+
+    // Amharic trailing marker e.g. "DA8109HG73 ነው"
+    if (!txnId) {
+      const amhMatch = raw.match(/\b([A-Za-z0-9_-]{6,25})\b\s*(?:ነው|ናት|።|\.|$)/);
+      if (amhMatch && !/^(transferred|payment|deposit|telebirr|bingo)$/i.test(amhMatch[1])) {
+        txnId = amhMatch[1].trim();
       }
     }
 
@@ -950,6 +1011,17 @@ class TelegramBingoService {
       }
     }
 
+    // Deduce method from TxID or Ethiopian SMS cues if not already set
+    if (!method) {
+      if (txnId && /^FT/i.test(txnId)) {
+        method = "CBE Birr";
+      } else if (txnId && /^[A-Za-z]{2}[0-9A-Za-z]{8}$/.test(txnId)) {
+        method = "TeleBirr";
+      } else if (raw.includes("አስተላልፈዋል") || raw.includes("የግብይት መለያ")) {
+        method = "TeleBirr";
+      }
+    }
+
     return { amount, txnId, method };
   }
 
@@ -959,6 +1031,7 @@ class TelegramBingoService {
     const target = currentState.target || "🎮 ዋና ጨዋታ";
     const isVip = target.includes("VIP");
     const walletType = isVip ? "vip" : "main";
+    const wCol = isVip ? "vip_balance" : "main_balance";
     const minDeposit = isVip ? 50 : 10;
 
     const trimmed = (inputMessage || "").trim();
@@ -967,8 +1040,19 @@ class TelegramBingoService {
     let amount = parsed.amount || currentState.amount || minDeposit;
     let txnId = parsed.txnId;
 
-    if (!txnId && trimmed.length >= 4 && trimmed.length <= 40 && /^[A-Za-z0-9_-]+$/.test(trimmed)) {
-      txnId = trimmed;
+    if (!txnId) {
+      const stripped = trimmed.replace(/^(?:Txt\s*ID|Tx\s*ID|TxID|Txn\s*ID|Transaction\s*ID|ID)[:\s=-]*/i, "").trim().replace(/[.።,]+$/, "");
+      if (stripped.length >= 4 && stripped.length <= 40 && /^[A-Za-z0-9_-]+$/.test(stripped)) {
+        txnId = stripped;
+        if (!parsed.method && /^[A-Za-z]{2}[0-9A-Za-z]{8}$/.test(txnId)) {
+          method = "TeleBirr";
+        }
+      }
+    }
+
+    // If TxID looks like Telebirr (10 chars e.g. DA8109HG73), automatically switch method to TeleBirr
+    if (txnId && /^[A-Za-z]{2}[0-9A-Za-z]{8}$/.test(txnId) && method === "E-Birr" && !parsedReceipt?.method) {
+      method = "TeleBirr";
     }
 
     // STRICT REAL MONEY CHECK: Require valid transaction ID
@@ -976,11 +1060,21 @@ class TelegramBingoService {
       this.userState.set(chatId, { step: "deposit_confirm", target, method, amount });
       await this.sendMessage(
         chatId,
-        "⚠️ <b>ትክክለኛ የግብይት ማረጋገጫ ቁጥር (TxID / SMS) አላስገቡም!</b>\n\n" +
-        `እባክዎ <b>${amount} ETB</b> በ ${method} ከላኩ በኋላ ከባንክ የደረሰዎትን የማረጋገጫ ቁጥር (TxID) ወይም ሙሉውን SMS እዚህ መልሰው ይላኩ/ይለጥፉ:`,
+        "⚠️ <b>ትክክለኛ የግብይት ማረጋገጫ ቁጥር (TxID / SMS) አልተገኘም!</b>\n\n" +
+        `እባክዎ <b>${amount} ETB</b> በ <b>${method}</b> ከላኩ በኋላ ከባንክ/ቴሌብር የደረሰዎትን የማረጋገጫ ቁጥር (TxID - ለምሳሌ፡ <code>DA8109HG73</code>) ወይም ሙሉውን SMS እዚህ መልሰው ይላኩ/ይለጥፉ:\n\n` +
+        `💡 <i>በሌላ የክፍያ ዘዴ ከላኩ ከታች ባሉት ቁልፎች መቀየር ይችላሉ:</i>`,
         {
           reply_markup: {
-            inline_keyboard: [[{ text: "❌ አቋርጥ (Cancel)", callback_data: "cmd_cancel" }]]
+            inline_keyboard: [
+              [
+                { text: "📱 በ TeleBirr ነው የላኩት", callback_data: "dep_switch:TeleBirr" },
+                { text: "🏦 በ CBE Birr", callback_data: "dep_switch:CBE Birr" }
+              ],
+              [
+                { text: "🟡 በ E-Birr", callback_data: "dep_switch:E-Birr" },
+                { text: "❌ አቋርጥ (Cancel)", callback_data: "cmd_cancel" }
+              ]
+            ]
           }
         }
       );
@@ -1864,8 +1958,8 @@ class TelegramBingoService {
     // Direct Receipt SMS or TxID paste detection:
     // When a player transfers Birr and pastes the confirmation SMS or TxID at any time:
     const receiptCandidate = this.parseReceipt(text);
-    const hasReceiptKeywords = /telebirr|cbe|mpesa|ebirr|የግብይት|አስተላልፈዋል|transferred|transaction\s*(?:id|no|num)|txnid|txn\s*id|ft[0-9a-z]{8,}/i.test(text);
-    if ((receiptCandidate && receiptCandidate.txnId && (receiptCandidate.txnId.length >= 6 || hasReceiptKeywords)) || hasReceiptKeywords) {
+    const hasReceiptKeywords = /telebirr|cbe|mpesa|ebirr|የግብይት|አስተላልፈዋል|transferred|transaction\s*(?:id|no|num)?|txnid|txn\s*id|tx\s*id|txt\s*id|ft[0-9a-z]{8,}|[a-z]{2}[0-9a-z]{8}/i.test(text);
+    if (receiptCandidate?.txnId || hasReceiptKeywords) {
       await this.cmdDepositComplete(chatId, user, text, receiptCandidate);
       return;
     }

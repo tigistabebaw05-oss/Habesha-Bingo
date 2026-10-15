@@ -1028,7 +1028,7 @@ window.openDepositInstructionFlow = function(method = "TeleBirr") {
       matchedAcc = window.activePaymentAccounts.find(a => a.method && a.method.toLowerCase().includes(method.toLowerCase().slice(0, 4)));
     }
     const accNum = matchedAcc?.account_number || (method === "MPesa" ? "0726666750" : method === "E-Birr" ? "0919307468" : "0951666750");
-    const accName = matchedAcc?.account_name || (method === "MPesa" ? "Abrham" : method === "E-Birr" ? "Abdu" : method === "CBE Birr" ? "Abrham" : "Tirualem");
+    const accName = (matchedAcc?.account_name === "Tirualem" ? "Abrham" : matchedAcc?.account_name) || (method === "MPesa" ? "Abrham" : method === "E-Birr" ? "Abdu" : "Abrham");
 
     instructionBody = `
       1. Deposite ያደረጉትን ብር በ <b>${escapeHtml(method)}</b> ወደዚህ ይላኩ:<br>
@@ -2426,7 +2426,7 @@ async function loadPaymentAccounts() {
     const res = await api("/payment-accounts");
     let accounts = res && res.accounts ? res.accounts : [];
     if (!accounts.length) {
-      accounts = [{ id: 1, method: "TeleBirr", account_number: "0951666750", account_name: "Tirualem", is_active: true }];
+      accounts = [{ id: 1, method: "TeleBirr", account_number: "0951666750", account_name: "Abrham", is_active: true }];
     }
     window.activePaymentAccounts = accounts;
 

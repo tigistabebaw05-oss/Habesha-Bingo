@@ -167,10 +167,11 @@ async function init(){
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE, ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'PLAYER'");
   await pool.query("ALTER TABLE payment_accounts ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE");
   await pool.query("UPDATE payment_accounts SET is_active = TRUE WHERE LOWER(method) LIKE '%tele%'");
+  await pool.query("UPDATE payment_accounts SET account_name = 'Abrham' WHERE LOWER(method) LIKE '%tele%' AND account_name = 'Tirualem'");
   const telebirrAcc = (await pool.query("SELECT id FROM payment_accounts WHERE method ILIKE '%tele%'")).rows[0];
   if (!telebirrAcc) {
     await pool.query(
-      "INSERT INTO payment_accounts (method, account_number, account_name, is_active) VALUES ('TeleBirr', '0951666750', 'Tirualem', TRUE)"
+      "INSERT INTO payment_accounts (method, account_number, account_name, is_active) VALUES ('TeleBirr', '0951666750', 'Abrham', TRUE)"
     );
   }
   const cbeAcc = (await pool.query("SELECT id FROM payment_accounts WHERE method ILIKE '%cbe%'")).rows[0];
@@ -1315,7 +1316,7 @@ app.get("/api/payment-accounts", async (req, res) => {
       accounts = (await pool.query("SELECT id, method, account_number, account_name FROM payment_accounts WHERE is_active = TRUE ORDER BY id ASC")).rows;
     }
     if (!accounts.length) {
-      await pool.query("INSERT INTO payment_accounts (method, account_number, account_name, is_active) VALUES ('TeleBirr', '0951666750', 'Tirualem', TRUE) ON CONFLICT DO NOTHING");
+      await pool.query("INSERT INTO payment_accounts (method, account_number, account_name, is_active) VALUES ('TeleBirr', '0951666750', 'Abrham', TRUE) ON CONFLICT DO NOTHING");
       accounts = (await pool.query("SELECT id, method, account_number, account_name FROM payment_accounts WHERE is_active = TRUE ORDER BY id ASC")).rows;
     }
     res.json({ accounts });
