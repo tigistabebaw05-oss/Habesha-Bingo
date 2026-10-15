@@ -6,7 +6,7 @@ class TelegramBingoService {
     this.pool = options.pool;
     this.io = options.io;
     this.token = process.env.TELEGRAM_BOT_TOKEN || "8608274368:AAE_kGjR_P61Ev2BQPbLgTdvoBYPyAJ1bPg";
-    this.botUsername = process.env.TELEGRAM_BOT_USERNAME || "HbeshabingoBot";
+    this.botUsername = process.env.TELEGRAM_BOT_USERNAME || "ABBingoBot";
     this.groupTitle = process.env.TELEGRAM_GROUP_TITLE || "Hbesha bingo";
     this.groupId = process.env.TELEGRAM_GROUP_ID ? Number(process.env.TELEGRAM_GROUP_ID) : -1002766090768;
     this.polling = false;

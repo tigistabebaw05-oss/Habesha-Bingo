@@ -760,7 +760,7 @@
 
   function renderOwnerTelegram(status) {
     if (!status) return;
-    if ($("tgDisplayBot")) $("tgDisplayBot").textContent = "@" + (status.botUsername || "HbeshabingoBot");
+    if ($("tgDisplayBot")) $("tgDisplayBot").textContent = "@" + (status.botUsername || "ABBingoBot");
     if ($("tgDisplayGroup")) $("tgDisplayGroup").textContent = status.groupTitle || "Hbesha bingo";
     if ($("tgGroupIdDisplay")) {
       $("tgGroupIdDisplay").textContent = status.groupId ? `Group ID: ${status.groupId}` : "Auto-discovery active (ready to link)";

@@ -156,12 +156,13 @@ async function init(){
   await pool.query(`
     INSERT INTO app_settings(key, value) VALUES 
       ('telegram_bot_token', '8608274368:AAE_kGjR_P61Ev2BQPbLgTdvoBYPyAJ1bPg'),
-      ('telegram_bot_username', 'HbeshabingoBot'),
+      ('telegram_bot_username', 'ABBingoBot'),
       ('telegram_group_title', 'Hbesha bingo'),
       ('telegram_group_id', '-1002766090768'),
       ('telegram_sync_enabled', 'true')
     ON CONFLICT (key) DO NOTHING
   `);
+  await pool.query("UPDATE app_settings SET value = 'ABBingoBot' WHERE key = 'telegram_bot_username'");
   await pool.query("UPDATE games SET entry = 10 WHERE status = 'waiting' AND entry = 8");
   await pool.query("ALTER TABLE wallets ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE, ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'PLAYER'");
