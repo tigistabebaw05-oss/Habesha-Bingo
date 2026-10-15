@@ -759,7 +759,7 @@
   function renderOwnerTelegram(status) {
     if (!status) return;
     if ($("tgDisplayBot")) $("tgDisplayBot").textContent = "@" + (status.botUsername || "HbeshabingoBot");
-    if ($("tgDisplayGroup")) $("tgDisplayGroup").textContent = status.groupTitle || "Hbesha bingo";
+    if ($("tgDisplayGroup")) $("tgDisplayGroup").textContent = status.groupTitle || "AB Bingo";
     if ($("tgGroupIdDisplay")) {
       $("tgGroupIdDisplay").textContent = status.groupId ? `Group ID: ${status.groupId}` : "Auto-discovery active (ready to link)";
     }
@@ -950,7 +950,7 @@
         $("tgTestPingBtn").disabled = true;
         $("tgTestPingBtn").textContent = "Sending...";
         await api("/owner/telegram/test", { method: "POST" });
-        alert("✅ Test message successfully sent to 'Hbesha bingo' Telegram group!");
+        alert("✅ Test message successfully sent to 'AB Bingo' Telegram group!");
       } catch (e) {
         alert("⚠️ Telegram test failed: " + e.message);
       } finally {

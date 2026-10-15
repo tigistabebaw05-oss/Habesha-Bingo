@@ -157,7 +157,7 @@ async function init(){
     INSERT INTO app_settings(key, value) VALUES 
       ('telegram_bot_token', '8608274368:AAE_kGjR_P61Ev2BQPbLgTdvoBYPyAJ1bPg'),
       ('telegram_bot_username', 'HbeshabingoBot'),
-      ('telegram_group_title', 'Hbesha bingo'),
+      ('telegram_group_title', 'AB Bingo'),
       ('telegram_group_id', '-1002766090768'),
       ('telegram_sync_enabled', 'true')
     ON CONFLICT (key) DO NOTHING
@@ -393,7 +393,7 @@ async function broadcast(id){
   }
 }
 
-app.get("/api/health",(req,res)=>res.json({ok:true,service:"Habesha Bingo API"}));
+app.get("/api/health",(req,res)=>res.json({ok:true,service:"AB Bingo API"}));
 
 app.post("/api/register",async(req,res)=>{
   try{
@@ -1671,7 +1671,7 @@ app.post("/api/owner/telegram/test", auth, requireRole("OWNER"), async (req, res
     }
     const result = await telegramService.sendMessage(
       telegramService.groupId,
-      `🔔 <b>የ HABESHA BINGO ግንኙነት ሙከራ (Telegram Connection Test)</b>\n\nይህ መልዕክት ከ HABESHA BINGO ድረ-ገጽ የቀጥታ ማመሳሰያ (Real-Time Sync) የተላከ ነው። ቦቱ እና ግሩፑ በተሳካ ሁኔታ ተገናኝተዋል! ✅`
+      `🔔 <b>የ AB BINGO ግንኙነት ሙከራ (Telegram Connection Test)</b>\n\nይህ መልዕክት ከ AB BINGO ድረ-ገጽ የቀጥታ ማመሳሰያ (Real-Time Sync) የተላከ ነው። ቦቱ እና ግሩፑ በተሳካ ሁኔታ ተገናኝተዋል! ✅`
     );
     res.json({ ok: true, result });
   } catch (e) {
@@ -1854,7 +1854,7 @@ app.use((error,req,res,next)=>{
   next(error);
 });
 init().then(()=>{
-  server.listen(PORT,()=>console.log(`Habesha Bingo API running on http://localhost:${PORT}`));
+  server.listen(PORT,()=>console.log(`AB Bingo API running on http://localhost:${PORT}`));
   setInterval(callNumber,5000);
 
   // Anti-Sleep Heartbeat for Render (keeps service 24/7 active)

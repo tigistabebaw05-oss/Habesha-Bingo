@@ -7,7 +7,7 @@ class TelegramBingoService {
     this.io = options.io;
     this.token = process.env.TELEGRAM_BOT_TOKEN || "8608274368:AAE_kGjR_P61Ev2BQPbLgTdvoBYPyAJ1bPg";
     this.botUsername = process.env.TELEGRAM_BOT_USERNAME || "HbeshabingoBot";
-    this.groupTitle = process.env.TELEGRAM_GROUP_TITLE || "Hbesha bingo";
+    this.groupTitle = process.env.TELEGRAM_GROUP_TITLE || "AB Bingo";
     this.groupId = process.env.TELEGRAM_GROUP_ID ? Number(process.env.TELEGRAM_GROUP_ID) : -1002766090768;
     this.polling = false;
     this.pollingTimeout = null;
@@ -92,7 +92,7 @@ class TelegramBingoService {
         try {
           await this.apiCall("setMyCommands", {
             commands: [
-              { command: "start", description: "🎮 ጨዋታ ጀምር / START HABESHA BINGO" },
+              { command: "start", description: "🎮 ጨዋታ ጀምር / START AB BINGO" },
               { command: "deposit", description: "📥 ገቢ አድርግ (ዋና ከ10 ብር / VIP ከ50 ብር)" },
               { command: "withdraw", description: "📤 ወጪ አድርግ / Withdraw Funds" },
               { command: "balance", description: "💰 ቀሪ ሂሳብ / Wallet Balance" },
@@ -286,7 +286,7 @@ class TelegramBingoService {
         );
         await this.sendMessage(
           c.id,
-          `🎮 <b>HABESHA BINGO ወደ "${title}" ተገናኝቷል!</b>\n\nየቢንጎ ጨዋታው ከድረ-ገጹ ጋር በቀጥታ ተቀናጅቷል። ቁጥሮች፣ አሸናፊዎች እና ትኬቶች እዚህ በቅጽበት ይዘመናሉ!\n\nለመጀመር <b>/help</b> ወይም <b>/play</b> ይጫኑ።`
+          `🎮 <b>AB BINGO ወደ "${title}" ተገናኝቷል!</b>\n\nየቢንጎ ጨዋታው ከድረ-ገጹ ጋር በቀጥታ ተቀናጅቷል። ቁጥሮች፣ አሸናፊዎች እና ትኬቶች እዚህ በቅጽበት ይዘመናሉ!\n\nለመጀመር <b>/help</b> ወይም <b>/play</b> ይጫኑ።`
         );
         return;
       }
@@ -322,6 +322,8 @@ class TelegramBingoService {
       if (chat && (chat.type === "group" || chat.type === "supergroup")) {
         const title = chat.title || "";
         const shouldLink = !this.groupId ||
+          title.toLowerCase().includes("ab bingo") ||
+          title.toLowerCase().includes("abbingo") ||
           title.toLowerCase().includes("hbesha") ||
           title.toLowerCase().includes("habesha") ||
           title.toLowerCase() === this.groupTitle.toLowerCase() ||
@@ -332,14 +334,14 @@ class TelegramBingoService {
         if (shouldLink && (!this.groupId || this.groupId !== chat.id)) {
           this.groupId = chat.id;
           this.groupTitle = title || this.groupTitle;
-          console.log(`[Telegram] 🎯 Successfully linked group "${this.groupTitle}" (ID: ${chat.id}) to HABESHA BINGO!`);
+          console.log(`[Telegram] 🎯 Successfully linked group "${this.groupTitle}" (ID: ${chat.id}) to AB BINGO!`);
           await this.pool.query(
             "INSERT INTO app_settings(key, value, updated_at) VALUES ('telegram_group_id', $1, now()), ('telegram_group_title', $2, now()) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()",
             [String(chat.id), this.groupTitle]
           );
           await this.sendMessage(
             chat.id,
-            `🎮 <b>HABESHA BINGO ወደ "${this.groupTitle}" ተገናኝቷል!</b>\n\nየቢንጎ ጨዋታው ከድረ-ገጹ ጋር በቀጥታ ተቀናጅቷል።\n\nመመሪያዎችን ለማየት <b>/help</b> ይጫኑ።`
+            `🎮 <b>AB BINGO ወደ "${this.groupTitle}" ተገናኝቷል!</b>\n\nየቢንጎ ጨዋታው ከድረ-ገጹ ጋር በቀጥታ ተቀናጅቷል።\n\nመመሪያዎችን ለማየት <b>/help</b> ይጫኑ።`
           );
         }
       }
@@ -653,7 +655,7 @@ class TelegramBingoService {
 
     // If zero balance, emphasize Deposit as the first step!
     if (mainBal <= 0 && vipBal <= 0) {
-      const text = `🎉 <b>እንኳን ወደ ሀበሻ ቢንጎ (HABESHA BINGO) በደህና መጡ!</b>\n\n` +
+      const text = `🎉 <b>እንኳን ወደ AB BINGO በደህና መጡ!</b>\n\n` +
         `👤 ተጫዋች: <b>${userName}</b>\n` +
         `💰 ዋና ሂሳብ: <b>0.00 ETB</b>\n` +
         `💎 VIP ሂሳብ: <b>0.00 ETB</b>\n\n` +
@@ -676,7 +678,7 @@ class TelegramBingoService {
         }
       });
     } else {
-      const text = `🎉 <b>እንኳን ወደ ሀበሻ ቢንጎ (HABESHA BINGO) በደህና መጡ!</b>\n\n` +
+      const text = `🎉 <b>እንኳን ወደ AB BINGO በደህና መጡ!</b>\n\n` +
         `👤 ተጫዋች: <b>${userName}</b>\n` +
         `💰 ዋና ሂሳብ: <b>${mainBal.toFixed(2)} ETB</b>\n` +
         `💎 VIP ሂሳብ: <b>${vipBal.toFixed(2)} ETB</b>\n\n` +
@@ -1404,7 +1406,7 @@ class TelegramBingoService {
       return;
     }
 
-    const text = `🎉 <b>ሀበሻ ቢንጎ ለመጫወት ዝግጁ ነዎት!</b>\n\n` +
+    const text = `🎉 <b>AB Bingo ለመጫወት ዝግጁ ነዎት!</b>\n\n` +
       `👤 ተጫዋች: <b>${user ? user.name : "ተጫዋች"}</b>\n` +
       `💰 ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n` +
       `🎟 የመግቢያ ክፍያ: <b>10.00 ETB</b>\n\n` +
@@ -1777,7 +1779,7 @@ class TelegramBingoService {
       `የእርስዎ መጋበዣ ሊንክ:\n<code>${botUrl}</code>\n\n` +
       `ጓደኛዎ በዚህ ሊንክ ተመዝግቦ ሲጫወት ኮሚሽን ያገኛሉ!`;
 
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent("በ ሀበሻ ቢንጎ (HABESHA BINGO) ተጫውተው በቅጽበት ያሸንፉ! በ 10 ብር ጀምረው አሁኑኑ ይቀላቀሉ!")}`;
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent("በ AB BINGO ተጫውተው በቅጽበት ያሸንፉ! በ 10 ብር ጀምረው አሁኑኑ ይቀላቀሉ!")}`;
 
     await this.sendMessage(chatId, text, {
       reply_markup: {
@@ -1791,7 +1793,7 @@ class TelegramBingoService {
 
   async cmdPromoterInfo(chatId, user) {
     const text = `⭐ <b>Special Promoter ፕሮግራም</b>\n\n` +
-      `የ Habesha Bingo ልዩ ፕሮሞተር በመሆን በየቀኑ ከፍተኛ ገቢ ማግኘት ይችላሉ!\n\n` +
+      `የ AB Bingo ልዩ ፕሮሞተር በመሆን በየቀኑ ከፍተኛ ገቢ ማግኘት ይችላሉ!\n\n` +
       `📌 <b>ጥቅሞች:</b>\n` +
       `• ለሚያመጧቸው ተጫዋቾች በየጨዋታው ቋሚ ኮሚሽን\n` +
       `• ፈጣን የቀን ክፍያ በ TeleBirr ወይም CBE\n` +
@@ -1838,7 +1840,7 @@ class TelegramBingoService {
 
   async cmdSupport(chatId) {
     this.userState.set(chatId, { step: "support" });
-    const text = `🆘 <b>ሀበሻ ቢንጎ የደንበኞች ድጋፍ (Support)</b>\n\n` +
+    const text = `🆘 <b>AB Bingo የደንበኞች ድጋፍ (Support)</b>\n\n` +
       `👤 <b>Admin 1:</b> adissu (<code>0919307468</code>)\n` +
       `👤 <b>Admin 2:</b> abirham (<code>0951666750</code>)\n\n` +
       `👇 <b>ወይም እዚሁ ይጻፉ:</b>\n` +
@@ -1868,7 +1870,7 @@ class TelegramBingoService {
   }
 
   async cmdHelp(chatId, isGroup) {
-    const text = `ℹ️ <b>የ HABESHA BINGO ጨዋታ መመሪያዎች</b>\n\n` +
+    const text = `ℹ️ <b>የ AB BINGO ጨዋታ መመሪያዎች</b>\n\n` +
       `1️⃣ <b>ገንዘብ ማስገባት:</b> <b>/deposit</b> በማለት ለዋና ጨዋታ ከ 10 ብር ጀምሮ ወይም ለ VIP ከ 50 ብር ጀምሮ ይሙሉ!\n` +
       `2️⃣ <b>ትኬት መቁረጥ:</b> <b>/play</b> ወይም <b>/buy</b> ሲሉ ከሂሳብዎ 10 ETB ተቀንሶ 5x5 የቢንጎ ካርድ ይሰጥዎታል።\n` +
       `3️⃣ <b>VIP ክፍል:</b> <b>/vip</b> በማለት በ 50 ETB ከፍተኛ ሽልማት ባለው ክፍል ይጫወቱ!\n` +
@@ -2159,7 +2161,7 @@ class TelegramBingoService {
       const called = g.called_numbers || [];
       const lastCalled = called.length > 0 ? called[called.length - 1] : "ገና አልተጠራም";
 
-      const text = `🎲 <b>HABESHA BINGO - የቀጥታ ጨዋታ ሁኔታ</b>\n\n` +
+      const text = `🎲 <b>AB BINGO - የቀጥታ ጨዋታ ሁኔታ</b>\n\n` +
         `🏷 ጨዋታ: <b>#${g.id} (${g.name})</b>\n` +
         `📊 ሁኔታ: <b>${g.status === "running" ? "🟢 እየተካሄደ ያለ (Running)" : "🟡 በመጠባበቅ ላይ (Waiting for players)"}</b>\n` +
         `🎟 የመግቢያ ክፍያ: <b>${Number(g.entry).toFixed(2)} ETB</b>\n` +

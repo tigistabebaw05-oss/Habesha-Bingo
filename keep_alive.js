@@ -1,5 +1,5 @@
 // ============================================================
-// Habesha Bingo & Telegram Bot - 24/7 Keep-Alive Daemon
+// AB Bingo & Telegram Bot - 24/7 Keep-Alive Daemon
 // ============================================================
 // Render Free tier shuts down after 15 minutes of inactivity.
 // This daemon continuously pings the backend every 4 minutes,
@@ -11,7 +11,7 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8608274368:AAE_kGjR_P61Ev2B
 const PING_INTERVAL_MS = 4 * 60 * 1000; // Ping every 4 minutes
 
 console.log('='.repeat(65));
-console.log('🚀 Habesha Bingo & Telegram Bot 24/7 Keep-Alive Daemon Started');
+console.log('🚀 AB Bingo & Telegram Bot 24/7 Keep-Alive Daemon Started');
 console.log(`🎯 Target API: ${TARGET_URL}`);
 console.log(`⏱️ Interval: Every 4 minutes`);
 console.log('='.repeat(65));
