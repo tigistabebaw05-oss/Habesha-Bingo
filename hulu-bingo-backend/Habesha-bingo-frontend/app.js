@@ -622,6 +622,13 @@ function connectSocket(){
       const previousGameId=state.game?.id;
       state.game=g;state.called=new Set(g.called_numbers||[]);drawGame();updateHero();
       if(previousGameId!==g.id)state.socket.emit("room",g.id);
+      if(g.status === "running") {
+        const cardView = $("huluCardSelectionView");
+        const modal = $("huluBingoWebAppModal");
+        if (modal && !modal.hidden && cardView && !cardView.hidden) {
+          switchToLiveGameView();
+        }
+      }
     });
     state.socket.on("finished",g=>{state.game=g;state.called=new Set(g.called_numbers||[]);drawGame();updateHero();toast(g.winner_id?"BINGO — game finished!":"Game finished")});
   };
@@ -1891,7 +1898,7 @@ function updateCountdownDisplay() {
   const digitsEl = $("tgCardCountdown");
   const now = Date.now();
   let end = parseInt(localStorage.getItem("habesha_bingo_round_end") || "0", 10);
-  if (!end || end <= now || (end - now) > (ROUND_COUNTDOWN_DURATION + 5) * 1000) {
+  if (!end || (end - now) > (ROUND_COUNTDOWN_DURATION + 5) * 1000) {
     end = getOrCreateRoundEndTime();
   }
   const remaining = Math.max(0, Math.ceil((end - now) / 1000));
@@ -1913,7 +1920,10 @@ function startCardCountdown() {
       resetRoundEndTime();
       const cardView = $("huluCardSelectionView");
       if (cardView && !cardView.hidden) {
-        toast("ጨዋታው ተጀምሯል!");
+        if (selectedCardNumbers.size === 0) {
+          selectedCardNumbers.add(468);
+          updateCardSelectionTotals();
+        }
         switchToLiveGameView();
       }
     }
@@ -1942,9 +1952,13 @@ function renderCardSelectionGrid() {
     } else {
       const currentBal = getPlayerMainBalance();
       const requiredCost = (selectedCardNumbers.size + 1) * 10;
-      if (currentBal < requiredCost) {
-        toast("⚠️ Insufficient balance! እባክዎ መጀመሪያ ተቀማጭ (Deposit) ያድርጉ።", true);
-        return;
+      if (currentBal < requiredCost && currentBal < 10) {
+        if (state.wallet) {
+          state.wallet.main_balance = "100.00";
+        } else {
+          state.wallet = { main_balance: "100.00", vip_balance: "0.00" };
+        }
+        updateAllBalanceDisplays("100.00", "0.00");
       }
       if (selectedCardNumbers.size >= 4) {
         toast("እስከ 4 ካርቴላ ብቻ መምረጥ ይችላሉ (Max 4 cards)");
@@ -1974,6 +1988,15 @@ function switchToCardSelectionView() {
     clearTimeout(winnersAutoRestartTimeout);
     winnersAutoRestartTimeout = null;
   }
+  if (typeof liveGameTransitionTimeout !== "undefined" && liveGameTransitionTimeout) {
+    clearTimeout(liveGameTransitionTimeout);
+    liveGameTransitionTimeout = null;
+  }
+  if (liveGameInterval) {
+    clearInterval(liveGameInterval);
+    liveGameInterval = null;
+  }
+  if ($("huluWaitingView")) $("huluWaitingView").hidden = true;
   if ($("huluCardSelectionView")) $("huluCardSelectionView").hidden = false;
   if ($("huluLiveGameView")) $("huluLiveGameView").hidden = true;
   if ($("huluWinnersCelebrationView")) $("huluWinnersCelebrationView").hidden = true;
@@ -1997,11 +2020,22 @@ function switchToCardSelectionView() {
   startCardCountdown();
 }
 
+let liveGameTransitionTimeout = null;
+
 function switchToLiveGameView() {
   if (typeof winnersAutoRestartTimeout !== "undefined" && winnersAutoRestartTimeout) {
     clearTimeout(winnersAutoRestartTimeout);
     winnersAutoRestartTimeout = null;
   }
+  if (liveGameTransitionTimeout) {
+    clearTimeout(liveGameTransitionTimeout);
+    liveGameTransitionTimeout = null;
+  }
+  if (cardCountdownInterval) {
+    clearInterval(cardCountdownInterval);
+    cardCountdownInterval = null;
+  }
+
   if ($("huluCardSelectionView")) $("huluCardSelectionView").hidden = true;
   if ($("huluLiveGameView")) $("huluLiveGameView").hidden = false;
   if ($("huluWinnersCelebrationView")) $("huluWinnersCelebrationView").hidden = true;
@@ -2013,50 +2047,77 @@ function switchToLiveGameView() {
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavBoard")?.classList.add("active");
 
-  if (selectedCardNumbers.size === 0 && getPlayerMainBalance() >= 10) {
+  if (selectedCardNumbers.size === 0) {
     selectedCardNumbers.add(468);
   }
 
-  // Initial called sequence matching Screenshots 3 & 4
-  if (liveGameInterval) clearInterval(liveGameInterval);
-  let liveCalled = [31];
-  bingoAnnouncer.reset();
-  syncHuluWebApp(31, liveCalled);
+  // 1. Immediately show the "ጨዋታው በመካሄድ ላይ ነው..." waiting screen
+  const waitingView = $("huluWaitingView");
+  const slotsGrid = $("tgSlotsGrid");
+  const roundEl = $("tgGameRound");
 
-  // Progressive caller sequence: calls 60 (on card #468), then 23 (on card #468)
-  const sequence = [60, 23, 66, 47, 45, 53, 7, 2, 8, 15, 28, 40, 54, 67, 68, 18, 34, 42];
-  let seqIdx = 0;
+  if (waitingView) {
+    waitingView.hidden = false;
+  }
+  if (slotsGrid) {
+    slotsGrid.style.display = "none";
+  }
+  if (roundEl) {
+    roundEl.textContent = "ጨዋታው በመካሄድ ላይ ነው (LIVE)";
+  }
+  toast("ጨዋታው በመካሄድ ላይ ነው...");
 
-  liveGameInterval = setInterval(() => {
-    let nextNum;
-    if (seqIdx < sequence.length) {
-      nextNum = sequence[seqIdx++];
-    } else {
-      const avail = Array.from({length:75}, (_,i)=>i+1).filter(n => !liveCalled.includes(n));
-      if (avail.length === 0) {
+  // 2. After 2.2 seconds, reveal cartelas board and actively start calling balls
+  liveGameTransitionTimeout = setTimeout(() => {
+    if (waitingView) {
+      waitingView.hidden = true;
+    }
+    if (slotsGrid) {
+      slotsGrid.style.display = "grid";
+    }
+    if (roundEl) {
+      roundEl.textContent = "GAME ROUND #226798";
+    }
+
+    if (liveGameInterval) clearInterval(liveGameInterval);
+    let liveCalled = [31];
+    bingoAnnouncer.reset();
+    syncHuluWebApp(31, liveCalled);
+
+    const sequence = [60, 23, 66, 47, 45, 53, 7, 2, 8, 15, 28, 40, 54, 67, 68, 18, 34, 42];
+    let seqIdx = 0;
+
+    liveGameInterval = setInterval(() => {
+      let nextNum;
+      if (seqIdx < sequence.length) {
+        nextNum = sequence[seqIdx++];
+      } else {
+        const avail = Array.from({length:75}, (_,i)=>i+1).filter(n => !liveCalled.includes(n));
+        if (avail.length === 0) {
+          clearInterval(liveGameInterval);
+          liveGameInterval = null;
+          setTimeout(() => switchToWinnersView(), 1500);
+          return;
+        }
+        nextNum = avail[Math.floor(Math.random() * avail.length)];
+      }
+
+      if (!liveCalled.includes(nextNum)) {
+        liveCalled.push(nextNum);
+      }
+      if (state.game) {
+        state.game.current_number = nextNum;
+        state.game.called_numbers = liveCalled;
+      }
+      syncHuluWebApp(nextNum, liveCalled);
+
+      if (liveCalled.length >= 25) {
         clearInterval(liveGameInterval);
         liveGameInterval = null;
         setTimeout(() => switchToWinnersView(), 1500);
-        return;
       }
-      nextNum = avail[Math.floor(Math.random() * avail.length)];
-    }
-
-    if (!liveCalled.includes(nextNum)) {
-      liveCalled.push(nextNum);
-    }
-    if (state.game) {
-      state.game.current_number = nextNum;
-      state.game.called_numbers = liveCalled;
-    }
-    syncHuluWebApp(nextNum, liveCalled);
-
-    if (liveCalled.length >= 25) {
-      clearInterval(liveGameInterval);
-      liveGameInterval = null;
-      setTimeout(() => switchToWinnersView(), 1500);
-    }
-  }, 3500);
+    }, 3500);
+  }, 2200);
 }
 
 function renderWinnersConfetti() {
@@ -2091,6 +2152,10 @@ function switchToWinnersView() {
   if (liveGameInterval) {
     clearInterval(liveGameInterval);
     liveGameInterval = null;
+  }
+  if (typeof liveGameTransitionTimeout !== "undefined" && liveGameTransitionTimeout) {
+    clearTimeout(liveGameTransitionTimeout);
+    liveGameTransitionTimeout = null;
   }
   if (winnersAutoRestartTimeout) {
     clearTimeout(winnersAutoRestartTimeout);
@@ -2130,6 +2195,10 @@ function switchToGrandWinnerView() {
   if (winnersAutoRestartTimeout) {
     clearTimeout(winnersAutoRestartTimeout);
     winnersAutoRestartTimeout = null;
+  }
+  if (typeof liveGameTransitionTimeout !== "undefined" && liveGameTransitionTimeout) {
+    clearTimeout(liveGameTransitionTimeout);
+    liveGameTransitionTimeout = null;
   }
   if ($("huluCardSelectionView")) $("huluCardSelectionView").hidden = true;
   if ($("huluLiveGameView")) $("huluLiveGameView").hidden = true;
@@ -2175,27 +2244,27 @@ document.querySelectorAll(".winner-row-card").forEach(card => {
 if($("tgTotalBetBtn")) {
   $("tgTotalBetBtn").addEventListener("click", async () => {
     if (selectedCardNumbers.size === 0) {
-      const bal = getPlayerMainBalance();
-      if (bal >= 10) {
-        selectedCardNumbers.add(468);
-        updateCardSelectionTotals();
-        renderCardSelectionGrid();
-      } else {
-        toast("እባክዎ መጀመሪያ ካርቴላ ይምረጡ ወይም ተቀማጭ ያድርጉ! (Select a card first)", true);
-        return;
-      }
+      selectedCardNumbers.add(468);
+      updateCardSelectionTotals();
+      renderCardSelectionGrid();
     }
     const currentBal = getPlayerMainBalance();
     const count = selectedCardNumbers.size;
     const totalBet = count * 10;
     if (currentBal < totalBet) {
-      toast(`⚠️ Insufficient balance! የ ${totalBet} ETB ባላንስ ያስፈልጋል። እባክዎ ተቀማጭ (Deposit) ያድርጉ።`, true);
-      return;
+      if (state.wallet) {
+        state.wallet.main_balance = (100).toFixed(2);
+      } else {
+        state.wallet = { main_balance: "100.00", vip_balance: "0.00" };
+      }
+      updateAllBalanceDisplays(state.wallet.main_balance, state.wallet.vip_balance);
+      toast("🎁 የ 100 ETB መጫወቻ ተሰጥቶዎታል! ጨዋታው እየተጀመረ ነው...");
     }
 
     // Deduct from local wallet
+    const updatedBal = getPlayerMainBalance();
     if (state.wallet) {
-      state.wallet.main_balance = Math.max(0, currentBal - totalBet).toFixed(2);
+      state.wallet.main_balance = Math.max(0, updatedBal - totalBet).toFixed(2);
       if ($("mainBalance")) $("mainBalance").textContent = money(state.wallet.main_balance);
       if ($("tgMainBalance")) $("tgMainBalance").textContent = money(state.wallet.main_balance);
       if ($("tgPlayBalance")) $("tgPlayBalance").textContent = "8.00 ETB";
@@ -2218,7 +2287,7 @@ if($("tgTotalBetBtn")) {
     }
 
     toast(`🎉 ${count} ካርቴላዎች ተመርጠዋል! (ድምር: ${totalBet} ETB)`);
-    setTimeout(switchToLiveGameView, 500);
+    switchToLiveGameView();
   });
 }
 
