@@ -17,7 +17,7 @@ function updateAllBalanceDisplays(mainBal, vipBal) {
   const vipStr = money(v);
   if ($("mainBalance")) $("mainBalance").textContent = str;
   if ($("tgMainBalance")) $("tgMainBalance").textContent = str;
-  if ($("tgPlayBalance")) $("tgPlayBalance").textContent = str;
+  if ($("tgPlayBalance")) $("tgPlayBalance").textContent = "8.00 ETB";
   if ($("modalMainBalance")) $("modalMainBalance").textContent = str;
   if ($("vipBalance")) $("vipBalance").textContent = vipStr;
   if ($("modalVipBalance")) $("modalVipBalance").textContent = vipStr;
@@ -331,7 +331,7 @@ async function refresh(){
       if($("mainBalance")) $("mainBalance").textContent=money(w.wallet?.main_balance);
       if($("vipBalance")) $("vipBalance").textContent=money(w.wallet?.vip_balance);
       if($("tgMainBalance")) $("tgMainBalance").textContent=money(w.wallet?.main_balance);
-      if($("tgPlayBalance")) $("tgPlayBalance").textContent=money(w.wallet?.main_balance);
+      if($("tgPlayBalance")) $("tgPlayBalance").textContent="8.00 ETB";
 
       // Populate KYC name default if empty
       if ($("withdrawAccountNameInput") && !$("withdrawAccountNameInput").value) {
@@ -1657,7 +1657,7 @@ function renderLiveSlotsGrid(calledSet) {
 
   const currentCards = selectedCardNumbers.size > 0 
     ? Array.from(selectedCardNumbers).slice(0, 4) 
-    : [468];
+    : [];
 
   let html = "";
   for (let slotIdx = 0; slotIdx < 4; slotIdx++) {
@@ -1743,10 +1743,10 @@ function syncHuluWebApp(overrideNum, overrideList) {
   const bingoBtn = $("tgBingoBtn");
 
   const roundNum = g?.id || "226798";
-  const cartelaCount = selectedCardNumbers.size || (state.myTickets && state.myTickets.length ? state.myTickets.length : 1);
-  const prizeVal = (g?.prize_pool && Number(g.prize_pool) > 0) ? Number(g.prize_pool) : (cartelaCount * 8);
+  const cartelaCount = selectedCardNumbers.size;
+  const prizeVal = cartelaCount * 8;
   const prize = `${prizeVal} ETB`;
-  const players = g?.players || cartelaCount;
+  const players = g?.players || (cartelaCount > 0 ? cartelaCount : 12);
   const currentNum = overrideNum || g?.current_number || 31;
   const calledList = (overrideList && overrideList.length > 0)
     ? overrideList
@@ -2044,10 +2044,6 @@ function switchToLiveGameView() {
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavBoard")?.classList.add("active");
 
-  if (selectedCardNumbers.size === 0) {
-    selectedCardNumbers.add(468);
-  }
-
   // 1. Immediately show the "ጨዋታው በመካሄድ ላይ ነው..." waiting screen
   const waitingView = $("huluWaitingView");
   const slotsGrid = $("tgSlotsGrid");
@@ -2167,7 +2163,7 @@ function switchToWinnersView() {
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavRank")?.classList.add("active");
 
-  const totalPrize = selectedCardNumbers.size ? (selectedCardNumbers.size * 8) : ((state.game?.prize_pool && Number(state.game.prize_pool)) || 8);
+  const totalPrize = selectedCardNumbers.size * 8;
   const badgeEl = $("tgWinnersBadgeCount");
   const headingEl = $("tgWinnersHeading");
   const totalEl = $("tgWinnersTotal");
@@ -2258,7 +2254,7 @@ if($("tgTotalBetBtn")) {
       state.wallet.main_balance = Math.max(0, updatedBal - totalBet).toFixed(2);
       if ($("mainBalance")) $("mainBalance").textContent = money(state.wallet.main_balance);
       if ($("tgMainBalance")) $("tgMainBalance").textContent = money(state.wallet.main_balance);
-      if ($("tgPlayBalance")) $("tgPlayBalance").textContent = money(state.wallet.main_balance);
+      if ($("tgPlayBalance")) $("tgPlayBalance").textContent = "8.00 ETB";
       if ($("modalMainBalance")) $("modalMainBalance").textContent = money(state.wallet.main_balance);
     }
 
