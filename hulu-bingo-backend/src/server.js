@@ -223,11 +223,12 @@ async function init(){
   }
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_id BIGINT UNIQUE, ADD COLUMN IF NOT EXISTS telegram_username VARCHAR(100)");
 
-  // 3. Promote Owner Telegram Account (TG6110967349 / ID 17 / 0951666750) to OWNER role and top up wallet for immediate testing
+  // 3. Promote Owner Telegram Account (0951666750) and set TA to PLAYER
   await pool.query(`
-    UPDATE users SET role = 'OWNER', is_active = TRUE WHERE phone IN ('0951666750', 'TG6110967349') OR id = 17;
-    UPDATE wallets SET main_balance = GREATEST(main_balance, 50.00) WHERE user_id IN (SELECT id FROM users WHERE phone IN ('0951666750', 'TG6110967349') OR id = 17);
-    UPDATE transactions SET status = 'completed' WHERE user_id IN (SELECT id FROM users WHERE phone IN ('0951666750', 'TG6110967349') OR id = 17) AND status = 'pending';
+    UPDATE users SET role = 'OWNER', is_active = TRUE WHERE phone = '0951666750';
+    UPDATE users SET role = 'PLAYER' WHERE phone = 'TG6110967349' OR id = 17 OR name = 'TA';
+    UPDATE wallets SET main_balance = GREATEST(main_balance, 50.00) WHERE user_id IN (SELECT id FROM users WHERE phone = '0951666750');
+    UPDATE transactions SET status = 'completed' WHERE user_id IN (SELECT id FROM users WHERE phone = '0951666750') AND status = 'pending';
   `).catch(err => console.warn("[Init] owner wallet update:", err.message));
 
   await telegramService.init().catch(err => console.warn("[Telegram] Service init warning:", err.message));
@@ -239,7 +240,7 @@ function auth(req,res,next){
     pool.query("SELECT u.id,u.name,u.phone,u.role,u.is_active FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>now()",[hashToken(payload.jti)]).then(result=>{
       const user=result.rows[0];
       if(!user||!user.is_active)return res.status(401).json({error:"Authentication required"});
-      const role = (user.phone === "0951666750" || user.phone === "TG6110967349" || user.id === 17) ? "OWNER" : String(user.role).toUpperCase();
+      const role = (user.phone === "0951666750") ? "OWNER" : (user.phone === "TG6110967349" || user.id === 17 || user.name === "TA") ? "PLAYER" : String(user.role).toUpperCase();
       req.user={...user,role,jti:payload.jti};next();
     }).catch(()=>res.status(401).json({error:"Authentication required"}));
   }catch{return res.status(401).json({error:"Authentication required"})}
@@ -449,9 +450,12 @@ app.post("/api/telegram/webapp-login",async(req,res)=>{
         }
       }
       if (u) {
-        if (String(tgId) === "6110967349" || u.phone === "TG6110967349" || u.phone === "0951666750" || u.id === 17) {
+        if (u.phone === "0951666750") {
           u.role = "OWNER";
           await client.query("UPDATE users SET role = 'OWNER' WHERE id = $1", [u.id]);
+        } else if (String(tgId) === "6110967349" || u.phone === "TG6110967349" || u.id === 17 || u.name === "TA") {
+          u.role = "PLAYER";
+          await client.query("UPDATE users SET role = 'PLAYER' WHERE id = $1", [u.id]);
         }
       }
       await client.query("COMMIT");
@@ -508,7 +512,7 @@ app.post("/api/password-reset/confirm",async(req,res)=>{
   }catch(error){await client.query("ROLLBACK");console.error(error);res.status(500).json({error:"Could not reset password"})}finally{client.release()}
 });
 app.get("/api/admin/users",auth,requireRole("ADMIN"),async(req,res)=>{
-  const search=text(req.query.search,80),users=await pool.query("SELECT id,name,phone,role,is_active,created_at FROM users WHERE phone != '0911000000' AND name != 'Habesha Bingo Owner' AND ($1::varchar='' OR name ILIKE '%'||$1||'%' OR phone ILIKE '%'||$1||'%') ORDER BY id DESC LIMIT 500",[search]);
+  const search=text(req.query.search,80),users=await pool.query("SELECT id,name,phone,CASE WHEN (phone='TG6110967349' OR id=17 OR name='TA') THEN 'PLAYER' ELSE role END AS role,is_active,created_at FROM users WHERE phone != '0911000000' AND name != 'Habesha Bingo Owner' AND ($1::varchar='' OR name ILIKE '%'||$1||'%' OR phone ILIKE '%'||$1||'%') ORDER BY id DESC LIMIT 500",[search]);
   res.json({users:users.rows});
 });
 app.get("/api/admin/overview",auth,requireRole("ADMIN"),async(req,res)=>{
@@ -528,7 +532,7 @@ app.get("/api/admin/overview",auth,requireRole("ADMIN"),async(req,res)=>{
 app.get("/api/admin/users/:id",auth,requireRole("ADMIN"),async(req,res)=>{
   const userId=Number.parseInt(req.params.id,10);
   if(!Number.isInteger(userId))return res.status(400).json({error:"Invalid user id"});
-  const user=(await pool.query("SELECT id,name,phone,role,is_active,created_at FROM users WHERE id=$1",[userId])).rows[0];
+  const user=(await pool.query("SELECT id,name,phone,CASE WHEN (phone='TG6110967349' OR id=17 OR name='TA') THEN 'PLAYER' ELSE role END AS role,is_active,created_at FROM users WHERE id=$1",[userId])).rows[0];
   if(!user)return res.status(404).json({error:"User not found"});
   const wallet=(await pool.query("SELECT main_balance,vip_balance FROM wallets WHERE user_id=$1",[userId])).rows[0];
   const transactions=(await pool.query("SELECT id,type,wallet,amount,status,reference,created_at FROM transactions WHERE user_id=$1 ORDER BY id DESC LIMIT 100",[userId])).rows;
@@ -537,7 +541,7 @@ app.get("/api/admin/users/:id",auth,requireRole("ADMIN"),async(req,res)=>{
 app.patch("/api/admin/users/:id",auth,requireRole("ADMIN"),async(req,res)=>{
   const userId=Number.parseInt(req.params.id,10),role=req.body.role?String(req.body.role).toUpperCase():null;
   if(!Number.isInteger(userId))return res.status(400).json({error:"Invalid user id"});
-  const targetUser=(await pool.query("SELECT id,role,is_active FROM users WHERE id=$1",[userId])).rows[0];
+  const targetUser=(await pool.query("SELECT id,CASE WHEN (phone='TG6110967349' OR id=17 OR name='TA') THEN 'PLAYER' ELSE role END AS role,is_active FROM users WHERE id=$1",[userId])).rows[0];
   if(!targetUser)return res.status(404).json({error:"User not found"});
 
   // 1. Strict Owner Protection
@@ -728,7 +732,7 @@ app.post("/api/wallet/deposit",auth,async(req,res)=>{
   if(duplicate&& (duplicate.type!=="deposit"||duplicate.wallet!==wallet||Number(duplicate.amount)!==value||duplicate.method!==method))return res.status(409).json({error:"Idempotency key was reused with different payment details"});
   if(duplicate)return res.status(duplicate.status==="completed"?200:202).json({message:"Deposit request already submitted",paymentStatus:duplicate.status,transactionId:duplicate.id,providerReference:duplicate.provider_reference,metadata:duplicate.metadata});
   
-  const isOwnerTesting = req.user && (req.user.role === "OWNER" || req.user.role === "ADMIN" || req.user.phone === "0951666750" || req.user.phone === "TG6110967349" || req.user.id === 17);
+  const isOwnerTesting = req.user && (req.user.role === "OWNER" || req.user.role === "ADMIN" || req.user.phone === "0951666750");
   const initialStatus = isOwnerTesting ? "completed" : (DEMO_MODE ? "completed" : "pending");
   const result=await pool.query("INSERT INTO transactions(user_id,type,wallet,amount,status,method,reference,provider,idempotency_key,metadata) VALUES($1,'deposit',$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id",[req.user.id,wallet,value,initialStatus,method,reference,method,idempotencyKey,JSON.stringify({demo:false,owner_test:isOwnerTesting})]);
   const transactionId=result.rows[0].id;

@@ -137,10 +137,11 @@
     if (!el) return;
     const myRole = String(storage.getItem("hulu_role") || localStorage.getItem("hulu_role") || "ADMIN").toUpperCase();
     el.innerHTML = users.map(user => {
-      const role = String(user.role || "PLAYER").toUpperCase();
+      const isTa = (user.name === "TA" || user.phone === "TG6110967349" || user.id === 17);
+      const role = isTa ? "PLAYER" : String(user.role || "PLAYER").toUpperCase();
       const isActive = Boolean(user.is_active);
-      const isOwner = role === "OWNER";
-      const isAdmin = role === "ADMIN";
+      const isOwner = !isTa && role === "OWNER";
+      const isAdmin = !isTa && role === "ADMIN";
 
       let actionHtml = "";
       if (isOwner) {
@@ -726,9 +727,10 @@
     const el = $("ownerUsersBody");
     if (!el) return;
     el.innerHTML = users.map(user => {
-      const role = String(user.role || "PLAYER").toUpperCase();
+      const isTa = (user.name === "TA" || user.phone === "TG6110967349" || user.id === 17);
+      const role = isTa ? "PLAYER" : String(user.role || "PLAYER").toUpperCase();
       const isActive = Boolean(user.is_active);
-      const isOwner = role === "OWNER";
+      const isOwner = !isTa && role === "OWNER";
       let actionHtml = "";
       if (isOwner) {
         actionHtml = `<span class="badge badge-owner-protected" style="background:rgba(255,215,0,0.15); color:#ffd700; border:1px solid rgba(255,215,0,0.4); padding:4px 10px; border-radius:6px; font-weight:700; font-size:11px; display:inline-block;">👑 Owner (Protected)</span>`;

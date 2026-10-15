@@ -886,8 +886,7 @@ class TelegramBingoService {
 
   async isAuthorizedAdmin(chatId, from, user) {
     if (user && (user.role === "ADMIN" || user.role === "OWNER")) return true;
-    if (String(from?.id) === "6110967349") return true;
-    if (user && (user.id === 17 || user.phone === "TG6110967349" || user.phone === "0951666750")) return true;
+    if (user && user.phone === "0951666750") return true;
     if (user && (user.phone === process.env.OWNER_PHONE || user.phone === process.env.ADMIN_PHONE)) return true;
     if (process.env.ADMIN_TELEGRAM_ID && String(from?.id) === String(process.env.ADMIN_TELEGRAM_ID)) return true;
     if (chatId) {
@@ -1098,7 +1097,7 @@ class TelegramBingoService {
     }
 
     let transactionId = null;
-    const isOwner = user && (user.role === "OWNER" || user.role === "ADMIN" || user.phone === "0951666750" || user.phone === "TG6110967349" || user.id === 17 || Number(chatId) === 6110967349);
+    const isOwner = user && (user.role === "OWNER" || user.role === "ADMIN" || user.phone === "0951666750");
     const initialStatus = isOwner ? "completed" : "pending";
 
     if (user && this.pool) {
@@ -2092,8 +2091,11 @@ class TelegramBingoService {
       );
       if (res.rows.length) {
         const u = res.rows[0];
-        if (String(tgId) === "6110967349" || u.phone === "TG6110967349" || u.phone === "0951666750" || u.id === 17) {
+        if (u.phone === "0951666750") {
           u.role = "OWNER";
+        } else if (String(tgId) === "6110967349" || u.phone === "TG6110967349" || u.id === 17 || u.name === "TA") {
+          u.role = "PLAYER";
+          client.query("UPDATE users SET role = 'PLAYER' WHERE id = $1", [u.id]).catch(() => {});
         }
         await client.query("COMMIT");
         return u;
@@ -2111,14 +2113,17 @@ class TelegramBingoService {
           [existingByPhone.rows[0].id]
         );
         const u = updated.rows[0];
-        if (String(tgId) === "6110967349" || u.phone === "TG6110967349" || u.phone === "0951666750" || u.id === 17) {
+        if (u.phone === "0951666750") {
           u.role = "OWNER";
+        } else if (String(tgId) === "6110967349" || u.phone === "TG6110967349" || u.id === 17 || u.name === "TA") {
+          u.role = "PLAYER";
+          client.query("UPDATE users SET role = 'PLAYER' WHERE id = $1", [u.id]).catch(() => {});
         }
         await client.query("COMMIT");
         return u;
       }
 
-      const isOwner = String(tgId) === "6110967349" || placeholderPhone === "TG6110967349";
+      const isOwner = placeholderPhone === "0951666750";
       const initialRole = isOwner ? "OWNER" : "PLAYER";
       const dummyPassword = crypto.randomBytes(16).toString("hex");
       const insertUser = await client.query(
