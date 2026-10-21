@@ -1730,6 +1730,34 @@ function renderLiveSlotsGrid(calledSet) {
   slotsContainer.innerHTML = html;
 }
 
+function checkCartelaBingo(card, calledSet) {
+  if (!card || !calledSet) return false;
+  // Card layout: 5 rows (0..4), 5 cols (b, i, n, g, o)
+  // Center cell [2][2] is FREE
+  const grid = [0, 1, 2, 3, 4].map(r => [
+    calledSet.has(card.b[r]),
+    calledSet.has(card.i[r]),
+    r === 2 ? true : calledSet.has(card.n[r]),
+    calledSet.has(card.g[r]),
+    calledSet.has(card.o[r])
+  ]);
+
+  // Check 5 horizontal rows
+  for (let r = 0; r < 5; r++) {
+    if (grid[r].every(Boolean)) return true;
+  }
+  // Check 5 vertical columns
+  for (let c = 0; c < 5; c++) {
+    if ([0, 1, 2, 3, 4].every(r => grid[r][c])) return true;
+  }
+  // Check diagonal top-left to bottom-right
+  if ([0, 1, 2, 3, 4].every(i => grid[i][i])) return true;
+  // Check diagonal top-right to bottom-left
+  if ([0, 1, 2, 3, 4].every(i => grid[i][4 - i])) return true;
+
+  return false;
+}
+
 function syncHuluWebApp(overrideNum, overrideList) {
   const g = state.game;
   const roundEl = $("tgGameRound");
@@ -1742,45 +1770,65 @@ function syncHuluWebApp(overrideNum, overrideList) {
   const tableGrid = $("tgBingoTableGrid");
   const bingoBtn = $("tgBingoBtn");
 
-  const roundNum = g?.id || "226798";
+  const roundNum = g?.id || (roundEl?.textContent?.replace(/\D/g, "") || "233990");
   const cartelaCount = selectedCardNumbers.size;
-  const prizeVal = cartelaCount * 8;
+  const prizeVal = cartelaCount > 0 ? (cartelaCount * 16) : 4800;
   const prize = `${prizeVal} ETB`;
-  const players = g?.players || (cartelaCount > 0 ? cartelaCount : 12);
-  const currentNum = overrideNum || g?.current_number || 31;
+  const players = g?.players || (playersEl?.textContent?.match(/\d+/) ? playersEl.textContent.match(/\d+/)[0] : "284");
+
   const calledList = (overrideList && overrideList.length > 0)
     ? overrideList
     : ((g?.called_numbers && g.called_numbers.length > 0)
       ? g.called_numbers
-      : [31]);
+      : []);
   const calledCount = calledList.length;
   const calledSet = new Set(calledList);
 
-  if (roundEl) roundEl.textContent = `GAME ROUND #${roundNum}`;
+  const currentNum = overrideNum || g?.current_number || (calledList.length > 0 ? calledList[calledList.length - 1] : null);
+
+  if (roundEl && !roundEl.textContent.includes("GAME ROUND")) {
+    roundEl.textContent = `GAME ROUND #${roundNum}`;
+  }
   if (playersEl) playersEl.textContent = `LIVE - ${players} PLAYERS`;
   if (prizeEl) prizeEl.textContent = prize;
+
   const selPrizeEl = $("tgCardSelPrize");
   if (selPrizeEl) {
-    const selCount = selectedCardNumbers.size;
-    selPrizeEl.textContent = `${selCount * 8} ETB`;
+    selPrizeEl.textContent = `${cartelaCount * 8} ETB`;
   }
-  const currentLetter = getBingoLetter(currentNum);
-  if (ballLetterEl) {
-    ballLetterEl.textContent = currentLetter;
-    ballLetterEl.className = `ball-letter c-${currentLetter.toLowerCase()}`;
-  }
-  if (ballNumEl) ballNumEl.textContent = currentNum;
-  if (trackerCount) trackerCount.innerHTML = `<span class="yellow-dot">●</span> ${calledCount}/75`;
 
-  // Announce current called ball with voice & chime
-  bingoAnnouncer.announceBall(currentNum);
+  if (currentNum && Number(currentNum) >= 1 && Number(currentNum) <= 75) {
+    const currentLetter = getBingoLetter(currentNum);
+    if (ballLetterEl) {
+      ballLetterEl.textContent = currentLetter;
+      ballLetterEl.className = `ball-letter c-${currentLetter.toLowerCase()}`;
+    }
+    if (ballNumEl) ballNumEl.textContent = currentNum;
+
+    // Announce current called ball with voice & chime
+    bingoAnnouncer.announceBall(currentNum);
+  } else {
+    if (ballLetterEl) {
+      ballLetterEl.textContent = "—";
+      ballLetterEl.className = "ball-letter";
+    }
+    if (ballNumEl) ballNumEl.textContent = "—";
+  }
+
+  if (trackerCount) {
+    trackerCount.innerHTML = `<span class="yellow-dot">●</span> ${calledCount}/75`;
+  }
 
   if (chipsContainer) {
-    const recent = calledList.slice(-7).reverse();
-    chipsContainer.innerHTML = recent.map(n => {
-      const l = getBingoLetter(n);
-      return `<span class="chip"><b class="c-${l.toLowerCase()}">${l}</b> ${n}</span>`;
-    }).join("");
+    if (calledList.length === 0) {
+      chipsContainer.innerHTML = "";
+    } else {
+      const recent = calledList.slice(-7).reverse();
+      chipsContainer.innerHTML = recent.map(n => {
+        const l = getBingoLetter(n);
+        return `<span class="chip"><b class="c-${l.toLowerCase()}">${l}</b> ${n}</span>`;
+      }).join("");
+    }
   }
 
   if (tableGrid) {
@@ -2060,7 +2108,7 @@ function switchToLiveGameView() {
   }
   toast("ጨዋታው በመካሄድ ላይ ነው...");
 
-  // 2. After 2.2 seconds, reveal cartelas board and actively start calling balls
+  // 2. After 2.2 seconds, reveal cartelas board and actively start calling balls randomly from 1 to 75
   liveGameTransitionTimeout = setTimeout(() => {
     if (waitingView) {
       waitingView.hidden = true;
@@ -2068,32 +2116,34 @@ function switchToLiveGameView() {
     if (slotsGrid) {
       slotsGrid.style.display = "grid";
     }
+    const currentRoundNum = Math.floor(233000 + Math.random() * 2000);
     if (roundEl) {
-      roundEl.textContent = "GAME ROUND #226798";
+      roundEl.textContent = `GAME ROUND #${currentRoundNum}`;
     }
 
     if (liveGameInterval) clearInterval(liveGameInterval);
-    let liveCalled = [31];
-    bingoAnnouncer.reset();
-    syncHuluWebApp(31, liveCalled);
+    
+    // Pick the first ball randomly from 1 to 75
+    const allNums = Array.from({ length: 75 }, (_, i) => i + 1);
+    const firstNum = allNums[Math.floor(Math.random() * allNums.length)];
+    let liveCalled = [firstNum];
 
-    const sequence = [60, 23, 66, 47, 45, 53, 7, 2, 8, 15, 28, 40, 54, 67, 68, 18, 34, 42];
-    let seqIdx = 0;
+    bingoAnnouncer.reset();
+    syncHuluWebApp(firstNum, liveCalled);
+
+    // Realistic target calls for opponent to win if player does not hit Bingo first (36 - 54 calls)
+    const targetCallLimit = 36 + Math.floor(Math.random() * 18);
 
     liveGameInterval = setInterval(() => {
-      let nextNum;
-      if (seqIdx < sequence.length) {
-        nextNum = sequence[seqIdx++];
-      } else {
-        const avail = Array.from({length:75}, (_,i)=>i+1).filter(n => !liveCalled.includes(n));
-        if (avail.length === 0) {
-          clearInterval(liveGameInterval);
-          liveGameInterval = null;
-          setTimeout(() => switchToWinnersView(), 1500);
-          return;
-        }
-        nextNum = avail[Math.floor(Math.random() * avail.length)];
+      // Pick random number between 1 and 75 that has NOT yet been called
+      const avail = Array.from({ length: 75 }, (_, i) => i + 1).filter(n => !liveCalled.includes(n));
+      if (avail.length === 0) {
+        clearInterval(liveGameInterval);
+        liveGameInterval = null;
+        setTimeout(() => switchToWinnersView(false), 1500);
+        return;
       }
+      const nextNum = avail[Math.floor(Math.random() * avail.length)];
 
       if (!liveCalled.includes(nextNum)) {
         liveCalled.push(nextNum);
@@ -2104,10 +2154,35 @@ function switchToLiveGameView() {
       }
       syncHuluWebApp(nextNum, liveCalled);
 
-      if (liveCalled.length >= 25) {
+      // Check if any of player's selected cards have achieved BINGO
+      const calledSet = new Set(liveCalled);
+      const playerWon = Array.from(selectedCardNumbers).some(cardId => {
+        const card = getCartelaByNumber(cardId);
+        return checkCartelaBingo(card, calledSet);
+      });
+
+      const isAutoMode = $("tgModeAuto")?.classList.contains("active");
+
+      if (playerWon) {
+        if (isAutoMode) {
+          clearInterval(liveGameInterval);
+          liveGameInterval = null;
+          toast("🎉 BINGO! እንኳን ደስ አለዎት አሸንፈዋል!");
+          setTimeout(() => switchToWinnersView(true), 1500);
+          return;
+        } else {
+          const bingoBtn = $("tgBingoBtn");
+          if (bingoBtn) {
+            bingoBtn.disabled = false;
+            bingoBtn.classList.add("active", "pulse-gold");
+          }
+        }
+      }
+
+      if (liveCalled.length >= targetCallLimit) {
         clearInterval(liveGameInterval);
         liveGameInterval = null;
-        setTimeout(() => switchToWinnersView(), 1500);
+        setTimeout(() => switchToWinnersView(false), 1500);
       }
     }, 3500);
   }, 2200);
@@ -2141,7 +2216,7 @@ function renderWinnersConfetti() {
 
 let winnersAutoRestartTimeout = null;
 
-function switchToWinnersView() {
+function switchToWinnersView(isPlayerWinner = false) {
   if (liveGameInterval) {
     clearInterval(liveGameInterval);
     liveGameInterval = null;
@@ -2163,20 +2238,27 @@ function switchToWinnersView() {
   tgNavItems.forEach(id => $(id)?.classList.remove("active"));
   $("tgNavRank")?.classList.add("active");
 
-  const totalPrize = selectedCardNumbers.size * 8;
+  const cartelaCount = selectedCardNumbers.size;
+  const totalPrize = cartelaCount > 0 ? (cartelaCount * 16) : 4800;
   const badgeEl = $("tgWinnersBadgeCount");
   const headingEl = $("tgWinnersHeading");
   const totalEl = $("tgWinnersTotal");
   const shareEl = $("tgWinnersShare");
   if (badgeEl) badgeEl.textContent = "1 WINNER";
-  if (headingEl) headingEl.textContent = "የደራሽ ሽልማት አሸናፊ!";
+  if (headingEl) headingEl.textContent = isPlayerWinner ? "እንኳን ደስ አለዎት! እርስዎ አሸንፈዋል! 🎉" : "የደራሽ ሽልማት አሸናፊ!";
   if (totalEl) totalEl.textContent = "1";
   if (shareEl) shareEl.textContent = `${totalPrize} ETB`;
 
-  renderWinnersConfetti();
-  toast("🎉 የደራሽ ሽልማት ተካፋዮች!");
+  if (isPlayerWinner && state.wallet) {
+    const curBal = getPlayerMainBalance();
+    state.wallet.main_balance = (curBal + totalPrize).toFixed(2);
+    updateAllBalanceDisplays(state.wallet.main_balance, state.wallet.vip_balance);
+  }
 
-  // ይህን ካመጣ በኋላ ቀጥታ አውቶማቲክ ጨዋታውን ሰርቶ እንዲጀምር
+  renderWinnersConfetti();
+  toast(isPlayerWinner ? `🏆 BINGO! ${totalPrize} ETB አሸንፈዋል!` : "🎉 የደራሽ ሽልማት ተካፋዮች!");
+
+  // Restart to card selection view after 5 seconds
   winnersAutoRestartTimeout = setTimeout(() => {
     selectedCardNumbers.clear();
     resetRoundEndTime();

@@ -2355,10 +2355,13 @@ class TelegramBingoService {
   async notifyNumberCalled(gameId, number, calledNumbers) {
     if (!this.isSyncEnabled) return;
     const count = calledNumbers.length;
+    const getLetter = (num) => num <= 15 ? "B" : num <= 30 ? "I" : num <= 45 ? "N" : num <= 60 ? "G" : "O";
+    const letter = getLetter(number);
+
     if (count % 3 === 0 || count <= 5) {
-      const lastThree = calledNumbers.slice(-3).reverse().join(", ");
+      const lastThree = calledNumbers.slice(-3).reverse().map(n => `${getLetter(n)} ${n}`).join(", ");
       await this.broadcastToGroup(
-        `🎱 <b>ቁጥር ተጠርቷል: [ ${number} ]</b>\n` +
+        `🎱 <b>ቁጥር ተጠርቷል: [ ${letter} ${number} ]</b>\n` +
         `🔢 የቅርብ ቁጥሮች: ${lastThree}\n` +
         `📊 የተጠሩት ብዛት: ${count}/75\n` +
         `ካርድዎን ለማየት <b>/card</b> ፣ መስመር ከሞሉ <b>/bingo</b> ይበሉ!`
