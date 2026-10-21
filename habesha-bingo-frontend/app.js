@@ -17,7 +17,7 @@ function updateAllBalanceDisplays(mainBal, vipBal) {
   const vipStr = money(v);
   if ($("mainBalance")) $("mainBalance").textContent = str;
   if ($("tgMainBalance")) $("tgMainBalance").textContent = str;
-  if ($("tgPlayBalance")) $("tgPlayBalance").textContent = "8.00 ETB";
+  if ($("tgPlayBalance")) $("tgPlayBalance").textContent = m > 0 ? "8.00 ETB" : "0.00 ETB";
   if ($("modalMainBalance")) $("modalMainBalance").textContent = str;
   if ($("vipBalance")) $("vipBalance").textContent = vipStr;
   if ($("modalVipBalance")) $("modalVipBalance").textContent = vipStr;
@@ -331,7 +331,7 @@ async function refresh(){
       if($("mainBalance")) $("mainBalance").textContent=money(w.wallet?.main_balance);
       if($("vipBalance")) $("vipBalance").textContent=money(w.wallet?.vip_balance);
       if($("tgMainBalance")) $("tgMainBalance").textContent=money(w.wallet?.main_balance);
-      if($("tgPlayBalance")) $("tgPlayBalance").textContent="8.00 ETB";
+      if($("tgPlayBalance")) $("tgPlayBalance").textContent=Number(w.wallet?.main_balance || 0) > 0 ? "8.00 ETB" : "0.00 ETB";
 
       // Populate KYC name default if empty
       if ($("withdrawAccountNameInput") && !$("withdrawAccountNameInput").value) {
@@ -722,15 +722,15 @@ if($("menuStartBtn")) {
       } catch(e) {}
     }
 
-    if (bal > 0) {
+    if (bal >= 10) {
       toast(`✅ ሂሳብዎ ${bal.toFixed(2)} ETB አለዎት! መልካም ዕድል!`);
       closeAllTelegramModals();
       if (typeof switchToCardSelectionView === "function") {
         switchToCardSelectionView();
       }
     } else {
-      toast("⚠️ ጨዋታ ከመጀመርዎ በፊት እባክዎ መጀመሪያ ሂሳብዎን ይሙሉ (Deposit)!");
-      openDepositTypeKeyboard();
+      toast("❌ ቀሪ ሂሳብዎ በቂ አይደለም! እባክዎ መጀመሪያ ዲፖዚት ያድርጉ (Insufficient Balance - Please Deposit)", true);
+      openTelegramModal("depositModal");
     }
   });
 }
@@ -913,14 +913,14 @@ if($("finalPlayBtn")) {
       } catch(e) {}
     }
 
-    if (bal > 0) {
+    if (bal >= 10) {
       toast(`✅ ሂሳብዎ ${bal.toFixed(2)} ETB አለዎት! መልካም ዕድል!`);
       if (typeof switchToCardSelectionView === "function") {
         switchToCardSelectionView();
       }
     } else {
-      toast("⚠️ ጨዋታ ለመጀመር እባክዎ መጀመሪያ ሂሳብዎን ይሙሉ (Deposit ያድርጉ)!");
-      openDepositTypeKeyboard();
+      toast("❌ ቀሪ ሂሳብዎ በቂ አይደለም! እባክዎ መጀመሪያ ዲፖዚት ያድርጉ (Insufficient Balance - Please Deposit)", true);
+      openTelegramModal("depositModal");
     }
   });
 }
@@ -1908,8 +1908,13 @@ function updateDerashPrize() {
 }
 
 function getPlayerMainBalance() {
-  if (state.wallet && typeof state.wallet.main_balance !== "undefined") {
-    return Number(state.wallet.main_balance || 0);
+  if (state.wallet) {
+    if (typeof state.wallet.main_balance !== "undefined" && state.wallet.main_balance !== null) {
+      return Number(state.wallet.main_balance || 0);
+    }
+    if (typeof state.wallet.balance !== "undefined" && state.wallet.balance !== null) {
+      return Number(state.wallet.balance || 0);
+    }
   }
   const tgEl = $("tgMainBalance");
   if (tgEl) {
@@ -1972,11 +1977,48 @@ function startCardCountdown() {
         if (selectedCardNumbers.size > 0 && currentBal >= selectedCardNumbers.size * 10) {
           switchToLiveGameView();
         } else if (selectedCardNumbers.size > 0) {
-          toast("Insufficient Balance! እባክዎ መጀመሪያ ዲፖዚት ያድርጉ (Please deposit)");
+          toast("❌ ቀሪ ሂሳብዎ በቂ አይደለም! እባክዎ መጀመሪያ ዲፖዚት ያድርጉ (Insufficient Balance - Please Deposit)", true);
+          if (typeof openTelegramModal === "function") {
+            openTelegramModal("depositModal");
+          }
         }
       }
     }
   }, 1000);
+}
+
+function handleCartelaSelection(cell, cardNum) {
+  if (!cardNum || isNaN(cardNum)) return;
+
+  if (selectedCardNumbers.has(cardNum)) {
+    selectedCardNumbers.delete(cardNum);
+    if (cell) cell.classList.remove("selected");
+    document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.remove("selected"));
+    updateCardSelectionTotals();
+    return;
+  }
+
+  const currentBal = getPlayerMainBalance();
+  const requiredCost = (selectedCardNumbers.size + 1) * 10;
+  if (currentBal < requiredCost || currentBal < 10) {
+    toast("❌ ቀሪ ሂሳብዎ በቂ አይደለም! እባክዎ መጀመሪያ ዲፖዚት ያድርጉ (Insufficient Balance - Please Deposit)", true);
+    if (typeof openTelegramModal === "function") {
+      openTelegramModal("depositModal");
+    } else if (typeof openDepositTypeKeyboard === "function") {
+      openDepositTypeKeyboard();
+    }
+    return;
+  }
+
+  if (selectedCardNumbers.size >= 4) {
+    toast("እስከ 4 ካርቴላ ብቻ መምረጥ ይችላሉ (Max 4 cards)", true);
+    return;
+  }
+
+  selectedCardNumbers.add(cardNum);
+  if (cell) cell.classList.add("selected");
+  document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.add("selected"));
+  updateCardSelectionTotals();
 }
 
 function renderCardSelectionGrid() {
@@ -1993,26 +2035,9 @@ function renderCardSelectionGrid() {
   grid.onclick = (e) => {
     const cell = e.target.closest(".card-cell");
     if (!cell) return;
-    const cardNum = Number(cell.dataset.card);
-    if (!cardNum) return;
-    if (selectedCardNumbers.has(cardNum)) {
-      selectedCardNumbers.delete(cardNum);
-      cell.classList.remove("selected");
-    } else {
-      const currentBal = getPlayerMainBalance();
-      const requiredCost = (selectedCardNumbers.size + 1) * 10;
-      if (currentBal < requiredCost) {
-        toast("Insufficient Balance! እባክዎ መጀመሪያ ዲፖዚት ያድርጉ (Please deposit)");
-        return;
-      }
-      if (selectedCardNumbers.size >= 4) {
-        toast("እስከ 4 ካርቴላ ብቻ መምረጥ ይችላሉ (Max 4 cards)");
-        return;
-      }
-      selectedCardNumbers.add(cardNum);
-      cell.classList.add("selected");
-    }
-    updateCardSelectionTotals();
+    cell._handledAt = Date.now();
+    const cardNum = Number(cell.dataset.card || cell.textContent.trim());
+    handleCartelaSelection(cell, cardNum);
   };
 
   updateCardSelectionTotals();
@@ -2325,8 +2350,9 @@ if($("tgTotalBetBtn")) {
     const currentBal = getPlayerMainBalance();
     const count = selectedCardNumbers.size;
     const totalBet = count * 10;
-    if (currentBal < totalBet) {
-      toast("Insufficient Balance! እባክዎ መጀመሪያ ዲፖዚት ያድርጉ (Please deposit)");
+    if (currentBal < totalBet || currentBal < 10) {
+      toast("❌ ቀሪ ሂሳብዎ በቂ አይደለም! እባክዎ መጀመሪያ ዲፖዚት ያድርጉ (Insufficient Balance - Please Deposit)", true);
+      openTelegramModal("depositModal");
       return;
     }
 
@@ -2336,7 +2362,7 @@ if($("tgTotalBetBtn")) {
       state.wallet.main_balance = Math.max(0, updatedBal - totalBet).toFixed(2);
       if ($("mainBalance")) $("mainBalance").textContent = money(state.wallet.main_balance);
       if ($("tgMainBalance")) $("tgMainBalance").textContent = money(state.wallet.main_balance);
-      if ($("tgPlayBalance")) $("tgPlayBalance").textContent = "8.00 ETB";
+      if ($("tgPlayBalance")) $("tgPlayBalance").textContent = Number(state.wallet.main_balance || 0) > 0 ? "8.00 ETB" : "0.00 ETB";
       if ($("modalMainBalance")) $("modalMainBalance").textContent = money(state.wallet.main_balance);
     }
 
@@ -2739,8 +2765,9 @@ function toggleVipCard(num, el) {
   } else {
     const vipBal = Number(state.wallet?.vip_balance || 0);
     const requiredCost = (vipSelectedCards.size + 1) * 50;
-    if (vipBal < requiredCost) {
-      toast("Insufficient Balance! እባክዎ መጀመሪያ VIP ሂሳብዎን ይሙሉ (Please deposit)");
+    if (vipBal < requiredCost || vipBal < 50) {
+      toast("❌ ቀሪ የ VIP ሂሳብዎ በቂ አይደለም! እባክዎ መጀመሪያ ገቢ ያድርጉ (Insufficient VIP Balance)", true);
+      openTelegramModal("depositModal");
       return;
     }
     if (vipSelectedCards.size >= 2) {
@@ -2830,8 +2857,9 @@ function initVipListeners() {
         return;
       }
       const vipBal = Number(state.wallet?.vip_balance || 0);
-      if (vipBal < vipSelectedCards.size * 50) {
-        toast("Insufficient Balance! እባክዎ መጀመሪያ VIP ሂሳብዎን ይሙሉ (Please deposit)");
+      if (vipBal < vipSelectedCards.size * 50 || vipBal < 50) {
+        toast("❌ ቀሪ የ VIP ሂሳብዎ በቂ አይደለም! እባክዎ መጀመሪያ ገቢ ያድርጉ (Insufficient VIP Balance)", true);
+        openTelegramModal("depositModal");
         return;
       }
       toast(`VIP ካርቴላዎች ተመርጠዋል! ድምር: ${vipSelectedCards.size * 50} ETB`);
@@ -2844,6 +2872,51 @@ if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initVipListeners);
 } else {
   initVipListeners();
+}
+
+// Global Delegated Card Pick & Range Tab handlers
+document.addEventListener("click", (e) => {
+  const cell = e.target.closest(".card-cell");
+  if (cell) {
+    if (cell._handledAt && (Date.now() - cell._handledAt) < 300) return;
+    cell._handledAt = Date.now();
+    const cardNum = Number(cell.dataset.card || cell.textContent.trim());
+    if (cardNum && !isNaN(cardNum)) {
+      handleCartelaSelection(cell, cardNum);
+    }
+    return;
+  }
+
+  const tab = e.target.closest(".range-tab-btn");
+  if (tab) {
+    const start = parseInt(tab.dataset.start, 10) || 1;
+    const end = parseInt(tab.dataset.end, 10) || 600;
+    document.querySelectorAll(".range-tab-btn").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    const cells = document.querySelectorAll("#tgCardPickGrid .card-cell");
+    if (cells.length > 0) {
+      cells.forEach(c => {
+        const num = Number(c.dataset.card || c.textContent.trim());
+        if (num >= start && num <= end) {
+          c.style.display = "";
+        } else {
+          c.style.display = "none";
+        }
+      });
+    }
+  }
+});
+
+// Auto-populate card pick grid on page load if present
+function initCardGridOnLoad() {
+  if ($("tgCardPickGrid") && $("tgCardPickGrid").children.length === 0) {
+    renderCardSelectionGrid();
+  }
+}
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initCardGridOnLoad);
+} else {
+  initCardGridOnLoad();
 }
 
 // Initial check for VIP query param

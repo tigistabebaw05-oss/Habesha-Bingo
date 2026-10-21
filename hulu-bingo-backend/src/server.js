@@ -228,8 +228,7 @@ async function init(){
   await pool.query(`
     UPDATE users SET role = 'OWNER', is_active = TRUE WHERE phone = '0951666750';
     UPDATE users SET role = 'PLAYER' WHERE phone = 'TG6110967349' OR id = 17 OR name = 'TA';
-    UPDATE wallets SET main_balance = GREATEST(main_balance, 50.00) WHERE user_id IN (SELECT id FROM users WHERE phone = '0951666750');
-    UPDATE transactions SET status = 'completed' WHERE user_id IN (SELECT id FROM users WHERE phone = '0951666750') AND status = 'pending';
+    UPDATE wallets SET main_balance = 0.00 WHERE user_id IN (SELECT id FROM users WHERE phone = '0951666750');
   `).catch(err => console.warn("[Init] owner wallet update:", err.message));
 
   await telegramService.init().catch(err => console.warn("[Telegram] Service init warning:", err.message));
