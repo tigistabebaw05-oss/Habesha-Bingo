@@ -411,6 +411,11 @@ $("joinBtn").addEventListener("click",async()=>{
       toast("እባክዎ ጨዋታውን ለመጀመር መጀመሪያ ይግቡ ወይም ይመዝገቡ (Please login to play)");
       return;
     }
+    const currentBal = getPlayerMainBalance();
+    if (currentBal < 10) {
+      showInsufficientBalanceModal(currentBal, 10, false);
+      return;
+    }
     await api("/join",{method:"POST"});
     toast("You joined the game!");
     await refresh();
@@ -1977,15 +1982,84 @@ function startCardCountdown() {
         if (selectedCardNumbers.size > 0 && currentBal >= selectedCardNumbers.size * 10) {
           switchToLiveGameView();
         } else if (selectedCardNumbers.size > 0) {
-          toast("❌ ቀሪ ሂሳብዎ በቂ አይደለም! እባክዎ መጀመሪያ ዲፖዚት ያድርጉ (Insufficient Balance - Please Deposit)", true);
-          if (typeof openTelegramModal === "function") {
-            openTelegramModal("depositModal");
-          }
+          showInsufficientBalanceModal(currentBal, selectedCardNumbers.size * 10, false);
         }
       }
     }
   }, 1000);
 }
+
+function showInsufficientBalanceModal(currentBal, requiredCost, isVip = false) {
+  let modal = $("insufficientBalanceModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.className = "insufficient-balance-modal";
+    modal.id = "insufficientBalanceModal";
+    modal.innerHTML = `
+      <div class="insufficient-balance-card">
+        <div class="ib-icon-wrap">
+          <span class="ib-warning-icon">⚠️</span>
+        </div>
+        <h3 class="ib-title">Insufficient Balance</h3>
+        <div class="ib-subtitle">ቀሪ ሂሳብዎ በቂ አይደለም!</div>
+        <p class="ib-desc" id="ibDesc">ካርቴላ ለመምረጥ እባክዎ መጀመሪያ ዲፖዚት ያድርጉ። እያንዳንዱ ካርቴላ 10 ETB ነው።</p>
+        <div class="ib-balance-row">
+          <span>የእርስዎ ቀሪ ሂሳብ:</span>
+          <b class="ib-curr-bal" id="ibCurrentBalance">0.00 ETB</b>
+        </div>
+        <div class="ib-actions">
+          <button type="button" class="btn-ib-deposit" id="btnIbDepositNow">
+            📥 አሁኑኑ ዲፖዚት ያድርጉ (Deposit Now)
+          </button>
+          <button type="button" class="btn-ib-close" id="btnIbClose">
+            ተመለስ (Close)
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  } else if (modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+
+  const balEl = $("ibCurrentBalance");
+  if (balEl) balEl.textContent = `${Number(currentBal || 0).toFixed(2)} ETB`;
+
+  const descEl = $("ibDesc") || modal.querySelector(".ib-desc");
+  if (descEl) {
+    if (isVip) {
+      descEl.textContent = `VIP ካርቴላ ለመምረጥ እባክዎ መጀመሪያ VIP ዲፖዚት ያድርጉ። እያንዳንዱ VIP ካርቴላ 50 ETB ነው። (የሚያስፈልገው: ${Number(requiredCost || 50).toFixed(2)} ETB)`;
+    } else {
+      descEl.textContent = `ካርቴላ ለመምረጥ እባክዎ መጀመሪያ ዲፖዚት ያድርጉ። እያንዳንዱ ካርቴላ 10 ETB ነው። (የሚያስፈልገው: ${Number(requiredCost || 10).toFixed(2)} ETB)`;
+    }
+  }
+
+  modal.removeAttribute("hidden");
+  modal.hidden = false;
+  modal.style.display = "flex";
+
+  try {
+    if (typeof bingoAnnouncer !== "undefined" && bingoAnnouncer && bingoAnnouncer.playChime) {
+      bingoAnnouncer.playChime();
+    }
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate([100, 50, 100]);
+    }
+  } catch (_) {}
+
+  toast("❌ Insufficient Balance! እባክዎ መጀመሪያ ዲፖዚት ያድርጉ", true);
+}
+
+function hideInsufficientBalanceModal() {
+  const modal = $("insufficientBalanceModal");
+  if (modal) {
+    modal.setAttribute("hidden", "");
+    modal.hidden = true;
+    modal.style.display = "none";
+  }
+}
+window.showInsufficientBalanceModal = showInsufficientBalanceModal;
+window.hideInsufficientBalanceModal = hideInsufficientBalanceModal;
 
 function handleCartelaSelection(cell, cardNum) {
   if (!cardNum || isNaN(cardNum)) return;
@@ -2001,12 +2075,9 @@ function handleCartelaSelection(cell, cardNum) {
   const currentBal = getPlayerMainBalance();
   const requiredCost = (selectedCardNumbers.size + 1) * 10;
   if (currentBal < requiredCost || currentBal < 10) {
-    toast("❌ ቀሪ ሂሳብዎ በቂ አይደለም! እባክዎ መጀመሪያ ዲፖዚት ያድርጉ (Insufficient Balance - Please Deposit)", true);
-    if (typeof openTelegramModal === "function") {
-      openTelegramModal("depositModal");
-    } else if (typeof openDepositTypeKeyboard === "function") {
-      openDepositTypeKeyboard();
-    }
+    if (cell) cell.classList.remove("selected");
+    document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.remove("selected"));
+    showInsufficientBalanceModal(currentBal, requiredCost, false);
     return;
   }
 
@@ -2351,8 +2422,7 @@ if($("tgTotalBetBtn")) {
     const count = selectedCardNumbers.size;
     const totalBet = count * 10;
     if (currentBal < totalBet || currentBal < 10) {
-      toast("❌ ቀሪ ሂሳብዎ በቂ አይደለም! እባክዎ መጀመሪያ ዲፖዚት ያድርጉ (Insufficient Balance - Please Deposit)", true);
-      openTelegramModal("depositModal");
+      showInsufficientBalanceModal(currentBal, totalBet, false);
       return;
     }
 
@@ -2766,8 +2836,7 @@ function toggleVipCard(num, el) {
     const vipBal = Number(state.wallet?.vip_balance || 0);
     const requiredCost = (vipSelectedCards.size + 1) * 50;
     if (vipBal < requiredCost || vipBal < 50) {
-      toast("❌ ቀሪ የ VIP ሂሳብዎ በቂ አይደለም! እባክዎ መጀመሪያ ገቢ ያድርጉ (Insufficient VIP Balance)", true);
-      openTelegramModal("depositModal");
+      showInsufficientBalanceModal(vipBal, requiredCost, true);
       return;
     }
     if (vipSelectedCards.size >= 2) {
@@ -2868,10 +2937,44 @@ function initVipListeners() {
   }
 }
 
+function initInsufficientBalanceModalListeners() {
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#btnIbClose")) {
+      hideInsufficientBalanceModal();
+      return;
+    }
+    if (e.target.closest("#btnIbDepositNow")) {
+      hideInsufficientBalanceModal();
+      if (!authStorage.getItem("hulu_token")) {
+        openAuth("login");
+        toast("እባክዎ መጀመሪያ ይግቡ ከዚያ ዲፖዚት ያድርጉ (Please login to deposit)");
+        return;
+      }
+      if (typeof openTelegramModal === "function") {
+        openTelegramModal("depositModal");
+      } else if (typeof openDepositTypeKeyboard === "function") {
+        openDepositTypeKeyboard();
+      } else {
+        const dep = $("depositModal");
+        if (dep) dep.hidden = false;
+      }
+      return;
+    }
+    const modal = $("insufficientBalanceModal");
+    if (modal && !modal.hidden && e.target === modal) {
+      hideInsufficientBalanceModal();
+    }
+  });
+}
+
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initVipListeners);
+  document.addEventListener("DOMContentLoaded", () => {
+    initVipListeners();
+    initInsufficientBalanceModalListeners();
+  });
 } else {
   initVipListeners();
+  initInsufficientBalanceModalListeners();
 }
 
 // Global Delegated Card Pick & Range Tab handlers

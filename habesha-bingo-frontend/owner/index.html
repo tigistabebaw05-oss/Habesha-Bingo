@@ -1466,7 +1466,31 @@
     </main>
   </div>
 
-  <script src="../app.js?v=20261008-fix5"></script>
+  <!-- Insufficient Balance Prompt Modal (ካርቴላ ሲመርጡ ዲፖዚት ሳያደርጉ የሚመጣ) -->
+  <div class="insufficient-balance-modal" id="insufficientBalanceModal" hidden>
+    <div class="insufficient-balance-card">
+      <div class="ib-icon-wrap">
+        <span class="ib-warning-icon">⚠️</span>
+      </div>
+      <h3 class="ib-title">Insufficient Balance</h3>
+      <div class="ib-subtitle">ቀሪ ሂሳብዎ በቂ አይደለም!</div>
+      <p class="ib-desc" id="ibDesc">ካርቴላ ለመምረጥ እባክዎ መጀመሪያ ዲፖዚት ያድርጉ። እያንዳንዱ ካርቴላ 10 ETB ነው።</p>
+      <div class="ib-balance-row">
+        <span>የእርስዎ ቀሪ ሂሳብ:</span>
+        <b class="ib-curr-bal" id="ibCurrentBalance">0.00 ETB</b>
+      </div>
+      <div class="ib-actions">
+        <button type="button" class="btn-ib-deposit" id="btnIbDepositNow">
+          📥 አሁኑኑ ዲፖዚት ያድርጉ (Deposit Now)
+        </button>
+        <button type="button" class="btn-ib-close" id="btnIbClose">
+          ተመለስ (Close)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../app.js?v=20261025-balance"></script>
   <script src="../admin.js"></script>
 </body>
 </html>
