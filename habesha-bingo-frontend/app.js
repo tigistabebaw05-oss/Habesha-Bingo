@@ -17,7 +17,7 @@ function updateAllBalanceDisplays(mainBal, vipBal) {
   const vipStr = money(v);
   if ($("mainBalance")) $("mainBalance").textContent = str;
   if ($("tgMainBalance")) $("tgMainBalance").textContent = str;
-  if ($("tgPlayBalance")) $("tgPlayBalance").textContent = m > 0 ? "8.00 ETB" : "0.00 ETB";
+  if ($("tgPlayBalance")) $("tgPlayBalance").textContent = str;
   if ($("modalMainBalance")) $("modalMainBalance").textContent = str;
   if ($("vipBalance")) $("vipBalance").textContent = vipStr;
   if ($("modalVipBalance")) $("modalVipBalance").textContent = vipStr;
@@ -44,8 +44,11 @@ async function initTelegramSession() {
         const bal = Number(res.wallet?.main_balance || 0);
         if (viewParam === "vip") {
           window.switchToVipRoomView();
-        } else if (bal > 0 || urlParams.get("action") === "play" || window.location.search.includes("start")) {
+        } else {
           if (typeof switchToCardSelectionView === "function") switchToCardSelectionView();
+          if (bal < 10) {
+            showInsufficientBalanceModal(bal, 10, false);
+          }
         }
       }
     } catch (e) {
@@ -81,8 +84,11 @@ async function initTelegramSession() {
           const bal = Number(data.wallet?.main_balance || 0);
           if (viewParam === "vip") {
             window.switchToVipRoomView();
-          } else if (bal > 0) {
+          } else {
             if (typeof switchToCardSelectionView === "function") switchToCardSelectionView();
+            if (bal < 10) {
+              showInsufficientBalanceModal(bal, 10, false);
+            }
           }
         }
       } catch (e) {
@@ -112,6 +118,10 @@ if (window.Telegram && window.Telegram.WebApp) {
           window.switchToVipRoomView();
         } else {
           switchToCardSelectionView();
+          const currentBal = getPlayerMainBalance();
+          if (currentBal < 10) {
+            showInsufficientBalanceModal(currentBal, 10, false);
+          }
         }
       }
     };
@@ -331,7 +341,7 @@ async function refresh(){
       if($("mainBalance")) $("mainBalance").textContent=money(w.wallet?.main_balance);
       if($("vipBalance")) $("vipBalance").textContent=money(w.wallet?.vip_balance);
       if($("tgMainBalance")) $("tgMainBalance").textContent=money(w.wallet?.main_balance);
-      if($("tgPlayBalance")) $("tgPlayBalance").textContent=Number(w.wallet?.main_balance || 0) > 0 ? "8.00 ETB" : "0.00 ETB";
+      if($("tgPlayBalance")) $("tgPlayBalance").textContent=money(w.wallet?.main_balance);
 
       // Populate KYC name default if empty
       if ($("withdrawAccountNameInput") && !$("withdrawAccountNameInput").value) {
@@ -1979,7 +1989,12 @@ function startCardCountdown() {
       const cardView = $("huluCardSelectionView");
       if (cardView && !cardView.hidden) {
         const currentBal = getPlayerMainBalance();
-        if (selectedCardNumbers.size > 0 && currentBal >= selectedCardNumbers.size * 10) {
+        const totalCost = selectedCardNumbers.size * 10;
+        if (selectedCardNumbers.size > 0 && currentBal >= totalCost) {
+          const newBal = Math.max(0, currentBal - totalCost);
+          if (!state.wallet) state.wallet = { main_balance: newBal, vip_balance: 0 };
+          else state.wallet.main_balance = newBal;
+          updateAllBalanceDisplays(newBal, state.wallet?.vip_balance || 0);
           switchToLiveGameView();
         } else if (selectedCardNumbers.size > 0) {
           showInsufficientBalanceModal(currentBal, selectedCardNumbers.size * 10, false);
@@ -2037,6 +2052,37 @@ function showInsufficientBalanceModal(currentBal, requiredCost, isVip = false) {
   modal.removeAttribute("hidden");
   modal.hidden = false;
   modal.style.display = "flex";
+
+  const depositBtn = $("btnIbDepositNow") || modal.querySelector("#btnIbDepositNow");
+  if (depositBtn) {
+    depositBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hideInsufficientBalanceModal();
+      if (typeof openTelegramModal === "function") {
+        openTelegramModal(isVip ? "vipModal" : "depositModal");
+      } else if (typeof openDepositTypeKeyboard === "function") {
+        openDepositTypeKeyboard();
+      } else if ($("depositModal")) {
+        $("depositModal").hidden = false;
+      }
+    };
+  }
+
+  const closeBtn = $("btnIbClose") || modal.querySelector("#btnIbClose");
+  if (closeBtn) {
+    closeBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hideInsufficientBalanceModal();
+    };
+  }
+
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      hideInsufficientBalanceModal();
+    }
+  };
 
   try {
     if (typeof bingoAnnouncer !== "undefined" && bingoAnnouncer && bingoAnnouncer.playChime) {
@@ -2108,6 +2154,11 @@ function renderCardSelectionGrid() {
     if (!cell) return;
     cell._handledAt = Date.now();
     const cardNum = Number(cell.dataset.card || cell.textContent.trim());
+    const currentBal = getPlayerMainBalance();
+    if (!selectedCardNumbers.has(cardNum) && (currentBal < 10 || currentBal < (selectedCardNumbers.size + 1) * 10)) {
+      showInsufficientBalanceModal(currentBal, (selectedCardNumbers.size + 1) * 10, false);
+      return;
+    }
     handleCartelaSelection(cell, cardNum);
   };
 
@@ -2159,6 +2210,10 @@ function switchToCardSelectionView() {
   updateCardSelectionTotals();
   renderCardSelectionGrid();
   startCardCountdown();
+  const currentBal = getPlayerMainBalance();
+  if (currentBal < 10) {
+    showInsufficientBalanceModal(currentBal, 10, false);
+  }
 }
 
 let liveGameTransitionTimeout = null;
@@ -2414,11 +2469,15 @@ document.querySelectorAll(".winner-row-card").forEach(card => {
 
 if($("tgTotalBetBtn")) {
   $("tgTotalBetBtn").addEventListener("click", async () => {
+    const currentBal = getPlayerMainBalance();
     if (selectedCardNumbers.size === 0) {
-      toast("እባክዎ መጀመሪያ ካርቴላ ይምረጡ!");
+      if (currentBal < 10) {
+        showInsufficientBalanceModal(currentBal, 10, false);
+      } else {
+        toast("እባክዎ መጀመሪያ ካርቴላ ይምረጡ!");
+      }
       return;
     }
-    const currentBal = getPlayerMainBalance();
     const count = selectedCardNumbers.size;
     const totalBet = count * 10;
     if (currentBal < totalBet || currentBal < 10) {
@@ -2428,13 +2487,10 @@ if($("tgTotalBetBtn")) {
 
     // Deduct from local wallet
     const updatedBal = getPlayerMainBalance();
-    if (state.wallet) {
-      state.wallet.main_balance = Math.max(0, updatedBal - totalBet).toFixed(2);
-      if ($("mainBalance")) $("mainBalance").textContent = money(state.wallet.main_balance);
-      if ($("tgMainBalance")) $("tgMainBalance").textContent = money(state.wallet.main_balance);
-      if ($("tgPlayBalance")) $("tgPlayBalance").textContent = Number(state.wallet.main_balance || 0) > 0 ? "8.00 ETB" : "0.00 ETB";
-      if ($("modalMainBalance")) $("modalMainBalance").textContent = money(state.wallet.main_balance);
-    }
+    const newBal = Math.max(0, updatedBal - totalBet);
+    if (!state.wallet) state.wallet = { main_balance: newBal, vip_balance: 0 };
+    else state.wallet.main_balance = newBal;
+    updateAllBalanceDisplays(newBal, state.wallet?.vip_balance || 0);
 
     // Sync with backend if authenticated
     try {
@@ -2931,7 +2987,13 @@ function initVipListeners() {
         openTelegramModal("depositModal");
         return;
       }
-      toast(`VIP ካርቴላዎች ተመርጠዋል! ድምር: ${vipSelectedCards.size * 50} ETB`);
+      const totalCost = vipSelectedCards.size * 50;
+      const curVip = Number(state.wallet?.vip_balance || 0);
+      const newVip = Math.max(0, curVip - totalCost);
+      if (!state.wallet) state.wallet = { main_balance: 0, vip_balance: newVip };
+      else state.wallet.vip_balance = newVip;
+      updateAllBalanceDisplays(state.wallet?.main_balance || 0, newVip);
+      toast(`VIP ካርቴላዎች ተመርጠዋል! ድምር: ${totalCost} ETB`);
       setTimeout(switchToLiveGameView, 600);
     };
   }
@@ -2985,6 +3047,11 @@ document.addEventListener("click", (e) => {
     cell._handledAt = Date.now();
     const cardNum = Number(cell.dataset.card || cell.textContent.trim());
     if (cardNum && !isNaN(cardNum)) {
+      const currentBal = getPlayerMainBalance();
+      if (!selectedCardNumbers.has(cardNum) && (currentBal < 10 || currentBal < (selectedCardNumbers.size + 1) * 10)) {
+        showInsufficientBalanceModal(currentBal, (selectedCardNumbers.size + 1) * 10, false);
+        return;
+      }
       handleCartelaSelection(cell, cardNum);
     }
     return;

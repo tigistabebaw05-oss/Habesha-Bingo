@@ -1,8 +1,8 @@
+require('dotenv').config({ path: require('path').join(__dirname, 'hulu-bingo-backend', '.env') });
 // ============================================================
 // Habesha Bingo & Telegram Bot - 24/7 Keep-Alive Daemon
 // ============================================================
-// Render Free tier shuts down after 15 minutes of inactivity.
-// This daemon continuously pings the backend every 4 minutes,
+// Continuously pings the backend every 4 minutes,
 // ensuring the server and Telegram Bot stay 100% active 24/7.
 // ============================================================
 

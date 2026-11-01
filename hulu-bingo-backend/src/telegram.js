@@ -16,12 +16,41 @@ class TelegramBingoService {
     this.baseUrl = "https://api.telegram.org";
     this.botInfo = null;
     this.isSyncEnabled = true;
+    this.publicUrl = (process.env.PUBLIC_APP_URL || "").trim().replace(/\/$/, "");
     this.userState = new Map();
     this.gameEngine = null;
   }
 
   setGameEngine(engine) {
     this.gameEngine = engine;
+  }
+
+  async setPublicUrl(url) {
+    if (!url) return;
+    this.publicUrl = url.trim().replace(/\/$/, "");
+    process.env.PUBLIC_APP_URL = this.publicUrl;
+    console.log(`[Telegram] 🌐 Public App URL dynamically set to: ${this.publicUrl}`);
+
+    if (this.publicUrl && !this.publicUrl.includes("localhost") && !this.publicUrl.includes("127.0.0.1")) {
+      const targetWebhook = `${this.publicUrl}/api/telegram/webhook`;
+      try {
+        this.stopPolling();
+        const res = await this.apiCall("setWebhook", {
+          url: targetWebhook,
+          secret_token: this.webhookSecret,
+          drop_pending_updates: false,
+          max_connections: 40
+        });
+        console.log(`[Telegram] ✅ Webhook successfully configured for @${this.botUsername} at: ${targetWebhook}`, res?.description || "");
+      } catch (err) {
+        console.warn("[Telegram] Could not set webhook:", err.message);
+      }
+    } else {
+      try {
+        await this.apiCall("deleteWebhook", { drop_pending_updates: false });
+      } catch (_) {}
+      this.startPolling();
+    }
   }
 
   async createSessionForUser(user) {
@@ -48,7 +77,7 @@ class TelegramBingoService {
   }
 
   async getWebAppUrl(user, view = "") {
-    let baseUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+    let baseUrl = this.publicUrl || process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
     baseUrl = baseUrl.replace(/\/$/, "");
     const params = [];
     if (user && user.id) {
@@ -124,7 +153,7 @@ class TelegramBingoService {
         }
 
         // Configure Webhook or fallback to polling with auto-recovery watchdog
-        const publicUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+        const publicUrl = this.publicUrl || process.env.PUBLIC_APP_URL || "";
         const webhookInfo = await this.apiCall("getWebhookInfo");
         
         if (publicUrl && !publicUrl.includes("localhost") && !publicUrl.includes("127.0.0.1")) {
@@ -143,11 +172,12 @@ class TelegramBingoService {
           }
           this.stopPolling();
         } else {
-          if (!webhookInfo?.result?.url) {
-            this.startPolling();
-          } else {
-            console.log(`[Telegram] Webhook is active at: ${webhookInfo.result.url}`);
-          }
+          try {
+            if (webhookInfo?.result?.url) {
+              await this.apiCall("deleteWebhook", { drop_pending_updates: false });
+            }
+          } catch (_) {}
+          this.startPolling();
         }
 
         // Start continuous watchdog to ensure bot NEVER stays inactive
@@ -240,7 +270,7 @@ class TelegramBingoService {
     if (this.watchdogInterval) clearInterval(this.watchdogInterval);
     this.watchdogInterval = setInterval(async () => {
       try {
-        const publicUrl = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+        const publicUrl = this.publicUrl || process.env.PUBLIC_APP_URL || "";
         if (publicUrl && !publicUrl.includes("localhost") && !publicUrl.includes("127.0.0.1")) {
           const info = await this.apiCall("getWebhookInfo");
           const targetWebhook = `${publicUrl.replace(/\/$/, "")}/api/telegram/webhook`;
@@ -618,10 +648,13 @@ class TelegramBingoService {
 
   // ==================== PERSISTENT KEYBOARD ====================
   getMainKeyboard(customUrl) {
-    const webAppUrl = customUrl || process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+    const webAppUrl = customUrl || this.publicUrl || process.env.PUBLIC_APP_URL || "";
+    const playBtn = webAppUrl && webAppUrl.startsWith("https://")
+      ? { text: "🎮 ጨዋታውን ይክፈቱ (Play)", web_app: { url: webAppUrl } }
+      : { text: "🎮 ጨዋታ ጀምር (Play)" };
     return {
       keyboard: [
-        [{ text: "🎮 ጨዋታውን ይክፈቱ (Play)", web_app: { url: webAppUrl } }],
+        [playBtn],
         [{ text: "💰 ሂሳብ" }, { text: "📥 ገቢ ለማድረግ" }],
         [{ text: "📤 ወጪ ለማድረግ" }, { text: "💎 VIP ክፍል" }],
         [{ text: "🎟 ትኬት ቁረጥ (10 ETB)" }, { text: "📊 የጨዋታ ሁኔታ" }],
@@ -654,7 +687,7 @@ class TelegramBingoService {
     // If zero balance, emphasize Deposit as the first step!
     if (mainBal <= 0 && vipBal <= 0) {
       const text = `🎉 <b>እንኳን ወደ AB BINGO በደህና መጡ!</b>\n\n` +
-        `👤 ተጫዋች: <b>${userName}</b>\n` +
+        "" +
         `💰 ዋና ሂሳብ: <b>0.00 ETB</b>\n` +
         `💎 VIP ሂሳብ: <b>0.00 ETB</b>\n\n` +
         `⚠️ <b>ጨዋታ ከመጀመርዎ በፊት እባክዎ መጀመሪያ ሂሳብዎን ይሙሉ (Deposit ያድርጉ)!</b>\n\n` +
@@ -677,7 +710,7 @@ class TelegramBingoService {
       });
     } else {
       const text = `🎉 <b>እንኳን ወደ AB BINGO በደህና መጡ!</b>\n\n` +
-        `👤 ተጫዋች: <b>${userName}</b>\n` +
+        "" +
         `💰 ዋና ሂሳብ: <b>${mainBal.toFixed(2)} ETB</b>\n` +
         `💎 VIP ሂሳብ: <b>${vipBal.toFixed(2)} ETB</b>\n\n` +
         `✅ <b>ሂሳብዎ ዝግጁ ነው!</b> አሁኑኑ መጫወት ይችላሉ፡\n` +
@@ -1189,7 +1222,7 @@ class TelegramBingoService {
 
     if (balance < 100) {
       const text = `📤 <b>ወጪ ለማድረግ (Withdraw)</b>\n\n` +
-        `👤 ተጠቃሚ: <b>${user.name}</b>\n` +
+        "" +
         `💰 ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n\n` +
         `⚠️ <b>ዝቅተኛው የማውጫ መጠን 100 ETB ነው።</b>\n` +
         `ያሸነፉትን ገንዘብ ወጪ ለማድረግ ቢያንስ 100 ETB ሊኖርዎት ይገባል።\n\n` +
@@ -1207,7 +1240,7 @@ class TelegramBingoService {
 
     this.userState.set(chatId, { step: "withdraw_method", maxBalance: balance });
     const text = `📤 <b>ወጪ ለማድረግ (Withdraw Funds)</b>\n\n` +
-      `👤 ተጠቃሚ: <b>${user.name}</b>\n` +
+      "" +
       `💰 ሊወጣ የሚችል ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n\n` +
       `ገንዘብዎ እንዲላክ የሚፈልጉበትን የክፍያ ዘዴ ይምረጡ:`;
 
@@ -1348,7 +1381,7 @@ class TelegramBingoService {
     const playUrl = await this.getWebAppUrl(user);
 
     const text = `💰 <b>የእርስዎ የዋሌት መረጃ (Wallet Information)</b>\n\n` +
-      `👤 ተጠቃሚ: <b>${user.name}</b>\n` +
+      "" +
       `💵 <b>ዋና ሂሳብ (Main Game):</b> <b>${mainBal} ETB</b> (መነሻ 10 ETB)\n` +
       `💎 <b>VIP ሂሳብ (VIP Room):</b> <b>${vipBal} ETB</b> (መነሻ 50 ETB)\n\n` +
       `ምን ማድረግ ይፈልጋሉ?`;
@@ -1388,7 +1421,7 @@ class TelegramBingoService {
 
     if (balance < 10) {
       const text = `⚠️ <b>ጨዋታ ለመጀመር ቀሪ ሂሳብዎ ዝቅተኛ ነው!</b>\n\n` +
-        `👤 ተጫዋች: <b>${user ? user.name : "ተጫዋች"}</b>\n` +
+        "" +
         `💰 ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n` +
         `🎟 የመግቢያ ክፍያ: <b>10.00 ETB</b>\n\n` +
         `ትኬት ቆርጠው በሙሉ ዕድል ለመጫወት እባክዎ መጀመሪያ ሂሳብዎን ይሙሉ (Deposit ያድርጉ):`;
@@ -1404,7 +1437,7 @@ class TelegramBingoService {
     }
 
     const text = `🎉 <b>AB Bingo ለመጫወት ዝግጁ ነዎት!</b>\n\n` +
-      `👤 ተጫዋች: <b>${user ? user.name : "ተጫዋች"}</b>\n` +
+      "" +
       `💰 ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n` +
       `🎟 የመግቢያ ክፍያ: <b>10.00 ETB</b>\n\n` +
       `በ WebApp ውብ ገፅታ ለመጫወት ከታች ያለውን ይጫኑ ወይም እዚሁ ትኬት ይቁረጡ:`;
@@ -1510,7 +1543,7 @@ class TelegramBingoService {
       await this.sendMessage(
         chatId,
         `🎟 <b>ትኬትዎ በተሳካ ሁኔታ ተቆርጧል!</b>\n\n` +
-        `👤 ተጫዋች: <b>${user.name}</b>\n` +
+        "" +
         `🏷 ጨዋታ: <b>#${g.id} (Main Game)</b>\n` +
         `🎟 የመግቢያ ክፍያ: <b>${entryFee.toFixed(2)} ETB</b>\n` +
         `🏆 የሽልማት ፈንድ: <b>${prizePool.toFixed(2)} ETB</b>\n\n` +
@@ -1539,7 +1572,7 @@ class TelegramBingoService {
       }
 
       if (!chatId.toString().includes("-")) {
-        await this.broadcastToGroup(`🎟 አዲስ ተጫዋች <b>${user.name}</b> ጨዋታ #${g.id}ን ተቀላቅሏል! (ተጫዋቾች: ${pCount})`);
+        await this.broadcastToGroup(`🎟 አዲስ ተጫዋች ጨዋታ #${g.id}ን ተቀላቅሏል! (ተጫዋቾች: ${pCount})`);
       }
 
     } catch (e) {
@@ -1729,7 +1762,7 @@ class TelegramBingoService {
       await this.sendMessage(
         chatId,
         `💎 <b>የ VIP ትኬትዎ በተሳካ ሁኔታ ተቆርጧል!</b>\n\n` +
-        `👤 ተጫዋች: <b>${user.name}</b>\n` +
+        "" +
         `🏷 ጨዋታ: <b>#${g.id} (VIP Game)</b>\n` +
         `🎟 የመግቢያ ክፍያ: <b>${entryFee.toFixed(2)} ETB</b> (ከተቀነሰበት: ${usedWallet === "vip" ? "VIP ዋሌት" : "ዋና ዋሌት"})\n` +
         `🏆 የሽልማት ፈንድ: <b>${prizePool.toFixed(2)} ETB</b>\n\n` +
@@ -1757,7 +1790,7 @@ class TelegramBingoService {
         });
       }
 
-      await this.broadcastToGroup(`💎 አዲስ ተጫዋች <b>${user.name}</b> VIP ጨዋታ #${g.id}ን ተቀላቅሏል! (ተጫዋቾች: ${pCount})`);
+      await this.broadcastToGroup(`💎 አዲስ ተጫዋች VIP ጨዋታ #${g.id}ን ተቀላቅሏል! (ተጫዋቾች: ${pCount})`);
 
     } catch (e) {
       await client.query("ROLLBACK");
@@ -1901,7 +1934,7 @@ class TelegramBingoService {
         `✅ <b>መልእክትዎ ለአድሚን ደርሷል!</b>\nመልእክት: "<i>${text.slice(0, 100)}</i>"\n\nበቅርቡ ምላሽ ይሰጥዎታል። እናመሰግናለን!`,
         { reply_markup: this.getMainKeyboard() }
       );
-      if (this.groupId) {
+      if (false && this.groupId) {
         this.broadcastToGroup(`🆘 <b>የእርዳታ ጥያቄ (ከ @${from.username || from.first_name || chatId}):</b>\n"${text}"`).catch(()=>{});
       }
       return;
@@ -2295,7 +2328,7 @@ class TelegramBingoService {
       await client.query("COMMIT");
 
       const winMsg = `🏆 <b>ቢንጎ (BINGO)! እንኳን ደስ አለዎት!</b>\n\n` +
-        `👑 አሸናፊ: <b>${user.name}</b>\n` +
+        `👑 አሸናፊ: <b>ተጫዋች (Player)</b>\n` +
         `💰 የተሸለሙት መጠን: <b>${prize.toFixed(2)} ETB</b>\n` +
         `🏷 ጨዋታ ቁጥር: <b>#${g.id}</b>\n\n` +
         `ገንዘቡ በቀጥታ ወደ ዋሌትዎ ገብቷል!`;
@@ -2303,7 +2336,7 @@ class TelegramBingoService {
       await this.sendMessage(chatId, winMsg);
       await this.broadcastToGroup(
         `🎉🏆 <b>ቢንጎ (BINGO)!</b> 🏆🎉\n\n` +
-        `👤 አሸናፊ: <b>${user.name}</b>\n` +
+        `👤 አሸናፊ: <b>ተጫዋች (Player)</b>\n` +
         `💵 ሽልማት: <b>${prize.toFixed(2)} ETB</b>\n` +
         `🏷 ጨዋታ: <b>#${g.id}</b>\n\n` +
         `አዲስ ጨዋታ በቅርቡ ይጀምራል! ለመጫወት <b>/play</b> ይጫኑ።`
@@ -2373,7 +2406,7 @@ class TelegramBingoService {
     if (!this.isSyncEnabled) return;
     await this.broadcastToGroup(
       `🏆🎉 <b>ቢንጎ (BINGO) አሸናፊ ተገኝቷል!</b> 🎉🏆\n\n` +
-      `👑 አሸናፊ: <b>${winnerName}</b>\n` +
+      `👑 አሸናፊ: <b>ተጫዋች (Player)</b>\n` +
       `💰 የተሸለመው: <b>${Number(prizeAmount).toFixed(2)} ETB</b>\n` +
       `🏷 ጨዋታ #: <b>${gameId}</b>\n\n` +
       `እንኳን ደስ አለዎት! ቀጣዩ ዙር በቅርቡ ይጀምራል!`
@@ -2415,7 +2448,7 @@ class TelegramBingoService {
       } : undefined;
 
       // 1. Send to linked Telegram Group
-      if (this.groupId) {
+      if (false && this.groupId) {
         await this.sendMessage(this.groupId, text, keyboard ? { reply_markup: keyboard } : {});
       }
 
@@ -2519,7 +2552,7 @@ class TelegramBingoService {
       const balance = Number(user.main_balance || 0);
 
       const msg = `🎉 <b>የገቢ ጥያቄዎ ጸድቋል (Deposit Approved)!</b>\n\n` +
-        `👤 ተጫዋች: <b>${user.name}</b>\n` +
+        "" +
         `💰 የገባ መጠን: <b>${Number(amount).toFixed(2)} ETB</b>\n` +
         `💳 ዘዴ: <b>${method || "TeleBirr"}</b>\n` +
         `💵 አዲሱ ቀሪ ሂሳብ: <b>${balance.toFixed(2)} ETB</b>\n\n` +
@@ -2549,8 +2582,13 @@ class TelegramBingoService {
         `⏰ ሰዓት: <b>${new Date().toLocaleTimeString()}</b>\n\n` +
         `👉 <i>ለማጽደቅ/ለመላክ ወደ Admin Dashboard ይግቡ።</i>`;
 
-      if (this.groupId) {
-        await this.sendMessage(this.groupId, text);
+      if (false && this.groupId) {
+        if (this.pool) {
+          try {
+            const adminRows = (await this.pool.query("SELECT telegram_id FROM users WHERE role IN ('ADMIN', 'OWNER') AND telegram_id IS NOT NULL")).rows;
+            for (const a of adminRows) { this.sendMessage(a.telegram_id, text).catch(() => {}); }
+          } catch (_) {}
+        }
       }
     } catch (e) {
       console.warn("[Telegram] Could not send admin withdrawal alert:", e.message);

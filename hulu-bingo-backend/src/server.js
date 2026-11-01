@@ -156,13 +156,13 @@ async function init(){
   await pool.query(`
     INSERT INTO app_settings(key, value) VALUES 
       ('telegram_bot_token', '8608274368:AAE_kGjR_P61Ev2BQPbLgTdvoBYPyAJ1bPg'),
-      ('telegram_bot_username', 'ABBingoBot'),
+      ('telegram_bot_username', 'HbeshabingoBot'),
       ('telegram_group_title', 'Hbesha bingo'),
       ('telegram_group_id', '-1002766090768'),
       ('telegram_sync_enabled', 'true')
     ON CONFLICT (key) DO NOTHING
   `);
-  await pool.query("UPDATE app_settings SET value = 'ABBingoBot' WHERE key = 'telegram_bot_username'");
+  await pool.query("UPDATE app_settings SET value = 'HbeshabingoBot' WHERE key = 'telegram_bot_username'");
   await pool.query("UPDATE games SET entry = 10 WHERE status = 'waiting' AND entry = 8");
   await pool.query("ALTER TABLE wallets ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE, ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'PLAYER'");
@@ -1592,6 +1592,12 @@ app.post("/api/telegram/webhook", async (req, res) => {
     return res.status(401).json({ error: "Unauthorized webhook" });
   }
   try {
+    const summary = req.body?.message
+      ? `msg "${req.body.message.text || ''}" from ${req.body.message.from?.first_name || req.body.message.from?.id}`
+      : req.body?.callback_query
+      ? `btn "${req.body.callback_query.data}" from ${req.body.callback_query.from?.first_name || req.body.callback_query.from?.id}`
+      : 'update';
+    console.log(`[Telegram Webhook] 📩 Incoming: ${summary}`);
     await telegramService.handleUpdate(req.body);
     res.json({ ok: true });
   } catch (err) {
@@ -1610,6 +1616,29 @@ app.get("/api/telegram/status", async (req, res) => {
     syncEnabled: telegramService.isSyncEnabled,
     polling: telegramService.polling
   });
+});
+
+app.post("/api/internal/set-public-url", async (req, res) => {
+  const { url } = req.body || {};
+  if (!url || typeof url !== "string") {
+    return res.status(400).json({ error: "Missing url parameter" });
+  }
+  try {
+    const cleanUrl = url.trim().replace(/\/$/, "");
+    await telegramService.setPublicUrl(cleanUrl);
+    
+    // Save to app_settings in database
+    await pool.query(
+      "INSERT INTO app_settings(key, value, updated_at) VALUES ('public_app_url', $1, now()) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()",
+      [cleanUrl]
+    ).catch(() => {});
+
+    console.log(`[Server] 🚀 Internal set-public-url updated public URL to: ${cleanUrl}`);
+    res.json({ ok: true, publicUrl: cleanUrl });
+  } catch (err) {
+    console.error("[Internal] Error updating public URL:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post("/api/owner/telegram/config", auth, requireRole("OWNER"), async (req, res) => {
@@ -1861,24 +1890,21 @@ init().then(()=>{
   server.listen(PORT,()=>console.log(`Habesha Bingo API running on http://localhost:${PORT}`));
   setInterval(callNumber,5000);
 
-  // Anti-Sleep Heartbeat for Render (keeps service 24/7 active)
-  const PING_TARGET = process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
-  if (PING_TARGET && !PING_TARGET.includes("localhost") && !PING_TARGET.includes("127.0.0.1")) {
-    console.log(`[KeepAlive] 💓 Automatic anti-sleep heartbeat enabled for ${PING_TARGET}`);
-    setInterval(async () => {
-      try {
-        const pingUrl = `${PING_TARGET.replace(/\/$/, "")}/api/health`;
+  // Anti-Sleep Heartbeat (keeps service 24/7 active)
+  setInterval(async () => {
+    try {
+      const target = telegramService.publicUrl || process.env.PUBLIC_APP_URL || "";
+      if (target && !target.includes("localhost") && !target.includes("127.0.0.1")) {
+        const pingUrl = `${target.replace(/\/$/, "")}/api/health`;
         const res = await fetch(pingUrl, {
           headers: { "User-Agent": "HabeshaBingo-AntiSleep/1.0" }
         });
         if (res.ok) {
           console.log(`[KeepAlive] 💓 Heartbeat ping to ${pingUrl} OK (preventing auto-sleep)`);
         }
-      } catch (pErr) {
-        console.warn(`[KeepAlive] Ping note:`, pErr.message);
       }
-    }, 8 * 60 * 1000); // 8 minutes (Render free tier timeout is 15 minutes)
-  }
+    } catch (_) {}
+  }, 5 * 60 * 1000); // every 5 minutes
 }).catch(error=>{
   console.error("Database initialization failed:",error.message);
   process.exitCode=1;
