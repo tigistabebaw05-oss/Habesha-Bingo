@@ -34,16 +34,22 @@ class TelegramBingoService {
     if (this.publicUrl && !this.publicUrl.includes("localhost") && !this.publicUrl.includes("127.0.0.1")) {
       const targetWebhook = `${this.publicUrl}/api/telegram/webhook`;
       try {
-        this.stopPolling();
         const res = await this.apiCall("setWebhook", {
           url: targetWebhook,
           secret_token: this.webhookSecret,
           drop_pending_updates: false,
           max_connections: 40
         });
-        console.log(`[Telegram] ✅ Webhook successfully configured for @${this.botUsername} at: ${targetWebhook}`, res?.description || "");
+        if (res && res.ok) {
+          this.stopPolling();
+          console.log(`[Telegram] ✅ Webhook successfully configured for @${this.botUsername} at: ${targetWebhook}`);
+        } else {
+          console.warn("[Telegram] Webhook note:", res?.description || res, "- activating polling fallback.");
+          this.startPolling();
+        }
       } catch (err) {
-        console.warn("[Telegram] Could not set webhook:", err.message);
+        console.warn("[Telegram] Could not set webhook, using polling fallback:", err.message);
+        this.startPolling();
       }
     } else {
       try {
@@ -160,17 +166,23 @@ class TelegramBingoService {
           const targetWebhook = `${publicUrl.replace(/\/$/, "")}/api/telegram/webhook`;
           if (webhookInfo?.result?.url !== targetWebhook) {
             console.log(`[Telegram] Setting webhook to: ${targetWebhook}...`);
-            await this.apiCall("setWebhook", {
+            const setRes = await this.apiCall("setWebhook", {
               url: targetWebhook,
               secret_token: this.webhookSecret,
               drop_pending_updates: false,
               max_connections: 40
             });
-            console.log(`[Telegram] ✅ Webhook successfully configured for @${this.botUsername}`);
+            if (setRes && setRes.ok) {
+              console.log(`[Telegram] ✅ Webhook successfully configured for @${this.botUsername}`);
+              this.stopPolling();
+            } else {
+              console.warn("[Telegram] Webhook could not be set yet:", setRes?.description || setRes, "- activating polling fallback.");
+              this.startPolling();
+            }
           } else {
             console.log(`[Telegram] ✅ Webhook active at: ${webhookInfo.result.url}`);
+            this.stopPolling();
           }
-          this.stopPolling();
         } else {
           try {
             if (webhookInfo?.result?.url) {
