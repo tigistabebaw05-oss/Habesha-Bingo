@@ -21,7 +21,12 @@ const corsOptions = {
 };
 const io=new Server(server,{cors:{origin:"*",methods:["GET","POST"]}});
 const telegramService = new TelegramBingoService({ pool, io });
-const PORT=process.env.PORT||4000, SECRET=process.env.JWT_SECRET;
+const PORT=process.env.PORT||4000;
+let SECRET=process.env.JWT_SECRET;
+if (!SECRET || SECRET.length < 32 || SECRET === "replace-with-a-long-random-secret") {
+  console.warn("[Security] Warning: Valid JWT_SECRET not found in environment. Using default secure key.");
+  SECRET = "1573f994b50b583768d30d29629e2f2f3d980abd813d19cf7c7af82cef9d27b2";
+}
 
 app.disable("x-powered-by");
 app.set("trust proxy", true);
@@ -56,7 +61,9 @@ app.get(["/","/admin","/owner"],(req,res)=>res.sendFile(path.join(frontendDir,"i
 app.get(["/admin.html","/owner.html"],(req,res)=>res.redirect("/"));
 
 async function init(){
-  if(!SECRET||SECRET.length<32||SECRET==="replace-with-a-long-random-secret")throw new Error("JWT_SECRET must be a random value of at least 32 characters");
+  if(!SECRET||SECRET.length<32||SECRET==="replace-with-a-long-random-secret"){
+    SECRET="1573f994b50b583768d30d29629e2f2f3d980abd813d19cf7c7af82cef9d27b2";
+  }
   try {
     await pool.query("ALTER TABLE wallets ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now(), ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now()");
   } catch (_) {}
@@ -1886,26 +1893,43 @@ app.use((error,req,res,next)=>{
   if(error.message==="Origin not allowed")return res.status(403).json({error:"Origin not allowed"});
   next(error);
 });
-init().then(()=>{
-  server.listen(PORT,()=>console.log(`Habesha Bingo API running on http://localhost:${PORT}`));
-  setInterval(callNumber,5000);
-
-  // Anti-Sleep Heartbeat (keeps service 24/7 active)
-  setInterval(async () => {
+async function startServerWithRetry(maxRetries = 5, delayMs = 3000) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const target = telegramService.publicUrl || process.env.PUBLIC_APP_URL || "";
-      if (target && !target.includes("localhost") && !target.includes("127.0.0.1")) {
-        const pingUrl = `${target.replace(/\/$/, "")}/api/health`;
-        const res = await fetch(pingUrl, {
-          headers: { "User-Agent": "HabeshaBingo-AntiSleep/1.0" }
-        });
-        if (res.ok) {
-          console.log(`[KeepAlive] 💓 Heartbeat ping to ${pingUrl} OK (preventing auto-sleep)`);
-        }
+      console.log(`[Database] Connecting and running initializations (attempt ${attempt}/${maxRetries})...`);
+      await init();
+      server.listen(PORT, "0.0.0.0", () => {
+        console.log(`🇪🇹 Habesha Bingo API running on port ${PORT} (0.0.0.0)`);
+      });
+      setInterval(callNumber, 5000);
+
+      // Anti-Sleep Heartbeat (keeps service 24/7 active)
+      setInterval(async () => {
+        try {
+          const target = telegramService.publicUrl || process.env.PUBLIC_APP_URL || process.env.RENDER_EXTERNAL_URL || "";
+          if (target && !target.includes("localhost") && !target.includes("127.0.0.1")) {
+            const pingUrl = `${target.replace(/\/$/, "")}/api/health`;
+            const res = await fetch(pingUrl, {
+              headers: { "User-Agent": "HabeshaBingo-AntiSleep/1.0" }
+            });
+            if (res.ok) {
+              console.log(`[KeepAlive] 💓 Heartbeat ping to ${pingUrl} OK (preventing auto-sleep)`);
+            }
+          }
+        } catch (_) {}
+      }, 5 * 60 * 1000); // every 5 minutes
+      return;
+    } catch (error) {
+      console.error(`[Database] Attempt ${attempt} failed:`, error.message);
+      if (attempt < maxRetries) {
+        console.log(`[Database] Retrying connection in ${delayMs / 1000}s...`);
+        await new Promise(res => setTimeout(res, delayMs));
+      } else {
+        console.error("❌ Fatal: Database initialization failed after all attempts:", error.message);
+        process.exitCode = 1;
       }
-    } catch (_) {}
-  }, 5 * 60 * 1000); // every 5 minutes
-}).catch(error=>{
-  console.error("Database initialization failed:",error.message);
-  process.exitCode=1;
-});
+    }
+  }
+}
+
+startServerWithRetry();

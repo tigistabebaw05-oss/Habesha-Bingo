@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "start": "node --watch src/server.js"
+    "build": "npm install"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -16,5 +17,8 @@
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.16.3",
     "socket.io": "^4.8.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

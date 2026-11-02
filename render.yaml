@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: habesha-bingo
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_BOT_USERNAME
+        value: HbeshabingoBot
+      - key: TELEGRAM_GROUP_ID
+        value: "-1002766090768"
+      - key: TELEGRAM_GROUP_TITLE
+        value: "Hbesha bingo"
+      - key: TELEGRAM_SYNC_ENABLED
+        value: "true"
+      - key: OWNER_PHONE
+        value: "0951666750"
+      - key: OWNER_NAME
+        value: "abirham"
+      - key: OWNER_PASSWORD
+        value: "A@12345"
+      - key: ADMIN_PHONE
+        value: "0919307468"
+      - key: ADMIN_NAME
+        value: "adissu"
+      - key: ADMIN_PASSWORD
+        value: "Ad@1234"
+

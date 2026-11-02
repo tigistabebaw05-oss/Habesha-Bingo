@@ -1,11 +1,25 @@
 {
+  "name": "habesha-bingo",
+  "version": "1.0.0",
+  "description": "Habesha Bingo Game & Telegram Bot",
+  "main": "hulu-bingo-backend/src/server.js",
+  "scripts": {
+    "build": "cd hulu-bingo-backend && npm install",
+    "postinstall": "cd hulu-bingo-backend && npm install",
+    "start": "node hulu-bingo-backend/src/server.js"
+  },
   "dependencies": {
-    "dotenv": "^18.0.3",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
     "express": "^5.2.1",
-    "mysql2": "^3.24.4",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.16.3",
     "socket.io": "^4.8.3"
   },
-  "scripts": {
-    "start": "cd hulu-bingo-backend && npm start"
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

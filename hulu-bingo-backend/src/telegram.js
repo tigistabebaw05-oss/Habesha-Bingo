@@ -77,7 +77,7 @@ class TelegramBingoService {
   }
 
   async getWebAppUrl(user, view = "") {
-    let baseUrl = this.publicUrl || process.env.PUBLIC_APP_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+    let baseUrl = this.publicUrl || process.env.PUBLIC_APP_URL || process.env.RENDER_EXTERNAL_URL || "https://habesha-bingo-1-3jdi.onrender.com";
     baseUrl = baseUrl.replace(/\/$/, "");
     const params = [];
     if (user && user.id) {
@@ -153,7 +153,7 @@ class TelegramBingoService {
         }
 
         // Configure Webhook or fallback to polling with auto-recovery watchdog
-        const publicUrl = this.publicUrl || process.env.PUBLIC_APP_URL || "";
+        const publicUrl = this.publicUrl || process.env.PUBLIC_APP_URL || process.env.RENDER_EXTERNAL_URL || "";
         const webhookInfo = await this.apiCall("getWebhookInfo");
         
         if (publicUrl && !publicUrl.includes("localhost") && !publicUrl.includes("127.0.0.1")) {
