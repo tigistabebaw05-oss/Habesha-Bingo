@@ -184,11 +184,12 @@
   function buildUi() {
     if (document.getElementById('aiAdminDrawer')) return;
 
-    // 1. Floating Launcher Button
+    // 1. Floating Launcher Button (Hidden: metayet yelebetim)
     const launcher = document.createElement('button');
     launcher.id = 'aiAdminLauncherBtn';
     launcher.className = 'ai-admin-launcher-btn';
-    launcher.setAttribute('aria-label', 'Open AI Admin Assistant');
+    launcher.style.display = 'none';
+    launcher.setAttribute('aria-hidden', 'true');
     launcher.innerHTML = `
       <div class="ai-bot-avatar">🤖</div>
       <span>HABESHA AI</span>

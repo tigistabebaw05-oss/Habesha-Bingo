@@ -3,27 +3,15 @@
    Ethiopic Glassmorphic Design System, Secure Action Cards, Responsive Drawer
    ========================================================================== */
 
-/* 1. Floating Launcher Button (visible only when authorized) */
+/* 1. Floating Launcher Button (Hidden: metayet yelebetim) */
 .ai-admin-launcher-btn {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
   position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 9990;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 20px;
-  background: linear-gradient(135deg, #0f1d31 0%, #1e293b 100%);
-  border: 1.5px solid var(--habesha-gold, #f5b716);
-  border-radius: 9999px;
-  color: var(--habesha-gold, #f5b716);
-  font-family: 'Plus Jakarta Sans', 'Noto Sans Ethiopic', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 16px rgba(245, 183, 22, 0.35);
-  transition: all 0.25s ease;
-  backdrop-filter: blur(8px);
+  bottom: -9999px;
+  right: -9999px;
 }
 
 .ai-admin-launcher-btn:hover {
