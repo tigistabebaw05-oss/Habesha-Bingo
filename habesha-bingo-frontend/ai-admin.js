@@ -29,14 +29,17 @@
       placeholder: 'Ask Habesha AI or issue a command...',
       send: 'Send',
       quick: {
-        deposits: '💳 Pending deposits',
-        withdrawals: '💸 Pending withdrawals',
-        finances: '📊 Financial report',
-        security: '🔍 Security scan',
-        games: '🎲 Active games',
-        users: '👥 Recent users'
+        autoApprove: '⚡ Approve All',
+        deposits: '💳 Deposits',
+        withdrawals: '💸 Withdrawals',
+        finances: '📊 Financial Report',
+        support: '💬 Auto Support',
+        selfHeal: '🛠️ Self-Heal',
+        security: '🔍 Security Scan',
+        games: '🎲 Active Games',
+        users: '👥 Players'
       },
-      welcome: '👋 Hello, Administrator! I am your **Habesha AI Admin Assistant**.\n\nI can help you monitor transactions, audit security threats, verify deposits and withdrawals, and generate financial reports directly from your live database.\n\n*How can I assist you today?*',
+      welcome: '👋 Hello, Administrator! I am your **Habesha AI Admin Assistant**.\n\nI can execute all administrative duties automatically directly on your live database.\n\n⚡ **Quick Commands:**\n• **"Deposits"** — View pending deposits\n• **"Approve all"** — Auto-approve all valid pending deposits\n• **"Withdrawals"** — View pending withdrawals\n• **"Report"** — Financial report & platform revenue\n• **"Support"** — Auto-reply to customer support tickets\n• **"Self-heal"** — Run health check & system repair\n• **"Security"** — Detect fraud & duplicate payments\n\n*How can I assist you today?*',
       confirmTitle: 'Action Confirmation Required',
       confirmBtn: '✅ Confirm Operation',
       cancelBtn: 'Cancel',
@@ -52,14 +55,17 @@
       placeholder: 'ትዕዛዝ ወይም ጥያቄ እዚህ ይጻፉ...',
       send: 'ላክ',
       quick: {
-        deposits: '💳 ያልተረጋገጡ ገቢዎች',
-        withdrawals: '💸 የወጪ ጥያቄዎች',
-        finances: '📊 የፋይናንስ ሪፖርት',
-        security: '🔍 የደህንነት ምርመራ',
-        games: '🎲 የቀጥታ ጨዋታዎች',
-        users: '👥 አዳዲስ ተጠቃሚዎች'
+        autoApprove: '⚡ ሁሉንም አጽድቅ',
+        deposits: '💳 ገቢዎች',
+        withdrawals: '💸 ወጪዎች',
+        finances: '📊 ሪፖርት',
+        support: '💬 24/7 ድጋፍ',
+        selfHeal: '🛠️ ራስ-ሰር ጥገና',
+        security: '🔍 ደህንነት',
+        games: '🎲 ጨዋታዎች',
+        users: '👥 ተጠቃሚዎች'
       },
-      welcome: '👋 ሰላም አስተዳዳሪ! እኔ የ**ሀበሻ ቢንጎ AI አስተዳዳሪ ረዳት** ነኝ።\n\nየገቢ እና የወጪ ጥያቄዎችን ለመመርመር፣ የፋይናንስ ሪፖርቶችን ለማውጣት፣ አጠራጣሪ እንቅስቃሴዎችን ለመለየት እና የቢንጎ ጨዋታዎችን ለመቆጣጠር ዝግጁ ነኝ።\n\n*ምን ላገልግልዎት?*',
+      welcome: '👋 ሰላም አስተዳዳሪ! እኔ የ**ሀበሻ ቢንጎ AI አስተዳዳሪ** ነኝ።\n\nየቢንጎ አስተዳደር ስራዎችን በሙሉ በራስ-ሰር ለመስራት ዝግጁ ነኝ፦\n\n⚡ **አቋራጭ ትዕዛዞች፦**\n• **"ገቢ"** — ያልተረጋገጡ ገቢዎችን ለማየት\n• **"ሁሉንም አጽድቅ"** — ያሉትን የገቢ ጥያቄዎች በሙሉ በራስ-ሰር ለማጽደቅ\n• **"ወጪ"** — የሚጠብቁ የወጪ ጥያቄዎችን ለማየት\n• **"ሪፖርት"** — የዛሬውን የፋይናንስ እና ትርፍ ሪፖርት ለማውጣት\n• **"ድጋፍ"** — ለደንበኞች ጥያቄ 24/7 በራስ-ሰር ምላሽ ለመስጠት\n• **"ጥገና"** — የስርዓት ጤና ምርመራ እና ራስ-ሰር ጥገና ለማካሄድ\n• **"ደህንነት"** — አጠራጣሪ እና የተጭበረበሩ ክፍያዎችን ለመለየት\n\n*ምን ላገልግልዎት?*',
       confirmTitle: 'የማረጋገጫ ፈቃድ ያስፈልጋል',
       confirmBtn: '✅ አረጋግጥና ፈጽም',
       cancelBtn: 'ተመለስ',
@@ -271,14 +277,31 @@
     if (!bar) return;
     const texts = I18N[currentLanguage].quick;
 
-    bar.innerHTML = `
-      <button type="button" class="ai-quick-chip" data-cmd="Show all pending deposits">${texts.deposits}</button>
-      <button type="button" class="ai-quick-chip" data-cmd="Show all pending withdrawals">${texts.withdrawals}</button>
-      <button type="button" class="ai-quick-chip" data-cmd="Generate financial report">${texts.finances}</button>
-      <button type="button" class="ai-quick-chip" data-cmd="Scan for security threats and duplicate references">${texts.security}</button>
-      <button type="button" class="ai-quick-chip" data-cmd="Show active bingo games overview">${texts.games}</button>
-      <button type="button" class="ai-quick-chip" data-cmd="List recent registered users">${texts.users}</button>
-    `;
+    if (currentLanguage === 'am') {
+      bar.innerHTML = `
+        <button type="button" class="ai-quick-chip" data-cmd="ሁሉንም አጽድቅ" style="background:rgba(245,183,22,0.22);border-color:var(--habesha-gold,#f5b716);color:#f5b716;font-weight:700;">${texts.autoApprove}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="ገቢ">${texts.deposits}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="ወጪ">${texts.withdrawals}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="ሪፖርት">${texts.finances}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="ድጋፍ">${texts.support}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="ጥገና">${texts.selfHeal}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="ደህንነት">${texts.security}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="ጨዋታ">${texts.games}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="ተጠቃሚ">${texts.users}</button>
+      `;
+    } else {
+      bar.innerHTML = `
+        <button type="button" class="ai-quick-chip" data-cmd="Approve all" style="background:rgba(245,183,22,0.22);border-color:var(--habesha-gold,#f5b716);color:#f5b716;font-weight:700;">${texts.autoApprove}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="Show pending deposits">${texts.deposits}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="Show pending withdrawals">${texts.withdrawals}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="Financial report">${texts.finances}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="Process support tickets">${texts.support}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="Run system self heal">${texts.selfHeal}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="Security threats scan">${texts.security}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="Active games overview">${texts.games}</button>
+        <button type="button" class="ai-quick-chip" data-cmd="Recent users list">${texts.users}</button>
+      `;
+    }
 
     bar.querySelectorAll('.ai-quick-chip').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -301,10 +324,13 @@
 
   function toggleLanguage() {
     currentLanguage = currentLanguage === 'en' ? 'am' : 'en';
+    try { localStorage.setItem('habesha_lang', currentLanguage); } catch (_) {}
     const langBtn = document.getElementById('aiLangBtn');
     if (langBtn) langBtn.textContent = currentLanguage === 'en' ? 'አማ' : 'EN';
     const title = document.getElementById('aiTitle');
     if (title) title.textContent = I18N[currentLanguage].assistantName;
+    const badge = document.querySelector('.ai-shield-badge');
+    if (badge) badge.textContent = I18N[currentLanguage].ownerShield;
     const input = document.getElementById('aiInputText');
     if (input) input.placeholder = I18N[currentLanguage].placeholder;
     renderQuickActions();
@@ -490,9 +516,11 @@
 
       hideTypingIndicator();
 
-      const replyText = currentLanguage === 'am' && response.replyAmharic
+      const isAmharicInput = /[\u1200-\u137F]/.test(text);
+      const showAmharic = (currentLanguage === 'am' || isAmharicInput) && Boolean(response.replyAmharic);
+      const replyText = showAmharic
         ? response.replyAmharic
-        : response.reply;
+        : (response.reply || response.replyAmharic || 'No reply received.');
 
       appendMessage({
         role: 'assistant',
