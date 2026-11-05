@@ -19,6 +19,8 @@ class AIAutomationEngine {
     this.isRunning = false;
     this.stats = {
       startTime: null,
+      depositsAutoApproved: 0,
+      totalDepositsAmountApproved: 0,
       supportMessagesResolved: 0,
       gamesMonitored: 0,
       securityScansCompleted: 0,
@@ -44,7 +46,16 @@ class AIAutomationEngine {
     this.watchdog.runHealthCheck().catch(() => {});
     this.watchdog.performSelfHealing().catch(() => {});
 
-    // 2. Continuous Health Check & Metrics (every 30 seconds)
+    // 2. 24/7 AI Deposit Auto-Approval Worker (Continuous Autopilot every 10 seconds)
+    const depositInterval = setInterval(() => {
+      this.autoProcessPendingDeposits().catch(err => {
+        console.warn("[AIEngine] Deposit worker error:", err.message);
+      });
+    }, 10 * 1000);
+    this.intervals.push(depositInterval);
+    this.autoProcessPendingDeposits().catch(() => {});
+
+    // 3. Continuous Health Check & Metrics (every 30 seconds)
     const healthInterval = setInterval(() => {
       this.watchdog.runHealthCheck().catch(err => {
         console.warn("[AIEngine] Watchdog health check error:", err.message);
@@ -52,7 +63,7 @@ class AIAutomationEngine {
     }, 30 * 1000);
     this.intervals.push(healthInterval);
 
-    // 3. 24/7 AI Customer Support Auto-Responder (every 20 seconds)
+    // 4. 24/7 AI Customer Support Auto-Responder (every 20 seconds)
     const supportInterval = setInterval(() => {
       this.processPendingSupportTickets().catch(err => {
         console.warn("[AIEngine] Support worker error:", err.message);
@@ -60,7 +71,7 @@ class AIAutomationEngine {
     }, 20 * 1000);
     this.intervals.push(supportInterval);
 
-    // 4. Autonomous Game Lifecycle & Stuck Game Watchdog (every 15 seconds)
+    // 5. Autonomous Game Lifecycle & Stuck Game Watchdog (every 15 seconds)
     const gameWatchdogInterval = setInterval(() => {
       this.monitorGameLifecycle().catch(err => {
         console.warn("[AIEngine] Game lifecycle worker error:", err.message);
@@ -68,7 +79,7 @@ class AIAutomationEngine {
     }, 15 * 1000);
     this.intervals.push(gameWatchdogInterval);
 
-    // 5. Fraud Detection & Security Scanner (every 60 seconds)
+    // 6. Fraud Detection & Security Scanner (every 60 seconds)
     const securityInterval = setInterval(() => {
       this.scanSecurityAnomalies().catch(err => {
         console.warn("[AIEngine] Security scan worker error:", err.message);
@@ -76,13 +87,13 @@ class AIAutomationEngine {
     }, 60 * 1000);
     this.intervals.push(securityInterval);
 
-    // 6. Routine Maintenance & Periodic Self-Healing (every 5 minutes)
+    // 7. Routine Maintenance & Periodic Self-Healing (every 5 minutes)
     const maintenanceInterval = setInterval(() => {
       this.watchdog.performSelfHealing().catch(() => {});
     }, 5 * 60 * 1000);
     this.intervals.push(maintenanceInterval);
 
-    console.log("✅ [AIEngine] All 5 autonomous background workers are active.");
+    console.log("✅ [AIEngine] All 6 autonomous background workers are active (including 24/7 Deposit Autopilot).");
   }
 
   /**
@@ -190,6 +201,115 @@ class AIAutomationEngine {
   }
 
   /**
+   * Worker: Continuously Auto-Approve Valid Player Deposits (24/7 Autopilot)
+   */
+  async autoProcessPendingDeposits() {
+    if (!this.pool) return;
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const rows = (await client.query(
+        `SELECT t.id, t.user_id, t.amount, t.wallet, t.method, t.reference, u.name, u.phone, u.telegram_id
+         FROM transactions t
+         JOIN users u ON u.id = t.user_id
+         WHERE t.type = 'deposit' AND t.status = 'pending'
+         ORDER BY t.id ASC
+         FOR UPDATE`
+      )).rows;
+
+      if (rows.length === 0) {
+        await client.query("COMMIT");
+        return;
+      }
+
+      for (const tx of rows) {
+        // Safety check: verify no duplicate approved reference (TxID) exists
+        if (tx.reference && String(tx.reference).trim().length > 3) {
+          const dup = (await client.query(
+            "SELECT id FROM transactions WHERE reference = $1 AND status IN ('approved', 'completed') AND id != $2 LIMIT 1",
+            [String(tx.reference).trim(), tx.id]
+          )).rows[0];
+
+          if (dup) {
+            console.warn(`[AIEngine] ⚠️ Duplicate reference ${tx.reference} detected for Tx #${tx.id}. Skipping auto-credit.`);
+            await this.logAudit("AI_AUTOPILOT_DUPLICATE_DEPOSIT_BLOCKED", "transactions", tx.id, {
+              user: tx.name,
+              phone: tx.phone,
+              reference: tx.reference,
+              amount: tx.amount,
+              existingTxId: dup.id
+            });
+            continue;
+          }
+        }
+
+        const depAmount = Math.abs(Number(tx.amount));
+        const col = tx.wallet === "vip" ? "vip_balance" : "main_balance";
+
+        let w = (await client.query(`SELECT ${col} FROM wallets WHERE user_id = $1 FOR UPDATE`, [tx.user_id])).rows[0];
+        if (!w) {
+          await client.query("INSERT INTO wallets(user_id, main_balance, vip_balance) VALUES ($1, 0, 0) ON CONFLICT (user_id) DO NOTHING", [tx.user_id]);
+          w = (await client.query(`SELECT ${col} FROM wallets WHERE user_id = $1 FOR UPDATE`, [tx.user_id])).rows[0];
+        }
+
+        const before = Number(w ? w[col] : 0);
+        const after = Math.round((before + depAmount) * 100) / 100;
+
+        await client.query(`UPDATE wallets SET ${col} = $1 WHERE user_id = $2`, [after, tx.user_id]);
+        await client.query(
+          "UPDATE transactions SET status = 'approved', balance_before = $1, balance_after = $2, admin_id = 1, processed_at = now() WHERE id = $3",
+          [before, after, tx.id]
+        );
+
+        this.stats.depositsAutoApproved = (this.stats.depositsAutoApproved || 0) + 1;
+        this.stats.totalDepositsAmountApproved = (this.stats.totalDepositsAmountApproved || 0) + depAmount;
+        this.stats.lastAutonomousAction = {
+          type: "DEPOSIT_AUTO_APPROVED",
+          txId: tx.id,
+          amount: depAmount,
+          player: tx.name,
+          time: new Date()
+        };
+
+        await this.logAudit("AI_AUTOPILOT_DEPOSIT_APPROVED", "transactions", tx.id, {
+          user: tx.name,
+          phone: tx.phone,
+          amount: depAmount,
+          method: tx.method,
+          reference: tx.reference,
+          balanceBefore: before,
+          balanceAfter: after
+        });
+
+        // Real-time socket notification to player & admin dashboards
+        if (this.io) {
+          try {
+            this.io.to(`user:${tx.user_id}`).emit("wallet_updated", { balance: after, amount: depAmount });
+            this.io.emit("admin_deposit_approved", { txId: tx.id, amount: depAmount, player: tx.name });
+          } catch (_) {}
+        }
+
+        // Telegram notification to player if linked
+        if (this.telegramService && tx.telegram_id) {
+          try {
+            const tgMsg = `🎉 <b>የገቢ ጥያቄዎ በራስ-ሰር ጸድቋል!</b>\n\n• የገባው ገንዘብ፦ <b>${depAmount.toFixed(2)} ETB</b>\n• አዲስ ቀሪ ሂሳብ፦ <b>${after.toFixed(2)} ETB</b>\n• አሁን ካርቴላ ገዝተው በደስታ ይጫወቱ! 🍀`;
+            await this.telegramService.sendMessage(tx.telegram_id, tgMsg);
+          } catch (_) {}
+        }
+
+        console.log(`[AIEngine] ⚡ [AUTOPILOT] Auto-approved deposit #${tx.id} of ${depAmount} ETB for ${tx.name} (${tx.phone})`);
+      }
+
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Worker: Security Scan for Duplicate references and anomalies
    */
   async scanSecurityAnomalies() {
@@ -200,9 +320,7 @@ class AIAutomationEngine {
       if (threats.threatCount > 0) {
         await this.logAudit("AI_SECURITY_ANOMALY_DETECTED", "system", null, {
           threatCount: threats.threatCount,
-          duplicateReferences: threats.duplicateReferences.length,
-          highWithdrawals: threats.highWithdrawals.length,
-          ledgerMismatches: threats.ledgerMismatches.length
+          threats: threats.threats
         });
       }
     } catch (err) {
