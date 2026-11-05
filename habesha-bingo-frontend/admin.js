@@ -412,6 +412,116 @@
 
   if ($("refreshBtn")) $("refreshBtn").addEventListener("click", loadDashboard);
 
+  // ==================== HABESHA AI AUTOMATION DASHBOARD ====================
+  async function loadAiDashboard() {
+    if (!$("aiAutomationSection")) return;
+    try {
+      const data = await api("/admin/ai/dashboard");
+      if (!data || !data.ok) return;
+
+      // 1. Health Status
+      if ($("aiHealthDb") && data.health && data.health.database) {
+        const isOk = data.health.database.status === "healthy";
+        $("aiHealthDb").innerHTML = '<span style="color:' + (isOk ? '#10b981' : '#ef4444') + '">● ' + data.health.database.status.toUpperCase() + '</span> <small style="color:#94a3b8;font-size:10px;">(' + data.health.database.latencyMs + 'ms)</small>';
+      }
+      if ($("aiHealthTg") && data.health && data.health.telegram) {
+        $("aiHealthTg").innerHTML = '<span style="color:#10b981">● @' + escapeHtml(data.health.telegram.botUsername || 'HbeshabingoBot') + '</span> <small style="color:#94a3b8;font-size:10px;">(' + data.health.telegram.mode + ')</small>';
+      }
+      if ($("aiHealthSocket") && data.health && data.health.socketIo) {
+        $("aiHealthSocket").innerHTML = '<span style="color:#10b981">● Online</span> <small style="color:#94a3b8;font-size:10px;">(' + data.health.socketIo.connectedClients + ' clients)</small>';
+      }
+      if ($("aiHealthGame") && data.health && data.health.gameEngine) {
+        const g = data.health.gameEngine;
+        $("aiHealthGame").innerHTML = '<span style="color:#f5b716">● Game #' + (g.currentGameId || '-') + '</span> <small style="color:#94a3b8;font-size:10px;">(' + g.state + ')</small>';
+      }
+      if ($("aiSupportStats") && data.supportOverview) {
+        $("aiSupportStats").innerHTML = '<span style="color:#38bdf8">' + data.supportOverview.resolved + ' Auto-Resolved</span> <small style="color:#94a3b8;font-size:10px;">(' + data.supportOverview.open + ' open)</small>';
+      }
+
+      // 2. Autonomous Actions Stream
+      const actionsBody = $("aiActionsBody");
+      if (actionsBody && Array.isArray(data.recentActions)) {
+        if (data.recentActions.length === 0) {
+          actionsBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#64748b;">No recent autonomous actions. Engine is monitoring.</td></tr>';
+        } else {
+          actionsBody.innerHTML = data.recentActions.map(function(act) {
+            var detailStr = "";
+            try {
+              var d = typeof act.details === "object" ? act.details : JSON.parse(act.details || "{}");
+              detailStr = d.reason || d.summary || d.message || JSON.stringify(d).slice(0, 50);
+            } catch (_) { detailStr = String(act.details || ""); }
+            var timeStr = new Date(act.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return '<tr>' +
+              '<td><span class="status-pill status-approved" style="font-size:9.5px;padding:2px 6px;">' + escapeHtml(act.action.replace('AI_', '')) + '</span></td>' +
+              '<td>' + escapeHtml(act.entity_type || '-') + ': #' + escapeHtml(act.entity_id || '-') + '</td>' +
+              '<td style="color:#cbd5e1;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(detailStr) + '</td>' +
+              '<td style="color:#64748b;font-size:10px;">' + timeStr + '</td>' +
+            '</tr>';
+          }).join("");
+        }
+      }
+
+      // 3. Pending Approvals Queue
+      const approvalsBody = $("aiPendingApprovalsBody");
+      if (approvalsBody && Array.isArray(data.pendingWithdrawals)) {
+        if (data.pendingWithdrawals.length === 0) {
+          approvalsBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#64748b;">No pending operations requiring confirmation.</td></tr>';
+        } else {
+          approvalsBody.innerHTML = data.pendingWithdrawals.map(function(w) {
+            return '<tr>' +
+              '<td><strong>' + escapeHtml(w.name || 'User') + '</strong><br><small style="color:#64748b;">' + escapeHtml(w.phone || '') + '</small></td>' +
+              '<td style="color:var(--habesha-gold,#f5b716);font-weight:700;">' + Number(w.amount || 0).toFixed(2) + ' ETB</td>' +
+              '<td>' + escapeHtml(w.method || 'TeleBirr') + '</td>' +
+              '<td>' +
+                '<button type="button" class="btn btn-outline" onclick="window.toggleAiAdmin && window.toggleAiAdmin()" style="font-size:10px;padding:3px 8px;border-color:var(--habesha-gold,#f5b716);color:var(--habesha-gold,#f5b716);">' +
+                  '🤖 AI Review' +
+                '</button>' +
+              '</td>' +
+            '</tr>';
+          }).join("");
+        }
+      }
+
+    } catch (e) {
+      console.warn("AI Dashboard load note:", e.message);
+    }
+  }
+
+  if ($("aiRefreshDashboardBtn")) $("aiRefreshDashboardBtn").addEventListener("click", loadAiDashboard);
+  if ($("aiSelfHealBtn")) {
+    $("aiSelfHealBtn").addEventListener("click", async function() {
+      try {
+        $("aiSelfHealBtn").disabled = true;
+        $("aiSelfHealBtn").textContent = "⚡ Running...";
+        const res = await api("/admin/ai/watchdog/self-heal", { method: "POST" });
+        alert("✅ Self-Healing Complete: " + ((res.result && res.result.actions && res.result.actions.join(", ")) || "All systems already optimal."));
+        await loadAiDashboard();
+      } catch (err) {
+        alert("Self-heal notice: " + err.message);
+      } finally {
+        $("aiSelfHealBtn").disabled = false;
+        $("aiSelfHealBtn").textContent = "⚡ Run Self-Healing";
+      }
+    });
+  }
+  if ($("aiAutoReplyBtn")) {
+    $("aiAutoReplyBtn").addEventListener("click", async function() {
+      try {
+        $("aiAutoReplyBtn").disabled = true;
+        $("aiAutoReplyBtn").textContent = "💬 Processing...";
+        await api("/admin/ai/support/auto-reply-all", { method: "POST" });
+        alert("✅ 24/7 AI Support: Batch auto-reply completed.");
+        await loadAiDashboard();
+      } catch (err) {
+        alert("Notice: " + err.message);
+      } finally {
+        $("aiAutoReplyBtn").disabled = false;
+        $("aiAutoReplyBtn").textContent = "💬 Auto-Reply Support";
+      }
+    });
+  }
+
+
   let searchTimer;
   if ($("userSearch")) {
     $("userSearch").addEventListener("input", () => {

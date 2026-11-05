@@ -39,7 +39,91 @@
         <div class="balance-card"><span>Pending withdrawals</span><strong id="pendingWithdrawalsCount" style="color:var(--gold,#f5b716);">0</strong></div>
         <div class="balance-card"><span>Winners</span><strong id="winnerCount">0</strong></div>
       </div>
+      
       <div class="admin-grid">
+        <!-- HABESHA AI AUTOMATION CENTER -->
+        <section class="panel admin-section wide" id="aiAutomationSection" style="border: 1.5px solid var(--habesha-gold,#f5b716); background: linear-gradient(180deg, rgba(15,29,49,0.95) 0%, rgba(9,19,34,0.95) 100%);">
+          <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:24px;">🤖</span>
+              <div>
+                <h2 style="margin:0;color:var(--habesha-gold,#f5b716);">Habesha AI Automation Center</h2>
+                <div style="font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:6px;">
+                  <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;"></span>
+                  <span>24/7 Background Engine Active</span>
+                  <span style="background:rgba(18,146,85,0.25);border:1px solid #10b981;color:#34d399;padding:1px 6px;border-radius:4px;font-size:10px;">Autonomous Mode</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <button type="button" class="btn btn-outline" id="aiSelfHealBtn" style="font-size:11px;padding:6px 12px;border-color:#38bdf8;color:#38bdf8;">⚡ Run Self-Healing</button>
+              <button type="button" class="btn btn-outline" id="aiAutoReplyBtn" style="font-size:11px;padding:6px 12px;border-color:#10b981;color:#10b981;">💬 Auto-Reply Support</button>
+              <button type="button" class="btn btn-outline" id="aiRefreshDashboardBtn" style="font-size:11px;padding:6px 12px;border-color:var(--habesha-gold,#f5b716);color:var(--habesha-gold,#f5b716);">🔄 Refresh AI</button>
+            </div>
+          </div>
+
+          <!-- Live System Health Grid -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px;margin-bottom:16px;">
+            <div class="balance-card" style="padding:10px;border-radius:10px;background:rgba(5,11,20,0.6);border:1px solid rgba(255,255,255,0.08);">
+              <span style="font-size:11px;color:#94a3b8;">Neon Database</span>
+              <strong id="aiHealthDb" style="color:#10b981;font-size:13px;">🟢 Connecting...</strong>
+            </div>
+            <div class="balance-card" style="padding:10px;border-radius:10px;background:rgba(5,11,20,0.6);border:1px solid rgba(255,255,255,0.08);">
+              <span style="font-size:11px;color:#94a3b8;">Telegram Bot</span>
+              <strong id="aiHealthTg" style="color:#10b981;font-size:13px;">🟢 Active</strong>
+            </div>
+            <div class="balance-card" style="padding:10px;border-radius:10px;background:rgba(5,11,20,0.6);border:1px solid rgba(255,255,255,0.08);">
+              <span style="font-size:11px;color:#94a3b8;">Socket.IO Real-time</span>
+              <strong id="aiHealthSocket" style="color:#10b981;font-size:13px;">🟢 Online</strong>
+            </div>
+            <div class="balance-card" style="padding:10px;border-radius:10px;background:rgba(5,11,20,0.6);border:1px solid rgba(255,255,255,0.08);">
+              <span style="font-size:11px;color:#94a3b8;">Game Watchdog</span>
+              <strong id="aiHealthGame" style="color:#f5b716;font-size:13px;">🎲 Monitoring...</strong>
+            </div>
+            <div class="balance-card" style="padding:10px;border-radius:10px;background:rgba(5,11,20,0.6);border:1px solid rgba(255,255,255,0.08);">
+              <span style="font-size:11px;color:#94a3b8;">24/7 Support Auto</span>
+              <strong id="aiSupportStats" style="color:#38bdf8;font-size:13px;">0 Resolved</strong>
+            </div>
+          </div>
+
+          <!-- Two Column: Autonomous Action Feed & AI Support Feed -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
+            <!-- Left: Autonomous Activity Feed -->
+            <div style="background:rgba(5,11,20,0.5);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px;">
+              <h3 style="font-size:13px;margin:0 0 10px 0;color:var(--habesha-gold,#f5b716);display:flex;align-items:center;gap:6px;">
+                ⚡ <span>Live Autonomous Actions (Audit Stream)</span>
+              </h3>
+              <div class="table-wrap" style="max-height:220px;overflow-y:auto;">
+                <table style="font-size:11px;">
+                  <thead>
+                    <tr><th>Action</th><th>Target</th><th>Details</th><th>Time</th></tr>
+                  </thead>
+                  <tbody id="aiActionsBody">
+                    <tr><td colspan="4" style="text-align:center;color:#64748b;">Loading autonomous actions...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Right: Pending High-Risk Approvals (Rule 10: Owner/Admin Confirmation) -->
+            <div style="background:rgba(5,11,20,0.5);border:1px solid rgba(245,183,22,0.25);border-radius:12px;padding:12px;">
+              <h3 style="font-size:13px;margin:0 0 10px 0;color:#f5b716;display:flex;align-items:center;gap:6px;">
+                🛡️ <span>Pending Operations Requiring Confirmation</span>
+              </h3>
+              <div class="table-wrap" style="max-height:220px;overflow-y:auto;">
+                <table style="font-size:11px;">
+                  <thead>
+                    <tr><th>User</th><th>Amount</th><th>Method</th><th>Action</th></tr>
+                  </thead>
+                  <tbody id="aiPendingApprovalsBody">
+                    <tr><td colspan="4" style="text-align:center;color:#64748b;">No pending operations requiring confirmation.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="panel admin-section wide" id="withdrawalsSection">
           <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
             <h2>💸 Withdrawal Requests</h2>

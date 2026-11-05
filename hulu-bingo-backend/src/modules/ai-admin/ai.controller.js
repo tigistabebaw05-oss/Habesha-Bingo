@@ -2,6 +2,7 @@ const pool = require("../../../db");
 const aiService = require("./ai.service");
 const { consumeConfirmationToken, assertNotOwner } = require("./ai.permissions");
 const tools = require("./ai.tools");
+const aiEngine = require("../ai-automation/ai.engine");
 
 /**
  * Record action in audit_logs table (matching existing project format)
@@ -54,163 +55,169 @@ async function handleChatMessage(req, res) {
 
 /**
  * POST /api/admin/ai/confirm
- * Safely executes state-changing actions using single-use confirmation tokens
+ * Single-use token confirmation handler
  */
 async function handleActionConfirmation(req, res) {
   const { confirmationToken } = req.body || {};
-  if (!confirmationToken) {
-    return res.status(400).json({ error: "Confirmation token is required." });
+  if (!confirmationToken || typeof confirmationToken !== "string") {
+    return res.status(400).json({ error: "confirmationToken is required." });
   }
 
   let tokenData;
   try {
-    // Validate and atomically consume the single-use token
-    tokenData = consumeConfirmationToken(confirmationToken, req.user.id);
+    tokenData = consumeConfirmationToken(confirmationToken.trim(), req.user.id);
   } catch (err) {
-    return res.status(400).json({ error: err.message });
+    return res.status(400).json({
+      ok: false,
+      error: err.message === "TOKEN_EXPIRED" ? "Confirmation token expired. Please re-issue the command." : "Invalid or already used confirmation token."
+    });
   }
 
   const { action, payload } = tokenData;
   const client = await pool.connect();
 
   try {
+    await client.query("BEGIN");
+
+    let result = null;
+
     if (action === "APPROVE_DEPOSIT") {
-      const { transactionId, userId, amount, wallet = "main" } = payload;
-      await client.query("BEGIN");
-
-      // Lock transaction row
-      const txRes = await client.query(
-        "SELECT * FROM transactions WHERE id = $1 FOR UPDATE",
-        [transactionId]
-      );
-      const tx = txRes.rows[0];
-
-      if (!tx) {
-        throw new Error("TRANSACTION_NOT_FOUND");
-      }
-      if (tx.status !== "pending") {
-        throw new Error(`TRANSACTION_ALREADY_${tx.status.toUpperCase()}`);
+      const tx = (await client.query("SELECT * FROM transactions WHERE id = $1 FOR UPDATE", [payload.transactionId])).rows[0];
+      if (!tx || tx.status !== "pending" || tx.type !== "deposit") {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: "Transaction is not pending or is not a deposit." });
       }
 
-      // Lock wallet row
-      const col = wallet === "vip" ? "vip_balance" : "main_balance";
-      const wRes = await client.query(
-        `SELECT ${col} FROM wallets WHERE user_id = $1 FOR UPDATE`,
-        [userId]
-      );
-      if (!wRes.rows[0]) {
-        throw new Error("WALLET_NOT_FOUND");
+      const col = tx.wallet === "vip" ? "vip_balance" : "main_balance";
+      const depAmount = Math.abs(Number(tx.amount));
+
+      let w = (await client.query(`SELECT ${col} FROM wallets WHERE user_id = $1 FOR UPDATE`, [tx.user_id])).rows[0];
+      if (!w) {
+        await client.query("INSERT INTO wallets(user_id, main_balance, vip_balance) VALUES ($1, 0, 0) ON CONFLICT (user_id) DO NOTHING", [tx.user_id]);
+        w = (await client.query(`SELECT ${col} FROM wallets WHERE user_id = $1 FOR UPDATE`, [tx.user_id])).rows[0];
       }
 
-      const before = Number(wRes.rows[0][col]);
-      const delta = Number(amount);
-      const after = Math.round((before + delta) * 100) / 100;
+      const before = Number(w ? w[col] : 0);
+      const after = Math.round((before + depAmount) * 100) / 100;
 
-      // Update wallet balance using the same secure pattern
+      await client.query(`UPDATE wallets SET ${col} = $1 WHERE user_id = $2`, [after, tx.user_id]);
       await client.query(
-        `UPDATE wallets SET ${col} = $1, updated_at = now() WHERE user_id = $2`,
-        [after, userId]
+        "UPDATE transactions SET status = 'approved', balance_before = $1, balance_after = $2, admin_id = $3, processed_at = now() WHERE id = $4",
+        [before, after, req.user.id, payload.transactionId]
       );
 
-      // Update transaction status
+      result = {
+        message: `Successfully approved deposit #${payload.transactionId} of ${depAmount} ETB for User #${tx.user_id}.`,
+        transactionId: payload.transactionId,
+        creditedAmount: depAmount,
+        newBalance: after
+      };
+
+    } else if (action === "REJECT_DEPOSIT") {
+      const resReject = await client.query(
+        "UPDATE transactions SET status = 'rejected', admin_id = $1, processed_at = now() WHERE id = $2 AND status = 'pending' AND type = 'deposit' RETURNING id, user_id, amount",
+        [req.user.id, payload.transactionId]
+      );
+      if (resReject.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: "Deposit not found or not pending." });
+      }
+      result = {
+        message: `Deposit #${payload.transactionId} rejected.`,
+        transactionId: payload.transactionId
+      };
+
+    } else if (action === "APPROVE_WITHDRAWAL") {
+      const tx = (await client.query("SELECT * FROM transactions WHERE id = $1 FOR UPDATE", [payload.transactionId])).rows[0];
+      if (!tx || tx.status !== "pending" || tx.type !== "withdrawal") {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: "Withdrawal not found or already processed." });
+      }
+
+      const withAmount = Math.abs(Number(tx.amount));
+      const col = tx.wallet === "vip" ? "vip_balance" : "main_balance";
+      const w = (await client.query(`SELECT ${col} FROM wallets WHERE user_id = $1 FOR UPDATE`, [tx.user_id])).rows[0];
+      const curBal = Number(w ? w[col] : 0);
+
+      if (curBal < withAmount) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({
+          error: `Insufficient wallet balance: User has ${curBal.toFixed(2)} ETB, requested ${withAmount.toFixed(2)} ETB.`
+        });
+      }
+
+      const after = Math.round((curBal - withAmount) * 100) / 100;
+      await client.query(`UPDATE wallets SET ${col} = $1 WHERE user_id = $2`, [after, tx.user_id]);
       await client.query(
-        `UPDATE transactions
-         SET status = 'approved', balance_before = $1, balance_after = $2, admin_id = $3, processed_at = now()
-         WHERE id = $4`,
-        [before, after, req.user.id, transactionId]
+        "UPDATE transactions SET status = 'approved', balance_before = $1, balance_after = $2, admin_id = $3, processed_at = now() WHERE id = $4",
+        [curBal, after, req.user.id, payload.transactionId]
       );
 
-      await client.query("COMMIT");
+      result = {
+        message: `Withdrawal #${payload.transactionId} of ${withAmount} ETB approved and ledger debited. Ready for disbursement.`,
+        transactionId: payload.transactionId,
+        newBalance: after
+      };
 
-      // Record audit log
-      await auditAction(
-        req.user.id,
-        "ai.transaction.approved",
-        "transaction",
-        transactionId,
-        { userId, amount: delta, wallet, via: "HABESHA_AI_ADMIN" },
-        req.ip
+    } else if (action === "REJECT_WITHDRAWAL") {
+      const resReject = await client.query(
+        "UPDATE transactions SET status = 'rejected', admin_id = $1, processed_at = now() WHERE id = $2 AND status = 'pending' AND type = 'withdrawal' RETURNING id, user_id, amount",
+        [req.user.id, payload.transactionId]
       );
+      if (resReject.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: "Withdrawal not found or not pending." });
+      }
+      result = {
+        message: `Withdrawal #${payload.transactionId} rejected.`,
+        transactionId: payload.transactionId
+      };
 
-      return res.json({
-        ok: true,
-        message: `✅ Deposit #${transactionId} approved successfully! Credited ${delta.toFixed(2)} ETB to player's wallet.`,
-        messageAmharic: `✅ የገቢ ጥያቄ #${transactionId} ፀድቋል! ${delta.toFixed(2)} ብር ወደ ተጫዋቹ ዋሌት ገብቷል።`,
-        details: { transactionId, userId, creditedAmount: delta, newBalance: after }
-      });
+    } else if (action === "SUSPEND_USER") {
+      await assertNotOwner(payload.userId);
+      await client.query("UPDATE users SET is_active = FALSE WHERE id = $1", [payload.userId]);
+      await client.query("UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL", [payload.userId]);
+      result = {
+        message: `User #${payload.userId} suspended and active sessions revoked.`,
+        userId: payload.userId
+      };
+
+    } else if (action === "REACTIVATE_USER") {
+      await client.query("UPDATE users SET is_active = TRUE WHERE id = $1", [payload.userId]);
+      result = {
+        message: `User #${payload.userId} reactivated.`,
+        userId: payload.userId
+      };
+
+    } else {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: `Unsupported action type: ${action}` });
     }
 
-    if (action === "REJECT_DEPOSIT") {
-      const { transactionId, userId } = payload;
-      await client.query("BEGIN");
+    await client.query("COMMIT");
 
-      const txRes = await client.query(
-        "SELECT * FROM transactions WHERE id = $1 FOR UPDATE",
-        [transactionId]
-      );
-      const tx = txRes.rows[0];
-      if (!tx || tx.status !== "pending") {
-        throw new Error("CANNOT_REJECT_NON_PENDING_TRANSACTION");
-      }
+    // Audit the confirmed action
+    await auditAction(
+      req.user.id,
+      `AI_CONFIRMED_${action}`,
+      action.includes("USER") ? "users" : "transactions",
+      payload.transactionId || payload.userId,
+      result,
+      req.ip
+    );
 
-      await client.query(
-        "UPDATE transactions SET status = 'rejected', admin_id = $1, processed_at = now() WHERE id = $2",
-        [req.user.id, transactionId]
-      );
+    res.json({
+      ok: true,
+      action,
+      result
+    });
 
-      await client.query("COMMIT");
-
-      await auditAction(
-        req.user.id,
-        "ai.transaction.rejected",
-        "transaction",
-        transactionId,
-        { userId, via: "HABESHA_AI_ADMIN" },
-        req.ip
-      );
-
-      return res.json({
-        ok: true,
-        message: `🚫 Deposit #${transactionId} has been rejected.`,
-        messageAmharic: `🚫 የገቢ ጥያቄ #${transactionId} ውድቅ ተደርጓል።`,
-        details: { transactionId, userId }
-      });
-    }
-
-    if (action === "TOGGLE_USER_STATUS") {
-      const { userId, isActive } = payload;
-      await assertNotOwner(userId); // Strict owner defense
-
-      await client.query(
-        "UPDATE users SET is_active = $1 WHERE id = $2",
-        [isActive, userId]
-      );
-
-      const actionName = isActive ? "user.reactivated" : "user.suspended";
-      await auditAction(
-        req.user.id,
-        `ai.${actionName}`,
-        "user",
-        userId,
-        { isActive, via: "HABESHA_AI_ADMIN" },
-        req.ip
-      );
-
-      return res.json({
-        ok: true,
-        message: `Account #${userId} status updated to: ${isActive ? "ACTIVE" : "SUSPENDED"}.`,
-        messageAmharic: `የተጠቃሚ #${userId} ሁኔታ ወደ ${isActive ? "ንቁ (Active)" : "የታገደ (Suspended)"} ተቀይሯል።`,
-        details: { userId, isActive }
-      });
-    }
-
-    throw new Error(`UNSUPPORTED_ACTION: ${action}`);
   } catch (err) {
-    await client.query("ROLLBACK").catch(() => {});
+    await client.query("ROLLBACK");
     console.error("[AIController] Confirmation execution error:", err);
     res.status(500).json({
       ok: false,
-      error: err.message || "Failed to execute confirmed action."
+      error: err.message || "Failed to execute confirmed operation."
     });
   } finally {
     client.release();
@@ -222,20 +229,23 @@ async function handleActionConfirmation(req, res) {
  */
 async function getQuickStats(req, res) {
   try {
-    const pendingDeposits = await tools.getPendingDeposits();
-    const pendingWithdrawals = await tools.getPendingWithdrawals();
-    const threats = await tools.detectSecurityThreats();
-    const games = await tools.getGamesOverview();
-    const activeGamesCount = games.filter(g => g.status === "running" || g.status === "waiting").length;
+    const [depRes, withRes, userRes, threatRes] = await Promise.all([
+      tools.getPendingDeposits(),
+      tools.getPendingWithdrawals(),
+      pool.query("SELECT COUNT(*)::int as total, COUNT(*) FILTER (WHERE is_active)::int as active FROM users"),
+      tools.detectSecurityThreats()
+    ]);
 
     res.json({
       ok: true,
       stats: {
-        pendingDepositsCount: pendingDeposits.length,
-        pendingWithdrawalsCount: pendingWithdrawals.length,
-        securityThreatsCount: threats.threatCount,
-        activeGamesCount,
-        aiConfigured: aiService.isAIConfigured()
+        pendingDepositsCount: depRes.count,
+        pendingDepositsTotal: depRes.totalAmount,
+        pendingWithdrawalsCount: withRes.count,
+        pendingWithdrawalsTotal: withRes.totalAmount,
+        totalUsers: userRes.rows[0]?.total || 0,
+        activeUsers: userRes.rows[0]?.active || 0,
+        securityThreatsCount: threatRes.threatCount
       }
     });
   } catch (err) {
@@ -251,17 +261,60 @@ function getStatus(req, res) {
   res.json({
     ok: true,
     service: "HABESHA AI ADMIN",
-    version: "1.0.0",
+    version: "2.0.0",
     aiConfigured: aiService.isAIConfigured(),
     model: aiService.model,
     ownerProtectionEnabled: true,
+    automationEngine: aiEngine.isRunning ? "active" : "standby",
     supportedLanguages: ["English", "Amharic (አማርኛ)"]
   });
+}
+
+/**
+ * GET /api/admin/ai/dashboard
+ */
+async function getDashboard(req, res) {
+  try {
+    const snapshot = await aiEngine.getDashboardSnapshot();
+    res.json(snapshot);
+  } catch (err) {
+    console.error("[AIController] Dashboard error:", err);
+    res.status(500).json({ ok: false, error: err.message || "Failed to load AI dashboard" });
+  }
+}
+
+/**
+ * POST /api/admin/ai/support/auto-reply-all
+ */
+async function handleAutoReplySupport(req, res) {
+  try {
+    await aiEngine.processPendingSupportTickets();
+    res.json({ ok: true, message: "Support tickets auto-reply batch completed." });
+  } catch (err) {
+    console.error("[AIController] Auto-reply error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+/**
+ * POST /api/admin/ai/watchdog/self-heal
+ */
+async function handleTriggerSelfHeal(req, res) {
+  try {
+    const result = await aiEngine.watchdog.performSelfHealing();
+    res.json({ ok: true, result });
+  } catch (err) {
+    console.error("[AIController] Self-heal trigger error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
 }
 
 module.exports = {
   handleChatMessage,
   handleActionConfirmation,
   getQuickStats,
-  getStatus
+  getStatus,
+  getDashboard,
+  handleAutoReplySupport,
+  handleTriggerSelfHeal
 };

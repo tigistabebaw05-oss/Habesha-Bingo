@@ -18,8 +18,11 @@ router.use(requireAdminOrOwner);
 
 router.get("/status", aiController.getStatus);
 router.get("/quick-stats", aiController.getQuickStats);
+router.get("/dashboard", aiController.getDashboard);
+
 router.post("/chat", aiLimiter, aiController.handleChatMessage);
 router.post("/confirm", aiLimiter, aiController.handleActionConfirmation);
+router.post("/support/auto-reply-all", aiLimiter, aiController.handleAutoReplySupport);
+router.post("/watchdog/self-heal", aiLimiter, aiController.handleTriggerSelfHeal);
 
 module.exports = router;
-

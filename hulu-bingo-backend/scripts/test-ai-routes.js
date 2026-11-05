@@ -2,6 +2,8 @@ require("dotenv").config({ path: require("path").join(__dirname, "..", ".env") }
 const assert = require("assert");
 const express = require("express");
 const aiAdminRoutes = require("../src/modules/ai-admin/ai.routes");
+const aiEngine = require("../src/modules/ai-automation/ai.engine");
+const pool = require("../db");
 
 async function runRouteTests() {
   console.log("=".repeat(60));
@@ -19,6 +21,13 @@ async function runRouteTests() {
     console.error(`❌ FAIL: ${name} ->`, err.message || err);
     failed++;
   }
+
+  // Start automation engine for route tests
+  aiEngine.start({
+    pool,
+    io: { engine: { clientsCount: 1 } },
+    telegramService: { polling: true, botUsername: "HbeshabingoBot" }
+  });
 
   // Create isolated express test app
   const app = express();
@@ -111,9 +120,39 @@ async function runRouteTests() {
     assert.strictEqual(res8.status, 400);
     pass("Validation: Empty message returns 400 Bad Request");
 
+    // Test 9: GET /dashboard endpoint
+    const res9 = await fetch(`${baseUrl}/dashboard`);
+    assert.strictEqual(res9.status, 200);
+    const data9 = await res9.json();
+    assert.strictEqual(data9.ok, true);
+    assert(typeof data9.health === "object");
+    assert(Array.isArray(data9.recentActions));
+    pass("Endpoint: GET /dashboard returns real-time system metrics & audit logs");
+
+    // Test 10: POST /support/auto-reply-all
+    const res10 = await fetch(`${baseUrl}/support/auto-reply-all`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    assert.strictEqual(res10.status, 200);
+    const data10 = await res10.json();
+    assert.strictEqual(data10.ok, true);
+    pass("Endpoint: POST /support/auto-reply-all executes batch resolution");
+
+    // Test 11: POST /watchdog/self-heal
+    const res11 = await fetch(`${baseUrl}/watchdog/self-heal`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    assert.strictEqual(res11.status, 200);
+    const data11 = await res11.json();
+    assert.strictEqual(data11.ok, true);
+    pass("Endpoint: POST /watchdog/self-heal triggers diagnostic & safe recovery");
+
   } catch (err) {
     fail("Route integration test exception", err);
   } finally {
+    aiEngine.stop();
     server.close();
   }
 

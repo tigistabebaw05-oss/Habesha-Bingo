@@ -1907,6 +1907,14 @@ async function startServerWithRetry(maxRetries = 5, delayMs = 3000) {
       });
       setInterval(callNumber, 5000);
 
+      // Start 24/7 AI Automation Engine & Background Workers
+      try {
+        const aiEngine = require("./modules/ai-automation/ai.engine");
+        aiEngine.start({ pool, io, telegramService });
+      } catch (aiErr) {
+        console.warn("[AIEngine] Warning: Failed to boot AI Automation Engine:", aiErr.message);
+      }
+
       // Anti-Sleep Heartbeat (keeps service 24/7 active)
       setInterval(async () => {
         try {
