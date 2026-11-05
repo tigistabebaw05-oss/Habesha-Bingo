@@ -6,11 +6,12 @@
   <title>AB Bingo Admin</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="admin.css">
+  <link rel="stylesheet" href="ai-admin.css">
 </head>
 <body class="admin-page">
   <header class="topbar">
     <a class="brand" href="/"><span>AB</span> BINGO</a>
-    <nav><a href="/">Public site</a><button class="btn btn-gold" id="logoutBtn" hidden>Logout</button></nav>
+    <nav><a href="/">Public site</a><button class="btn btn-outline" id="aiAdminNavBtn" onclick="window.toggleAiAdmin && window.toggleAiAdmin()" style="border-color:var(--habesha-gold,#f5b716);color:var(--habesha-gold,#f5b716);margin-right:8px;">🤖 AI Assistant</button><button class="btn btn-gold" id="logoutBtn" hidden>Logout</button></nav>
   </header>
   <main class="admin-shell">
     <section class="panel admin-login" id="loginPanel">
@@ -119,5 +120,6 @@
     </section>
   </main>
   <script src="admin.js"></script>
+  <script src="ai-admin.js"></script>
 </body>
 </html>

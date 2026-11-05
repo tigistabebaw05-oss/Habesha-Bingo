@@ -9,3 +9,4 @@ postmaster.pid
 cloudflared.exe
 live_url.txt
 LIVE_DEPLOY_INFO.json
+backups/

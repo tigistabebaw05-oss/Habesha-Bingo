@@ -1385,6 +1385,10 @@ app.delete("/api/admin/payment-accounts/:id", auth, requireRole("ADMIN"), async 
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== HABESHA AI ADMIN ASSISTANT ROUTES ====================
+const aiAdminRoutes = require("./modules/ai-admin/ai.routes");
+app.use("/api/admin/ai", auth, aiAdminRoutes);
+
 // ==================== OWNER (SUPER ADMIN) ROUTES ====================
 
 // 1. List Admin Accounts

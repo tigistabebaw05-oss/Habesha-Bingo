@@ -1,5 +1,5 @@
 const fs = require('fs');
-const files = ['index.html', 'admin.html', 'owner.html', 'style.css', 'admin.css', 'app.js', 'admin.js'];
+const files = ['index.html', 'admin.html', 'owner.html', 'style.css', 'admin.css', 'ai-admin.css', 'app.js', 'admin.js', 'ai-admin.js'];
 files.forEach(f => {
   if (fs.existsSync(`habesha-bingo-frontend/${f}`)) {
     fs.copyFileSync(`habesha-bingo-frontend/${f}`, `hulu-bingo-backend/Habesha-bingo-frontend/${f}`);
