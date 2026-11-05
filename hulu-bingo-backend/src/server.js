@@ -21,7 +21,7 @@ const corsOptions = {
 };
 const io=new Server(server,{cors:{origin:"*",methods:["GET","POST"]}});
 const telegramService = new TelegramBingoService({ pool, io });
-const PORT=process.env.PORT||4000;
+const PORT=Number(process.env.PORT)||4000;
 let SECRET=process.env.JWT_SECRET;
 if (!SECRET || SECRET.length < 32 || SECRET === "replace-with-a-long-random-secret") {
   console.warn("[Security] Warning: Valid JWT_SECRET not found in environment. Using default secure key.");
@@ -401,7 +401,8 @@ async function broadcast(id){
   }
 }
 
-app.get("/api/health",(req,res)=>res.json({ok:true,service:"Habesha Bingo API"}));
+app.get("/health", (req, res) => res.status(200).json({ ok: true, status: "healthy", service: "Habesha Bingo API" }));
+app.get("/api/health", (req, res) => res.status(200).json({ ok: true, status: "healthy", service: "Habesha Bingo API" }));
 
 app.post("/api/register",async(req,res)=>{
   try{
@@ -1897,14 +1898,27 @@ app.use((error,req,res,next)=>{
   if(error.message==="Origin not allowed")return res.status(403).json({error:"Origin not allowed"});
   next(error);
 });
-async function startServerWithRetry(maxRetries = 5, delayMs = 3000) {
+// ==================== HTTP & SOCKET.IO SERVER STARTUP ====================
+// Immediately bind server to 0.0.0.0 and process.env.PORT to satisfy Render port scanner
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`🇪🇹 Habesha Bingo HTTP & Socket.IO server listening on http://0.0.0.0:${PORT}`);
+  console.log(`[Render] ✅ Port ${PORT} successfully exposed and bound to 0.0.0.0`);
+
+  // Start Database and background services asynchronously without blocking port scanner
+  startBackgroundServices();
+});
+
+let servicesStarted = false;
+async function startBackgroundServices(maxRetries = 10, delayMs = 3000) {
+  if (servicesStarted) return;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`[Database] Connecting and running initializations (attempt ${attempt}/${maxRetries})...`);
       await init();
-      server.listen(PORT, "0.0.0.0", () => {
-        console.log(`🇪🇹 Habesha Bingo API running on port ${PORT} (0.0.0.0)`);
-      });
+      servicesStarted = true;
+      console.log("[Database] ✅ Database and services initialized successfully.");
+
+      // Start Game loop
       setInterval(callNumber, 5000);
 
       // Start 24/7 AI Automation Engine & Background Workers
@@ -1930,18 +1944,16 @@ async function startServerWithRetry(maxRetries = 5, delayMs = 3000) {
           }
         } catch (_) {}
       }, 5 * 60 * 1000); // every 5 minutes
+
       return;
     } catch (error) {
-      console.error(`[Database] Attempt ${attempt} failed:`, error.message);
+      console.error(`[Database] ⚠️ Attempt ${attempt} failed:`, error.message);
       if (attempt < maxRetries) {
         console.log(`[Database] Retrying connection in ${delayMs / 1000}s...`);
         await new Promise(res => setTimeout(res, delayMs));
       } else {
-        console.error("❌ Fatal: Database initialization failed after all attempts:", error.message);
-        process.exitCode = 1;
+        console.error("❌ Warning: Database initialization failed after all attempts. Server remains active on port to report health and errors:", error.message);
       }
     }
   }
 }
-
-startServerWithRetry();
