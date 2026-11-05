@@ -1,4 +1,13 @@
 require("dotenv").config();
+
+// Global process error guards to ensure 100% server uptime on Render
+process.on("unhandledRejection", (reason) => {
+  console.warn("[Process] Handled background rejection (preventing crash):", reason?.message || reason);
+});
+process.on("uncaughtException", (error) => {
+  console.warn("[Process] Handled uncaught exception (preventing crash):", error?.message || error);
+});
+
 const express=require("express");
 const cors=require("cors");
 const bcrypt=require("bcryptjs");
@@ -1791,8 +1800,9 @@ async function startNextGame(previousGameId) {
 async function callNumber() {
   if (running) return;
   running = true;
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query("BEGIN");
     let g = (await client.query("SELECT * FROM games WHERE status IN ('waiting','running') ORDER BY id DESC LIMIT 1 FOR UPDATE")).rows[0];
     if (!g) {
@@ -1880,10 +1890,14 @@ async function callNumber() {
       telegramService.notifyNumberCalled(g.id, n, next).catch(() => {});
     }
   } catch (error) {
-    await client.query("ROLLBACK");
+    if (client) {
+      try { await client.query("ROLLBACK"); } catch (_) {}
+    }
     console.error("Game loop error:", error.message);
   } finally {
-    client.release();
+    if (client) {
+      try { client.release(); } catch (_) {}
+    }
     running = false;
   }
 }
@@ -1952,7 +1966,9 @@ async function startBackgroundServices(maxRetries = 10, delayMs = 3000) {
         console.log(`[Database] Retrying connection in ${delayMs / 1000}s...`);
         await new Promise(res => setTimeout(res, delayMs));
       } else {
-        console.error("❌ Warning: Database initialization failed after all attempts. Server remains active on port to report health and errors:", error.message);
+        console.warn("⚠️ [Database] Initial attempts failed. Continuing background connection retry every 10s:", error.message);
+        await new Promise(res => setTimeout(res, 10000));
+        attempt = maxRetries - 1; // Keep retrying safely in background
       }
     }
   }
