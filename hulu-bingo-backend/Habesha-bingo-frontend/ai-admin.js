@@ -184,19 +184,8 @@
   function buildUi() {
     if (document.getElementById('aiAdminDrawer')) return;
 
-    // 1. Floating Launcher Button (Hidden: metayet yelebetim)
-    const launcher = document.createElement('button');
-    launcher.id = 'aiAdminLauncherBtn';
-    launcher.className = 'ai-admin-launcher-btn';
-    launcher.style.display = 'none';
-    launcher.setAttribute('aria-hidden', 'true');
-    launcher.innerHTML = `
-      <div class="ai-bot-avatar">🤖</div>
-      <span>HABESHA AI</span>
-      <span class="ai-status-dot"></span>
-    `;
-    launcher.addEventListener('click', toggleDrawer);
-    document.body.appendChild(launcher);
+    // 1. Floating Launcher Button (Permanently hidden per request: "buttonun hiddin adirgilign metayet yelebetim")
+    // Omitted from DOM so no button is visible to players or on screen
 
     // 2. Backdrop
     const backdrop = document.createElement('div');
@@ -568,13 +557,12 @@
 
   // Polling check every 5 seconds for auth state changes (e.g. login/logout)
   setInterval(async () => {
-    const launcher = document.getElementById('aiAdminLauncherBtn');
+    const drawer = document.getElementById('aiAdminDrawer');
     const token = getToken();
-    if (token && !launcher) {
+    if (token && !drawer) {
       await init();
-    } else if (!token && launcher) {
-      launcher.remove();
-      document.getElementById('aiAdminDrawer')?.remove();
+    } else if (!token && drawer) {
+      drawer.remove();
       document.getElementById('aiAdminBackdrop')?.remove();
     }
   }, 5000);
