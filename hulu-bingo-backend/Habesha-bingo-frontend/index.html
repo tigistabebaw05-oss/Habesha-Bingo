@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>AB Bingo</title>
@@ -9,144 +10,650 @@
   <meta property="og:url" content="https://habesha-bingo-1-3jdi.onrender.com/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Ethiopic:wght@300;400;500;600;700;800;900&family=Noto+Serif+Ethiopic:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2026habesha">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+Ethiopic:wght@300;400;500;600;700;800;900&family=Noto+Serif+Ethiopic:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=20261115-fixbalance-v3">
   <link rel="stylesheet" href="admin.css">
   <link rel="stylesheet" href="ai-admin.css">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
+
 <body>
   <div id="playerApp">
-  <header class="topbar">
-    <a class="brand" href="#"><span>AB</span> BINGO</a>
-    <nav>
-      <a href="#game">Game</a>
-      <a href="#wallet">Wallet</a>
-      <a href="#winners">Winners</a>
-      <a href="#account" data-i18n="navAccount">Account</a>
-      <button class="btn btn-outline" id="langBtn">🌐 AM</button>
-      <button class="btn btn-outline" id="ownerDashBtn" hidden style="border-color:var(--habesha-gold);color:var(--habesha-gold);">👑 Owner Suite</button>
-      <button class="btn btn-outline" id="adminDashBtn" hidden>Admin Dashboard</button>
-      <button class="btn btn-gold" id="loginBtn" data-i18n="loginBtn">Login</button>
-    </nav>
-  </header>
+    <header class="topbar">
+      <a class="brand" href="#"><span>AB</span> BINGO</a>
+      <nav>
+        <a href="#game">Game</a>
+        <a href="#wallet">Wallet</a>
+        <a href="#winners">Winners</a>
+        <a href="#account" data-i18n="navAccount">Account</a>
+        <button class="btn btn-outline" id="langBtn">🌐 AM</button>
+        <button class="btn btn-outline" id="ownerDashBtn" hidden
+          style="border-color:var(--habesha-gold);color:var(--habesha-gold);">👑 Owner Suite</button>
+        <button class="btn btn-outline" id="adminDashBtn" hidden>Admin Dashboard</button>
+        <button class="btn btn-gold" id="loginBtn" data-i18n="loginBtn">Login</button>
+      </nav>
+    </header>
 
-  <main>
-    <section class="hero">
-      <div>
-        <div class="eyebrow">❖ AB BINGO EXPERIENCE ❖</div>
-        <h1>Play. Match.<br><span>Win Bingo.</span></h1>
-        <p>Join the main room, follow the live numbers and see your ticket update in real time. የኢትዮጵያ ምርጥ እና አስተማማኝ የቢንጎ መድረክ!</p>
-        <div class="hero-actions">
-          <button class="btn btn-gold" id="playBtn">Play Now (ተጫወት)</button>
-          <button class="btn btn-outline" id="howBtn">How It Works (አጨዋወት)</button>
-        </div>
-      </div>
-      <div class="hero-card">
-        <div class="live"><i></i> LIVE GAME (የቀጥታ ጨዋታ)</div>
-        <div class="prize-label">CURRENT PRIZE POOL (የደራሽ ሽልማት)</div>
-        <div class="prize" id="heroPrize">0 <small>ETB</small></div>
-        <div class="mini-stats">
-          <div><b id="heroPlayers">0</b><small>ተጫዋቾች</small></div>
-          <div><b>10 ETB</b><small>መግቢያ</small></div>
-          <div><b>1–600</b><small>ቁጥሮች</small></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="game">
-      <div class="section-title">
-        <div><div class="eyebrow">MAIN GAME</div><h2>Live Bingo Room</h2></div>
-        <span class="status" id="gameStatus">WAITING</span>
-      </div>
-      <div class="game-layout">
-        <div class="panel">
-          <div class="panel-head">
-            <div><small>LAST CALLED</small><strong id="currentNumber">—</strong></div>
-            <div><small>PLAYERS</small><strong id="players">0</strong></div>
-            <div><small>PRIZE POOL</small><strong id="prizePool">0 ETB</strong></div>
-          </div>
-          <h3>Called Numbers</h3>
-          <div class="balls" id="calledNumbers"><span class="empty">No numbers called yet</span></div>
-          <h3>Number Board</h3>
-          <div class="number-board" id="numberBoard"></div>
-        </div>
-
-        <aside class="panel ticket-panel">
-          <div class="panel-head simple">
-            <div><small>MY BINGO TICKET</small><h3>Player Card</h3></div>
-            <span class="ticket-badge">5 × 5</span>
-          </div>
-          <div class="hulu-switch-toggle" style="margin: 8px 0 10px; justify-content: flex-start;">
-            <button class="switch-opt active" id="deskModeAuto" type="button">AUTO</button>
-            <button class="switch-opt" id="deskModeManual" type="button">MANUAL</button>
-          </div>
-          <div class="ticket" id="ticket"></div>
-          <button class="btn btn-gold full" id="joinBtn">Join Game — 10 ETB</button>
-          <p class="hint">A row, column or diagonal completes Bingo in this demo.</p>
-        </aside>
-      </div>
-    </section>
-
-    <section class="section" id="wallet">
-      <div class="section-title">
-        <div><div class="eyebrow">MY ACCOUNT (የእኔ ሂሳብ)</div><h2>Wallet & Cash Out</h2></div>
-        <button class="btn btn-gold" type="button" onclick="openTelegramModal('withdrawalModal')" style="font-weight:700;">📤 ገንዘብ አውጣ (Withdraw)</button>
-      </div>
-      <div class="wallet-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-        <div class="balance-card main-balance">
-          <span>ዋና ሂሳብ (Main Game)</span>
-          <strong id="mainBalance">0.00 ETB</strong>
-          <small>ለጨዋታ መግቢያ እና ውርርድ</small>
-        </div>
-        <div class="balance-card vip-balance">
-          <span>VIP ሂሳብ (VIP Balance)</span>
-          <strong id="vipBalance">0.00 ETB</strong>
-          <small>ለ VIP ክፍል ጨዋታዎች</small>
-        </div>
-        <div class="balance-card" style="background: linear-gradient(135deg, rgba(30, 144, 255, 0.15), rgba(16, 185, 129, 0.15)); border: 1px solid rgba(16, 185, 129, 0.35);">
-          <span style="color: #34d399; font-weight:700;">💵 ሊወጣ የሚችል ሂሳብ (Withdrawable)</span>
-          <strong id="withdrawableBalance" style="color: #10b981;">0.00 ETB</strong>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-            <small style="color: var(--habesha-muted);">ዝቅተኛ ማውጫ: <b id="minWithdrawalLabel">100 ETB</b></small>
-            <span id="pendingWithdrawalBadge" style="font-size:11px; color:#f59e0b; background:rgba(245,158,11,0.15); padding:2px 6px; border-radius:4px; display:none;">0.00 ETB በመጠባበቅ ላይ</span>
+    <main>
+      <section class="hero">
+        <div>
+          <div class="eyebrow">❖ AB BINGO EXPERIENCE ❖</div>
+          <h1>Play. Match.<br><span>Win Bingo.</span></h1>
+          <p>Join the main room, follow the live numbers and see your ticket update in real time. የኢትዮጵያ ምርጥ እና አስተማማኝ
+            የቢንጎ መድረክ!</p>
+          <div class="hero-actions">
+            <button class="btn btn-gold" id="playBtn">Play Now (ተጫወት)</button>
+            <button class="btn btn-outline" id="howBtn">How It Works (አጨዋወት)</button>
           </div>
         </div>
-      </div>
-      <div class="forms-grid">
-        <form class="panel" id="depositForm">
-          <div id="paymentAccountsContainer" class="payment-accounts-container" style="display:block; padding:12px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:8px; margin-bottom:12px;">
-            <div style="font-size:12px;color:var(--habesha-gold, #f3ca56);margin-bottom:8px;font-weight:700;display:flex;align-items:center;justify-content:space-between;letter-spacing:0.5px;">
-              <span>📱 የክፍያ መላኪያ ሂሳብ (DEPOSIT ACCOUNT)</span>
-              <span style="font-size:10px;background:#10b981;color:#fff;padding:2px 8px;border-radius:10px;font-weight:bold;">● ACTIVE</span>
+        <div class="hero-card">
+          <div class="live"><i></i> LIVE GAME (የቀጥታ ጨዋታ)</div>
+          <div class="prize-label">CURRENT PRIZE POOL (የደራሽ ሽልማት)</div>
+          <div class="prize" id="heroPrize">0 <small>ETB</small></div>
+          <div class="mini-stats">
+            <div><b id="heroPlayers">0</b><small>ተጫዋቾች</small></div>
+            <div><b>10 ETB</b><small>መግቢያ</small></div>
+            <div><b>1–600</b><small>ቁጥሮች</small></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="game">
+        <div class="section-title">
+          <div>
+            <div class="eyebrow">MAIN GAME</div>
+            <h2>Live Bingo Room</h2>
+          </div>
+          <span class="status" id="gameStatus">WAITING</span>
+        </div>
+        <div class="game-layout">
+          <div class="panel">
+            <div class="panel-head">
+              <div><small>LAST CALLED</small><strong id="currentNumber">—</strong></div>
+              <div><small>PLAYERS</small><strong id="players">0</strong></div>
+              <div><small>PRIZE POOL</small><strong id="prizePool">0 ETB</strong></div>
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(0,0,0,0.25);border-radius:6px;border:1px solid rgba(59,130,246,0.3);">
-              <div>
-                <div style="font-weight:bold;color:#60a5fa;font-size:13px;display:flex;align-items:center;gap:5px;">
-                  📱 TeleBirr <span style="font-size:10px;background:#3b82f622;color:#60a5fa;padding:1px 5px;border-radius:4px;">RECOMMENDED</span>
+            <h3>Called Numbers</h3>
+            <div class="balls" id="calledNumbers"><span class="empty">No numbers called yet</span></div>
+            <h3>Number Board</h3>
+            <div class="number-board" id="numberBoard"></div>
+          </div>
+
+          <aside class="panel ticket-panel">
+            <div class="panel-head simple">
+              <div><small>MY BINGO TICKET</small>
+                <h3>Player Card</h3>
+              </div>
+              <span class="ticket-badge">5 × 5</span>
+            </div>
+            <div class="hulu-switch-toggle" style="margin: 8px 0 10px; justify-content: flex-start;">
+              <button class="switch-opt active" id="deskModeAuto" type="button">AUTO</button>
+              <button class="switch-opt" id="deskModeManual" type="button">MANUAL</button>
+            </div>
+            <div class="ticket" id="ticket"></div>
+            <button class="btn btn-gold full" id="joinBtn">Join Game — 10 ETB</button>
+            <p class="hint">A row, column or diagonal completes Bingo in this demo.</p>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="wallet">
+        <div class="section-title">
+          <div>
+            <div class="eyebrow">MY ACCOUNT (የእኔ ሂሳብ)</div>
+            <h2>Wallet & Cash Out</h2>
+          </div>
+          <button class="btn btn-gold" type="button" onclick="openTelegramModal('withdrawalModal')"
+            style="font-weight:700;">📤 ገንዘብ አውጣ (Withdraw)</button>
+        </div>
+        <div class="wallet-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+          <div class="balance-card main-balance">
+            <span>ዋና ሂሳብ (Main Game)</span>
+            <strong id="mainBalance">0.00 ETB</strong>
+            <small>ለጨዋታ መግቢያ እና ውርርድ</small>
+          </div>
+          <div class="balance-card vip-balance">
+            <span>VIP ሂሳብ (VIP Balance)</span>
+            <strong id="vipBalance">0.00 ETB</strong>
+            <small>ለ VIP ክፍል ጨዋታዎች</small>
+          </div>
+          <div class="balance-card"
+            style="background: linear-gradient(135deg, rgba(30, 144, 255, 0.15), rgba(16, 185, 129, 0.15)); border: 1px solid rgba(16, 185, 129, 0.35);">
+            <span style="color: #34d399; font-weight:700;">💵 ሊወጣ የሚችል ሂሳብ (Withdrawable)</span>
+            <strong id="withdrawableBalance" style="color: #10b981;">0.00 ETB</strong>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+              <small style="color: var(--habesha-muted);">ዝቅተኛ ማውጫ: <b id="minWithdrawalLabel">100 ETB</b></small>
+              <span id="pendingWithdrawalBadge"
+                style="font-size:11px; color:#f59e0b; background:rgba(245,158,11,0.15); padding:2px 6px; border-radius:4px; display:none;">0.00
+                ETB በመጠባበቅ ላይ</span>
+            </div>
+          </div>
+        </div>
+        <div class="forms-grid">
+          <form class="panel" id="depositForm">
+            <div id="paymentAccountsContainer" class="payment-accounts-container"
+              style="display:block; padding:12px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:8px; margin-bottom:12px;">
+              <div
+                style="font-size:12px;color:var(--habesha-gold, #f3ca56);margin-bottom:8px;font-weight:700;display:flex;align-items:center;justify-content:space-between;letter-spacing:0.5px;">
+                <span>📱 የክፍያ መላኪያ ሂሳብ (DEPOSIT ACCOUNT)</span>
+                <span
+                  style="font-size:10px;background:#10b981;color:#fff;padding:2px 8px;border-radius:10px;font-weight:bold;">●
+                  ACTIVE</span>
+              </div>
+              <div
+                style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(0,0,0,0.25);border-radius:6px;border:1px solid rgba(59,130,246,0.3);">
+                <div>
+                  <div style="font-weight:bold;color:#60a5fa;font-size:13px;display:flex;align-items:center;gap:5px;">
+                    📱 TeleBirr <span
+                      style="font-size:10px;background:#3b82f622;color:#60a5fa;padding:1px 5px;border-radius:4px;">RECOMMENDED</span>
+                  </div>
+                  <div style="font-size:12px;color:#cbd5e1;margin-top:2px;">ስም: <b>Abrham</b></div>
                 </div>
-                <div style="font-size:12px;color:#cbd5e1;margin-top:2px;">ስም: <b>Abrham</b></div>
-              </div>
-              <div style="text-align:right;">
-                <code style="font-size:15px;font-weight:bold;color:#facc15;background:rgba(0,0,0,0.4);padding:4px 8px;border-radius:4px;letter-spacing:0.5px;">0951666750</code>
+                <div style="text-align:right;">
+                  <code
+                    style="font-size:15px;font-weight:bold;color:#facc15;background:rgba(0,0,0,0.4);padding:4px 8px;border-radius:4px;letter-spacing:0.5px;">0951666750</code>
+                </div>
               </div>
             </div>
+            <label>Wallet (ዋሌት)<select name="wallet">
+                <option value="main">🎮 ዋና ጨዋታ (Main Game)</option>
+                <option value="vip">💎 VIP ክፍል (VIP Room)</option>
+              </select></label>
+            <label>የክፍያ ዘዴ (Method)<select name="method">
+                <option>TeleBirr</option>
+                <option>CBE Birr</option>
+                <option>M-Pesa</option>
+                <option>E-Birr</option>
+              </select></label>
+            <label>የብር መጠን (Amount)<input name="amount" type="number" min="10" value="10"></label>
+            <label>የግብይት ማረጋገጫ ቁጥር (Txn Reference)<input name="reference" placeholder="ምሳሌ፡ FT29384912..."></label>
+            <button class="btn btn-gold full" type="submit">የገቢ ጥያቄ ላክ (Submit Deposit)</button>
+            <small class="hint">ዝቅተኛ ገቢ: 10 ETB። ጥያቄዎ በአስተዳዳሪው ሲረጋገጥ በደቂቃዎች ውስጥ ይገባል።</small>
+          </form>
+          <form class="panel" id="withdrawForm" style="border: 1px solid rgba(245, 183, 22, 0.3);">
+            <div class="eyebrow" style="color:var(--habesha-gold);">SECURE CASH OUT</div>
+            <h3>ገንዘብ አውጣ (Withdrawal)</h3>
+            <div
+              style="background:rgba(245,183,22,0.08); padding:8px 12px; border-radius:6px; margin-bottom:10px; font-size:12px; color:var(--habesha-muted);">
+              💡 ያሸነፉትን ገንዘብ በቀጥታ ወደ ቴሌብር ወይም ባንክ አካውንትዎ ያውጡ።
+            </div>
+            <label>ዋሌት (Wallet)<select name="wallet">
+                <option value="main">🎮 ዋና ሂሳብ (Main Game)</option>
+              </select></label>
+            <label>የክፍያ ዘዴ (Payout Method)
+              <select name="method" id="withdrawMethodSelect" required>
+                <option value="TeleBirr">📱 TeleBirr (ቴሌብር)</option>
+                <option value="CBE Birr">🏦 CBE Birr (ሲቢኢ ብር)</option>
+                <option value="CBE Bank">🏛 Commercial Bank of Ethiopia (CBE)</option>
+                <option value="Awash Bank">🏛 Awash Bank (አዋሽ ባንክ)</option>
+                <option value="Bank of Abyssinia">🏛 Bank of Abyssinia (አቢሲኒያ)</option>
+                <option value="M-Pesa">🟢 Safaricom M-Pesa</option>
+                <option value="E-Birr">🟡 E-Birr</option>
+              </select>
+            </label>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label>የብር መጠን (Amount ETB)
+                <input name="amount" id="withdrawAmountInput" type="number" min="100" value="100" required>
+              </label>
+              <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
+                <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px;"
+                  onclick="document.getElementById('withdrawAmountInput').value=100">100</button>
+                <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px;"
+                  onclick="document.getElementById('withdrawAmountInput').value=200">200</button>
+                <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px;"
+                  onclick="document.getElementById('withdrawAmountInput').value=500">500</button>
+                <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px;"
+                  onclick="document.getElementById('withdrawAmountInput').value=1000">1000</button>
+                <button type="button" class="btn btn-outline"
+                  style="padding:2px 8px; font-size:11px; color:var(--habesha-gold); border-color:var(--habesha-gold);"
+                  id="withdrawMaxBtn">ሙሉውን (Max)</button>
+              </div>
+            </div>
+            <label>የተቀባይ ሂሳብ ወይም ስልክ ቁጥር (Account / Phone)
+              <input name="account" id="withdrawAccountInput" placeholder="ምሳሌ፡ 09xxxxxxxx ወይም 1000xxxxxxxxx" required>
+            </label>
+            <label>የሂሳብ ባለቤት ሙሉ ስም (Account Holder Name — KYC)
+              <input name="account_name" id="withdrawAccountNameInput" placeholder="ምሳሌ፡ Abebe Kebede" required>
+            </label>
+            <label
+              style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; font-size:12px; margin-top:4px; color:var(--habesha-muted);">
+              <input type="checkbox" name="is_adult" checked required style="width:auto; margin-top:2px;">
+              <span>ዕድሜዬ ከ18 ዓመት በላይ መሆኑን እና የገባሁት የባንክ/ቴሌብር መረጃ ትክክለኛ መሆኑን አረጋግጣለሁ (18+ & KYC Confirmation)</span>
+            </label>
+            <button class="btn btn-gold full" style="margin-top:8px;" id="submitWithdrawBtn">📤 የወጪ ጥያቄ ላክ (Request
+              Withdrawal)</button>
+            <small class="hint">ደህንነቱ የተጠበቀ ክፍያ። ጥያቄው እንደገባ ወዲያውኑ ቀሪ ሂሳብዎ ተቀናሽ ሆኖ በአስተዳዳሪው ይረጋገጣል።</small>
+          </form>
+        </div>
+
+        <!-- Player's My Withdrawal History Table -->
+        <div class="panel" style="margin-top: 20px;">
+          <div class="section-title"
+            style="margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div class="eyebrow">TRANSACTION HISTORY</div>
+              <h3>የእርስዎ የወጪ ጥያቄዎች (My Withdrawal Requests)</h3>
+            </div>
+            <button class="btn btn-outline" type="button" id="refreshPlayerWithdrawalsBtn"
+              style="padding:4px 10px; font-size:12px;">🔄 አድስ (Refresh)</button>
           </div>
-          <label>Wallet (ዋሌት)<select name="wallet"><option value="main">🎮 ዋና ጨዋታ (Main Game)</option><option value="vip">💎 VIP ክፍል (VIP Room)</option></select></label>
-          <label>የክፍያ ዘዴ (Method)<select name="method"><option>TeleBirr</option><option>CBE Birr</option><option>M-Pesa</option><option>E-Birr</option></select></label>
-          <label>የብር መጠን (Amount)<input name="amount" type="number" min="10" value="10"></label>
-          <label>የግብይት ማረጋገጫ ቁጥር (Txn Reference)<input name="reference" placeholder="ምሳሌ፡ FT29384912..."></label>
-          <button class="btn btn-gold full" type="submit">የገቢ ጥያቄ ላክ (Submit Deposit)</button>
-          <small class="hint">ዝቅተኛ ገቢ: 10 ETB። ጥያቄዎ በአስተዳዳሪው ሲረጋገጥ በደቂቃዎች ውስጥ ይገባል።</small>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>መጠን (Amount)</th>
+                  <th>ዘዴ (Method)</th>
+                  <th>አካውንት (Account)</th>
+                  <th>የባለቤት ስም</th>
+                  <th>ቀን (Date)</th>
+                  <th>ሁኔታ (Status)</th>
+                </tr>
+              </thead>
+              <tbody id="playerWithdrawalsTableBody">
+                <tr>
+                  <td colspan="6" style="text-align:center; padding:16px; color:var(--habesha-muted);">እስካሁን ምንም የወጪ ጥያቄ
+                    የለም።</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="winners">
+        <div class="section-title">
+          <div>
+            <div class="eyebrow">RESULTS</div>
+            <h2>Recent Winners</h2>
+          </div>
+        </div>
+        <div class="winner-grid" id="winnersGrid">
+          <div class="empty-card">No completed games yet.</div>
+        </div>
+      </section>
+
+      <section class="section how" id="how">
+        <div class="section-title">
+          <div>
+            <div class="eyebrow">HOW IT WORKS</div>
+            <h2>Simple Player Journey</h2>
+          </div>
+        </div>
+        <div class="steps">
+          <div class="step" data-step-action="account" role="button" tabindex="0"><b>01</b>
+            <h3>Create account</h3>
+            <p>Register with your name, phone number and password.</p>
+          </div>
+          <div class="step" data-step-action="wallet" role="button" tabindex="0"><b>02</b>
+            <h3>Fund wallet</h3>
+            <p>Deposit from 10 ETB through the configured payment workflow.</p>
+          </div>
+          <div class="step" data-step-action="game" role="button" tabindex="0"><b>03</b>
+            <h3>Join game</h3>
+            <p>Main game entry is 10 ETB per player.</p>
+          </div>
+          <div class="step" data-step-action="game" role="button" tabindex="0"><b>04</b>
+            <h3>Play Bingo</h3>
+            <p>Watch numbers, mark your card and complete a valid pattern.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="brand"><span>AB</span> BINGO</div>
+      <p>© 2026 AB Bingo. የኢትዮጵያውያን ቁጥር አንድ የቢንጎ ጨዋታ መድረክ። Authentic AB Bingo gaming experience.</p>
+    </footer>
+    <div class="auth-backdrop" id="authBackdrop" hidden>
+      <form class="auth-dialog" id="authForm">
+        <button class="auth-close" type="button" id="authClose" aria-label="Close">&times;</button>
+        <div class="eyebrow">PLAYER ACCOUNT</div>
+        <h2 id="authTitle">Login</h2>
+        <p id="authPrompt">Use your phone number and password to continue.</p>
+        <label id="nameField" hidden>Name<input name="name" autocomplete="name"></label>
+        <label>Phone number<input name="phone" type="tel" autocomplete="tel" required></label>
+        <label id="passwordField">Password<input name="password" type="password" autocomplete="current-password"
+            required></label>
+        <label id="resetTokenField" hidden>Reset token<input name="resetToken" autocomplete="off"></label>
+        <label id="resetPasswordField" hidden>New password<input name="resetPassword" type="password"
+            autocomplete="new-password"></label>
+        <button class="btn btn-gold full" id="authSubmit">Login</button>
+        <button class="auth-switch" type="button" id="authSwitch">Create an account</button>
+        <button class="auth-switch" type="button" id="authForgot">Forgot password?</button>
+      </form>
+    </div>
+    <div class="floating-menu-container">
+      <!-- Initial Text Menu -->
+      <div class="floating-menu-popup" id="floatingMenuPopup" hidden>
+        <div class="menu-drag-handle"></div>
+        <button class="menu-item" id="menuStartBtn">
+          <span>START PLAYING AB BINGO GAME!</span>
+          <small>/start</small>
+        </button>
+        <button class="menu-item" id="menuDepositFundBtn">
+          <span>Deposit Fund!</span>
+          <small>/deposit</small>
+        </button>
+        <button class="menu-item" id="menuWithdrawFundBtn">
+          <span>Withdraw Funds!</span>
+          <small>/withdraw</small>
+        </button>
+        <button class="menu-item" id="menuSupportBtnText">
+          <span>Contact the Support! (...or send your message here)</span>
+          <small>/support</small>
+        </button>
+        <button class="menu-item" id="menuLangToggleBtn">
+          <span>Change the language from Amharic to English!</span>
+          <small>/language</small>
+        </button>
+      </div>
+
+      <!-- Secondary Grid Keyboard (10 Buttons) -->
+      <div class="telegram-keyboard" id="telegramKeyboard" hidden>
+        <div class="keyboard-row">
+          <button class="keyboard-btn full-width" id="menuBtnPlay">🎮 ይጫወቱ</button>
+        </div>
+        <div class="keyboard-row">
+          <button class="keyboard-btn" id="menuBtnBalance">💰 ሂሳብ</button>
+          <button class="keyboard-btn" id="menuBtnDeposit">📥 ገቢ ለማድረግ</button>
+        </div>
+        <div class="keyboard-row">
+          <button class="keyboard-btn" id="menuBtnWithdraw">📤 ወጪ ለማድረግ</button>
+          <button class="keyboard-btn" id="menuBtnReferral">🔗 ጋብዝ & አግኝ</button>
+        </div>
+        <div class="keyboard-row">
+          <button class="keyboard-btn" id="menuBtnVip">💎 VIP ክፍል</button>
+          <button class="keyboard-btn" id="menuBtnPromoter">⭐ Special Promoter</button>
+        </div>
+        <div class="keyboard-row">
+          <button class="keyboard-btn" id="menuBtnSupport">🆘 እርዳታ</button>
+          <button class="keyboard-btn" id="menuBtnRules">📜 ደንቦች</button>
+        </div>
+        <div class="keyboard-row">
+          <button class="keyboard-btn full-width" id="menuBtnRewards">🎁 የተለያዩ ማስታወቂያ</button>
+        </div>
+      </div>
+
+      <!-- Deposit Chat State for step-by-step deposit flow (above keyboards) -->
+      <div class="telegram-chat-state" id="telegramDepositChatState" hidden>
+        <div id="depositChatMessages" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      </div>
+
+      <!-- Deposit Step 1 Keyboard (Image 1: 🎮 ዋናው ጨዋታ | 💎 VIP ክፍል | አቋርጥ) -->
+      <div class="telegram-keyboard tg-deposit-keyboard" id="telegramDepositTypeKeyboard" hidden>
+        <div class="keyboard-row">
+          <button class="keyboard-btn" id="btnDepositMainGame">🎮 ዋናው ጨዋታ</button>
+          <button class="keyboard-btn" id="btnDepositVip">💎 VIP ክፍል</button>
+        </div>
+        <div class="keyboard-row">
+          <button class="keyboard-btn full-width" id="btnDepositCancel1">አቋርጥ</button>
+        </div>
+      </div>
+
+      <!-- Deposit Step 2 Keyboard (Image 2: TeleBirr, CBE Birr, MPesa, E-Birr, አቋርጥ) -->
+      <div class="telegram-keyboard tg-deposit-keyboard" id="telegramDepositMethodKeyboard" hidden>
+        <div class="keyboard-row">
+          <button class="keyboard-btn" id="btnMethodTelebirr" data-method="TeleBirr">TeleBirr</button>
+          <button class="keyboard-btn" id="btnMethodCbe" data-method="CBE Birr">CBE Birr</button>
+        </div>
+        <div class="keyboard-row">
+          <button class="keyboard-btn" id="btnMethodMpesa" data-method="M-Pesa">MPesa</button>
+          <button class="keyboard-btn" id="btnMethodEbirr" data-method="E-Birr">E-Birr</button>
+        </div>
+        <div class="keyboard-row">
+          <button class="keyboard-btn full-width" id="btnDepositCancel2">አቋርጥ</button>
+        </div>
+      </div>
+
+      <!-- Deposit Step 3 Keyboard: TxID Input, [ 1 / Submit ] and [ አቋርጥ ] -->
+      <div class="telegram-keyboard tg-deposit-keyboard" id="telegramDepositConfirmKeyboard" hidden>
+        <div
+          style="padding: 10px 14px; background: rgba(7, 24, 44, 0.95); border: 1px solid #1e3a5f; border-radius: 12px; margin-bottom: 8px;">
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <input type="text" id="depositTxidInput" placeholder="የክፍያ ማረጋገጫ (TxID / SMS) እዚህ ይለጥፉ..."
+              style="flex: 1; padding: 10px 12px; border-radius: 8px; border: 1px solid #294963; background: #0b1d33; color: #fff; font-size: 14px;">
+            <button type="button" id="btnPasteTxid" class="keyboard-btn"
+              style="padding: 0 12px; font-size: 13px; background: #1e3a5f; color: #fff; border-radius: 8px;">📋
+              Paste</button>
+          </div>
+          <div style="display: flex; gap: 6px; align-items: center; justify-content: space-between;">
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <label style="font-size: 12px; color: var(--habesha-muted);">መጠን:</label>
+              <input type="number" id="depositAmountInput" value="100" min="10" step="10"
+                style="width: 80px; padding: 6px 8px; border-radius: 6px; border: 1px solid #294963; background: #0b1d33; color: #fff; font-weight: bold; text-align: center;">
+              <span style="font-size: 12px; color: var(--habesha-gold); font-weight: bold;">ETB</span>
+            </div>
+            <small style="font-size: 11px; color: #4ade80;">✓ ፈጣን ማረጋገጫ</small>
+          </div>
+        </div>
+        <div class="keyboard-row">
+          <button class="keyboard-btn full-width" id="btnDepositConfirm1"
+            style="font-size: 15px; font-weight: bold; background: linear-gradient(135deg, #10b981, #059669); color: #fff;">✅
+            1. አስገባ & ተጫወት (Submit & Play)</button>
+        </div>
+        <div class="keyboard-row">
+          <button class="keyboard-btn full-width" id="btnDepositCancel3">አቋርጥ</button>
+        </div>
+      </div>
+
+      <!-- Third state: Chat Message -->
+      <div class="telegram-chat-state" id="telegramChatState" hidden>
+        <div class="chat-message user-message">
+          🎮 ይጫወቱ
+          <small class="msg-time">9:31 AM <span style="color: #4caf50;">✓✓</span></small>
+        </div>
+        <div class="chat-message bot-message">
+          <div class="bot-msg-title">🚀 ጨዋታውን አስጀምር</div>
+          <div class="bot-msg-text">በፍጥነት ካርቴላ ይዘው ጨዋታ ውስጥ ለመሳተፍ ከታች ያለውን ይጫኑ! መልካም እድል!</div>
+          <small class="msg-time">9:31 AM</small>
+          <button class="keyboard-btn full-width" id="finalPlayBtn" style="margin-top: 5px; border-radius: 8px;">🎰 ተጫወት
+            (Play)</button>
+          <button class="keyboard-btn full-width" id="chatBackBtn"
+            style="margin-top: 6px; background: #f1f5f9; font-size: 13px; border-radius: 8px;">⬅️ ተመለስ (Back)</button>
+        </div>
+      </div>
+
+      <!-- VIP Chat State (Matching Screenshot 1) -->
+      <div class="telegram-chat-state" id="telegramVipChatState" hidden>
+        <div class="chat-message user-message">
+          💎 VIP ክፍል
+          <small class="msg-time">2:51 PM <span style="color: #4caf50;">✓✓</span></small>
+        </div>
+        <div class="chat-message bot-message" style="line-height: 1.5; font-size: 13.5px;">
+          <div style="font-weight: 800; font-size: 15px; margin-bottom: 6px; color: #0284c7;">💎 VIP ክፍል</div>
+          <div style="margin-bottom: 8px;">ከፍተኛ ዕድል • 50 ETB ውርድ • ከፍተኛ 2 ካርዶች<br>🎴 50 ልዩ ካርዶች — ለልዩ VIP ብቻ</div>
+          <div style="margin-bottom: 8px;">💰 VIP ሂሳብ: <b class="val-vip-chat">0.00 ETB</b><br>🏆 ጠቅላላ ያሸነፉት: <b>0.00
+              ETB</b></div>
+          <div style="font-size: 12px; color: #64748b; font-style: italic; margin-bottom: 8px;">ማስታወሻ: VIP ካርድ ለመግዛት
+            የሚያስፈልገው ገንዘብ ከ አዲስ ገቢ ብቻ ነው።</div>
+          <div style="margin-bottom: 6px; font-weight: 600;">አሁኑኑ ይግቡ:</div>
+          <button class="keyboard-btn full-width" id="btnEnterVipRoom" type="button"
+            style="margin-top: 4px; background: #0284c7; color: #ffffff; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; font-size: 14px; border: none; cursor: pointer;"
+            onclick="window.switchToVipRoomView();">
+            💎 VIP ክፍል ይግቡ
+          </button>
+          <button class="keyboard-btn full-width" id="vipChatBackBtn" type="button"
+            style="margin-top: 6px; background: #f1f5f9; color: #1e293b; font-size: 13px; border-radius: 8px;"
+            onclick="closeAllTelegramModals();">⬅️ ተመለስ (Back)</button>
+        </div>
+      </div>
+
+      <!-- Support Chat State (Matching /support) -->
+      <div class="telegram-chat-state" id="telegramSupportChatState" hidden>
+        <div class="chat-message user-message">
+          Contact the Support! (...or send your message here) /support
+          <small class="msg-time">5:25 PM <span style="color: #4caf50;">✓✓</span></small>
+        </div>
+        <div class="chat-message bot-message" style="line-height: 1.6; font-size: 14px;">
+          <div
+            style="font-weight: 800; font-size: 15px; margin-bottom: 8px; color: #ef4444; display: flex; align-items: center; gap: 6px;">
+            🆘 AB Bingo እርዳታ (Support)
+          </div>
+          <div style="margin-bottom: 10px; font-size: 14px; color: #f8fafc;">
+            👤 <b>Admin:</b> adissu
+          </div>
+          <div style="margin-bottom: 6px; font-weight: 700; color: #ffd700;">
+            👇 ወይም እዚሁ ይጻፉ:
+          </div>
+          <div style="margin-bottom: 12px; color: #cbd5e1; font-size: 13px;">
+            መልእክትዎትን እዚሁ መጻፍ ይችላሉ፣ ለ አድሚን በቀጥታ ይደርሳል።
+          </div>
+          <form id="chatSupportForm" style="display: flex; flex-direction: column; gap: 8px;">
+            <textarea id="chatSupportMsgInput" placeholder="መልእክትዎን እዚህ ይጻፉ..." rows="3"
+              style="width: 100%; border-radius: 8px; padding: 10px; background: #0b1424; border: 1px solid #1e3a5f; color: #ffffff; resize: none; font-size: 13.5px; box-sizing: border-box; outline: none;"></textarea>
+            <button class="keyboard-btn full-width" type="submit"
+              style="background: #2563eb; color: #ffffff; font-weight: 700; border-radius: 8px; padding: 10px; border: none; cursor: pointer;">
+              ✉️ መልእክት ላክ (Send to Admin)
+            </button>
+          </form>
+          <button class="keyboard-btn full-width" id="supportChatBackBtn" type="button"
+            style="margin-top: 6px; background: #f1f5f9; color: #1e293b; font-size: 13px; border-radius: 8px;"
+            onclick="closeAllTelegramModals();">⬅️ ተመለስ (Back)</button>
+        </div>
+      </div>
+
+      <div class="floating-menu-bar">
+        <button class="menu-toggle-btn" id="menuToggleBtn">
+          ✕ Menu
+        </button>
+        <div class="menu-input-mock">
+          😊 <span style="opacity: 0.5">Message</span>
+        </div>
+        <div class="menu-icons-mock">
+          <span class="mic-icon">🎤</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. Play Rooms Modal -->
+    <div class="modal-backdrop" id="roomsModal" hidden>
+      <div class="modal-dialog">
+        <div class="modal-header-nav">
+          <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
+          <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
+        </div>
+        <h2>🎰 Play Bingo</h2>
+        <p style="color: var(--habesha-muted); margin-bottom: 20px;">Welcome to AB Bingo! Select an available game below
+          to join the fun and win prizes.</p>
+        <div id="roomsList" class="rooms-list"></div>
+        <button class="btn btn-outline full modal-bottom-back-btn" style="margin-top: 15px;"
+          onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
+      </div>
+    </div>
+
+    <!-- 2. Balance / አሸን Modal -->
+    <div class="modal-backdrop" id="balanceModal" hidden>
+      <div class="modal-dialog">
+        <div class="modal-header-nav">
+          <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
+          <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
+        </div>
+        <h2>💰 የሂሳብ መጠን (Balance)</h2>
+        <div class="wallet-grid" style="grid-template-columns: 1fr; margin-bottom: 15px;">
+          <div class="balance-card main-balance" style="margin-bottom: 10px;">
+            <span>ዋና ሂሳብ (Main Balance)</span>
+            <strong id="modalMainBalance">0.00 ETB</strong>
+            <small>ለመደበኛ ጨዋታዎች የሚያገለግል</small>
+          </div>
+          <div class="balance-card vip-balance">
+            <span>VIP ሂሳብ (VIP Balance)</span>
+            <strong id="modalVipBalance">0.00 ETB</strong>
+            <small>ለ VIP ክፍል ጨዋታዎች</small>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+          <button class="btn btn-gold full" onclick="openTelegramModal('depositModal')">📥 ገቢ አድርግ</button>
+          <button class="btn btn-outline full" onclick="openTelegramModal('withdrawalModal')">📤 ወጪ አድርግ</button>
+        </div>
+        <button class="btn btn-outline full modal-bottom-back-btn" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to
+          Menu)</button>
+      </div>
+    </div>
+
+    <!-- 3. Deposit / በላኩት Modal -->
+    <div class="modal-backdrop" id="depositModal" hidden>
+      <div class="modal-dialog">
+        <div class="modal-header-nav">
+          <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
+          <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
+        </div>
+        <h2>📥 ገንዘብ አስገባ (Deposit)</h2>
+        <p style="color: var(--habesha-muted); font-size: 13px; margin-bottom: 15px;">የፈለጉትን የክፍያ አማራጭ በመጠቀም ሂሳብዎን ይሙሉ
+          (ቴሌብር፣ CBE Birr፣ M-Pesa)</p>
+        <div id="modalPaymentAccountsContainer" class="payment-accounts-container"
+          style="display:block; padding:12px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:8px;">
+          <div
+            style="font-size:12px;color:var(--habesha-gold, #f3ca56);margin-bottom:8px;font-weight:700;display:flex;align-items:center;justify-content:space-between;letter-spacing:0.5px;">
+            <span>📱 የክፍያ መላኪያ ሂሳብ (DEPOSIT ACCOUNT)</span>
+            <span
+              style="font-size:10px;background:#10b981;color:#fff;padding:2px 8px;border-radius:10px;font-weight:bold;">●
+              ACTIVE</span>
+          </div>
+          <div
+            style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(0,0,0,0.25);border-radius:6px;border:1px solid rgba(59,130,246,0.3);">
+            <div>
+              <div style="font-weight:bold;color:#60a5fa;font-size:13px;display:flex;align-items:center;gap:5px;">
+                📱 TeleBirr <span
+                  style="font-size:10px;background:#3b82f622;color:#60a5fa;padding:1px 5px;border-radius:4px;">RECOMMENDED</span>
+              </div>
+              <div style="font-size:12px;color:#cbd5e1;margin-top:2px;">ስም: <b>Abrham</b></div>
+            </div>
+            <div style="text-align:right;">
+              <code
+                style="font-size:15px;font-weight:bold;color:#facc15;background:rgba(0,0,0,0.4);padding:4px 8px;border-radius:4px;letter-spacing:0.5px;">0951666750</code>
+            </div>
+          </div>
+        </div>
+        <label>የክፍያ ዘዴ
+          <select name="method"
+            style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;">
+            <option>TeleBirr</option>
+            <option>CBE Birr</option>
+            <option>M-Pesa</option>
+            <option>E-Birr</option>
+          </select>
+        </label>
+        <label>የገንዘብ መጠን (ETB)
+          <input name="amount" type="number" min="10" value="10"
+            style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;">
+        </label>
+        <label>የክፍያ ማረጋገጫ ቁጥር (Txn Reference)
+          <input name="reference" placeholder="ምሳሌ፡ FT234892..."
+            style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;">
+        </label>
+        <button class="btn btn-gold full" type="submit" style="margin-top: 5px;">ገቢ ጠይቅ (Submit Deposit)</button>
         </form>
-        <form class="panel" id="withdrawForm" style="border: 1px solid rgba(245, 183, 22, 0.3);">
-          <div class="eyebrow" style="color:var(--habesha-gold);">SECURE CASH OUT</div><h3>ገንዘብ አውጣ (Withdrawal)</h3>
-          <div style="background:rgba(245,183,22,0.08); padding:8px 12px; border-radius:6px; margin-bottom:10px; font-size:12px; color:var(--habesha-muted);">
-            💡 ያሸነፉትን ገንዘብ በቀጥታ ወደ ቴሌብር ወይም ባንክ አካውንትዎ ያውጡ።
+        <button class="btn btn-outline full modal-bottom-back-btn" style="margin-top: 10px;"
+          onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
+      </div>
+    </div>
+
+    <!-- 4. Withdraw / ወጪ ላኩት Modal -->
+    <div class="modal-backdrop" id="withdrawalModal" hidden>
+      <div class="modal-dialog">
+        <div class="modal-header-nav">
+          <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
+          <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
+        </div>
+        <h2>📤 ገንዘብ አውጣ (Withdraw Funds)</h2>
+        <div
+          style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px; margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <span style="font-size: 11px; color: var(--habesha-muted); display: block;">ሊወጣ የሚችል ሂሳብ</span>
+            <strong id="modalWithdrawableBal" style="font-size: 16px; color: #10b981;">0.00 ETB</strong>
           </div>
-          <label>ዋሌት (Wallet)<select name="wallet"><option value="main">🎮 ዋና ሂሳብ (Main Game)</option></select></label>
-          <label>የክፍያ ዘዴ (Payout Method)
-            <select name="method" id="withdrawMethodSelect" required>
+          <div style="text-align: right;">
+            <span style="font-size: 11px; color: var(--habesha-muted); display: block;">ዝቅተኛ ማውጫ</span>
+            <strong style="font-size: 14px; color: var(--habesha-gold);">100 ETB</strong>
+          </div>
+        </div>
+        <form id="modalWithdrawForm" style="display: flex; flex-direction: column; gap: 10px;">
+          <label>የማውጫ ዘዴ (Payout Method)
+            <select name="method" id="modalWithdrawMethodSelect"
+              style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;"
+              required>
               <option value="TeleBirr">📱 TeleBirr (ቴሌብር)</option>
               <option value="CBE Birr">🏦 CBE Birr (ሲቢኢ ብር)</option>
               <option value="CBE Bank">🏛 Commercial Bank of Ethiopia (CBE)</option>
@@ -156,1062 +663,748 @@
               <option value="E-Birr">🟡 E-Birr</option>
             </select>
           </label>
-          <div style="display:flex; flex-direction:column; gap:4px;">
-            <label>የብር መጠን (Amount ETB)
-              <input name="amount" id="withdrawAmountInput" type="number" min="100" value="100" required>
-            </label>
-            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
-              <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px;" onclick="document.getElementById('withdrawAmountInput').value=100">100</button>
-              <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px;" onclick="document.getElementById('withdrawAmountInput').value=200">200</button>
-              <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px;" onclick="document.getElementById('withdrawAmountInput').value=500">500</button>
-              <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px;" onclick="document.getElementById('withdrawAmountInput').value=1000">1000</button>
-              <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px; color:var(--habesha-gold); border-color:var(--habesha-gold);" id="withdrawMaxBtn">ሙሉውን (Max)</button>
-            </div>
-          </div>
-          <label>የተቀባይ ሂሳብ ወይም ስልክ ቁጥር (Account / Phone)
-            <input name="account" id="withdrawAccountInput" placeholder="ምሳሌ፡ 09xxxxxxxx ወይም 1000xxxxxxxxx" required>
+          <label>የገንዘብ መጠን (ETB)
+            <input name="amount" id="modalWithdrawAmountInput" type="number" min="100" value="100"
+              style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;"
+              required>
           </label>
-          <label>የሂሳብ ባለቤት ሙሉ ስም (Account Holder Name — KYC)
-            <input name="account_name" id="withdrawAccountNameInput" placeholder="ምሳሌ፡ Abebe Kebede" required>
+          <label>ስልክ ቁጥር ወይም አካውንት (Account / Phone)
+            <input name="account" id="modalWithdrawAccountInput" placeholder="ምሳሌ፡ 09xxxxxxxx ወይም 1000xxxxxxxxx"
+              style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;"
+              required>
           </label>
-          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; font-size:12px; margin-top:4px; color:var(--habesha-muted);">
-            <input type="checkbox" name="is_adult" checked required style="width:auto; margin-top:2px;">
-            <span>ዕድሜዬ ከ18 ዓመት በላይ መሆኑን እና የገባሁት የባንክ/ቴሌብር መረጃ ትክክለኛ መሆኑን አረጋግጣለሁ (18+ & KYC Confirmation)</span>
+          <label>የሂሳብ ባለቤት ሙሉ ስም (Account Holder Name)
+            <input name="account_name" id="modalWithdrawAccountNameInput" placeholder="ምሳሌ፡ Abebe Kebede"
+              style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;"
+              required>
           </label>
-          <button class="btn btn-gold full" style="margin-top:8px;" id="submitWithdrawBtn">📤 የወጪ ጥያቄ ላክ (Request Withdrawal)</button>
-          <small class="hint">ደህንነቱ የተጠበቀ ክፍያ። ጥያቄው እንደገባ ወዲያውኑ ቀሪ ሂሳብዎ ተቀናሽ ሆኖ በአስተዳዳሪው ይረጋገጣል።</small>
+          <label
+            style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 11.5px; color: var(--habesha-muted); margin-top: 2px;">
+            <input type="checkbox" name="is_adult" checked required style="width: auto; margin-top: 2px;">
+            <span>ዕድሜዬ 18 ዓመትና ከዚያ በላይ መሆኑን አረጋግጣለሁ (18+ Confirmation)</span>
+          </label>
+          <button class="btn btn-gold full" type="submit" style="margin-top: 5px;">📤 ወጪ ጠይቅ (Request
+            Withdrawal)</button>
         </form>
+        <button class="btn btn-outline full modal-bottom-back-btn" style="margin-top: 10px;"
+          onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
       </div>
+    </div>
 
-      <!-- Player's My Withdrawal History Table -->
-      <div class="panel" style="margin-top: 20px;">
-        <div class="section-title" style="margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <div class="eyebrow">TRANSACTION HISTORY</div>
-            <h3>የእርስዎ የወጪ ጥያቄዎች (My Withdrawal Requests)</h3>
+    <!-- 5. Referral / ጋር & አጋር Modal -->
+    <div class="modal-backdrop" id="referralModal" hidden>
+      <div class="modal-dialog">
+        <div class="modal-header-nav">
+          <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
+          <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
+        </div>
+        <h2>🔗 ጋብዝ & አግኝ (Refer & Earn)</h2>
+        <p style="color: var(--habesha-muted); font-size: 13px; margin-bottom: 15px;">ጓደኞችዎን በቴሌግራም ይጋብዙ እና በእያንዳንዱ ምዝገባ
+          የቦነስ ሽልማት ያግኙ!</p>
+        <div
+          style="background: #081a30; border: 1px solid #1f3c57; border-radius: 12px; padding: 16px; margin-bottom: 15px;">
+          <div style="font-size: 12px; color: var(--habesha-muted); margin-bottom: 5px;">የእርስዎ መጋበዣ ሊንክ (Invite Link)
           </div>
-          <button class="btn btn-outline" type="button" id="refreshPlayerWithdrawalsBtn" style="padding:4px 10px; font-size:12px;">🔄 አድስ (Refresh)</button>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>መጠን (Amount)</th>
-                <th>ዘዴ (Method)</th>
-                <th>አካውንት (Account)</th>
-                <th>የባለቤት ስም</th>
-                <th>ቀን (Date)</th>
-                <th>ሁኔታ (Status)</th>
-              </tr>
-            </thead>
-            <tbody id="playerWithdrawalsTableBody">
-              <tr><td colspan="6" style="text-align:center; padding:16px; color:var(--habesha-muted);">እስካሁን ምንም የወጪ ጥያቄ የለም።</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="winners">
-      <div class="section-title">
-        <div><div class="eyebrow">RESULTS</div><h2>Recent Winners</h2></div>
-      </div>
-      <div class="winner-grid" id="winnersGrid"><div class="empty-card">No completed games yet.</div></div>
-    </section>
-
-    <section class="section how" id="how">
-      <div class="section-title"><div><div class="eyebrow">HOW IT WORKS</div><h2>Simple Player Journey</h2></div></div>
-      <div class="steps">
-        <div class="step" data-step-action="account" role="button" tabindex="0"><b>01</b><h3>Create account</h3><p>Register with your name, phone number and password.</p></div>
-        <div class="step" data-step-action="wallet" role="button" tabindex="0"><b>02</b><h3>Fund wallet</h3><p>Deposit from 10 ETB through the configured payment workflow.</p></div>
-        <div class="step" data-step-action="game" role="button" tabindex="0"><b>03</b><h3>Join game</h3><p>Main game entry is 10 ETB per player.</p></div>
-        <div class="step" data-step-action="game" role="button" tabindex="0"><b>04</b><h3>Play Bingo</h3><p>Watch numbers, mark your card and complete a valid pattern.</p></div>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    <div class="brand"><span>AB</span> BINGO</div>
-    <p>© 2026 AB Bingo. የኢትዮጵያውያን ቁጥር አንድ የቢንጎ ጨዋታ መድረክ። Authentic AB Bingo gaming experience.</p>
-  </footer>
-  <div class="auth-backdrop" id="authBackdrop" hidden>
-    <form class="auth-dialog" id="authForm">
-      <button class="auth-close" type="button" id="authClose" aria-label="Close">&times;</button>
-      <div class="eyebrow">PLAYER ACCOUNT</div>
-      <h2 id="authTitle">Login</h2>
-      <p id="authPrompt">Use your phone number and password to continue.</p>
-      <label id="nameField" hidden>Name<input name="name" autocomplete="name"></label>
-      <label>Phone number<input name="phone" type="tel" autocomplete="tel" required></label>
-      <label id="passwordField">Password<input name="password" type="password" autocomplete="current-password" required></label>
-      <label id="resetTokenField" hidden>Reset token<input name="resetToken" autocomplete="off"></label>
-      <label id="resetPasswordField" hidden>New password<input name="resetPassword" type="password" autocomplete="new-password"></label>
-      <button class="btn btn-gold full" id="authSubmit">Login</button>
-      <button class="auth-switch" type="button" id="authSwitch">Create an account</button>
-      <button class="auth-switch" type="button" id="authForgot">Forgot password?</button>
-    </form>
-  </div>
-  <div class="floating-menu-container">
-    <!-- Initial Text Menu -->
-    <div class="floating-menu-popup" id="floatingMenuPopup" hidden>
-      <div class="menu-drag-handle"></div>
-      <button class="menu-item" id="menuStartBtn">
-        <span>START PLAYING AB BINGO GAME!</span>
-        <small>/start</small>
-      </button>
-      <button class="menu-item" id="menuDepositFundBtn">
-        <span>Deposit Fund!</span>
-        <small>/deposit</small>
-      </button>
-      <button class="menu-item" id="menuWithdrawFundBtn">
-        <span>Withdraw Funds!</span>
-        <small>/withdraw</small>
-      </button>
-      <button class="menu-item" id="menuSupportBtnText">
-        <span>Contact the Support! (...or send your message here)</span>
-        <small>/support</small>
-      </button>
-      <button class="menu-item" id="menuLangToggleBtn">
-        <span>Change the language from Amharic to English!</span>
-        <small>/language</small>
-      </button>
-    </div>
-
-    <!-- Secondary Grid Keyboard (10 Buttons) -->
-    <div class="telegram-keyboard" id="telegramKeyboard" hidden>
-      <div class="keyboard-row">
-        <button class="keyboard-btn full-width" id="menuBtnPlay">🎮 ይጫወቱ</button>
-      </div>
-      <div class="keyboard-row">
-        <button class="keyboard-btn" id="menuBtnBalance">💰 ሂሳብ</button>
-        <button class="keyboard-btn" id="menuBtnDeposit">📥 ገቢ ለማድረግ</button>
-      </div>
-      <div class="keyboard-row">
-        <button class="keyboard-btn" id="menuBtnWithdraw">📤 ወጪ ለማድረግ</button>
-        <button class="keyboard-btn" id="menuBtnReferral">🔗 ጋብዝ & አግኝ</button>
-      </div>
-      <div class="keyboard-row">
-        <button class="keyboard-btn" id="menuBtnVip">💎 VIP ክፍል</button>
-        <button class="keyboard-btn" id="menuBtnPromoter">⭐ Special Promoter</button>
-      </div>
-      <div class="keyboard-row">
-        <button class="keyboard-btn" id="menuBtnSupport">🆘 እርዳታ</button>
-        <button class="keyboard-btn" id="menuBtnRules">📜 ደንቦች</button>
-      </div>
-      <div class="keyboard-row">
-        <button class="keyboard-btn full-width" id="menuBtnRewards">🎁 የተለያዩ ማስታወቂያ</button>
-      </div>
-    </div>
-
-    <!-- Deposit Chat State for step-by-step deposit flow (above keyboards) -->
-    <div class="telegram-chat-state" id="telegramDepositChatState" hidden>
-      <div id="depositChatMessages" style="display: flex; flex-direction: column; gap: 8px;"></div>
-    </div>
-
-    <!-- Deposit Step 1 Keyboard (Image 1: 🎮 ዋናው ጨዋታ | 💎 VIP ክፍል | አቋርጥ) -->
-    <div class="telegram-keyboard tg-deposit-keyboard" id="telegramDepositTypeKeyboard" hidden>
-      <div class="keyboard-row">
-        <button class="keyboard-btn" id="btnDepositMainGame">🎮 ዋናው ጨዋታ</button>
-        <button class="keyboard-btn" id="btnDepositVip">💎 VIP ክፍል</button>
-      </div>
-      <div class="keyboard-row">
-        <button class="keyboard-btn full-width" id="btnDepositCancel1">አቋርጥ</button>
-      </div>
-    </div>
-
-    <!-- Deposit Step 2 Keyboard (Image 2: TeleBirr, CBE Birr, MPesa, E-Birr, አቋርጥ) -->
-    <div class="telegram-keyboard tg-deposit-keyboard" id="telegramDepositMethodKeyboard" hidden>
-      <div class="keyboard-row">
-        <button class="keyboard-btn" id="btnMethodTelebirr" data-method="TeleBirr">TeleBirr</button>
-        <button class="keyboard-btn" id="btnMethodCbe" data-method="CBE Birr">CBE Birr</button>
-      </div>
-      <div class="keyboard-row">
-        <button class="keyboard-btn" id="btnMethodMpesa" data-method="M-Pesa">MPesa</button>
-        <button class="keyboard-btn" id="btnMethodEbirr" data-method="E-Birr">E-Birr</button>
-      </div>
-      <div class="keyboard-row">
-        <button class="keyboard-btn full-width" id="btnDepositCancel2">አቋርጥ</button>
-      </div>
-    </div>
-
-    <!-- Deposit Step 3 Keyboard: TxID Input, [ 1 / Submit ] and [ አቋርጥ ] -->
-    <div class="telegram-keyboard tg-deposit-keyboard" id="telegramDepositConfirmKeyboard" hidden>
-      <div style="padding: 10px 14px; background: rgba(7, 24, 44, 0.95); border: 1px solid #1e3a5f; border-radius: 12px; margin-bottom: 8px;">
-        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-          <input type="text" id="depositTxidInput" placeholder="የክፍያ ማረጋገጫ (TxID / SMS) እዚህ ይለጥፉ..." style="flex: 1; padding: 10px 12px; border-radius: 8px; border: 1px solid #294963; background: #0b1d33; color: #fff; font-size: 14px;">
-          <button type="button" id="btnPasteTxid" class="keyboard-btn" style="padding: 0 12px; font-size: 13px; background: #1e3a5f; color: #fff; border-radius: 8px;">📋 Paste</button>
-        </div>
-        <div style="display: flex; gap: 6px; align-items: center; justify-content: space-between;">
-          <div style="display: flex; gap: 6px; align-items: center;">
-            <label style="font-size: 12px; color: var(--habesha-muted);">መጠን:</label>
-            <input type="number" id="depositAmountInput" value="100" min="10" step="10" style="width: 80px; padding: 6px 8px; border-radius: 6px; border: 1px solid #294963; background: #0b1d33; color: #fff; font-weight: bold; text-align: center;">
-            <span style="font-size: 12px; color: var(--habesha-gold); font-weight: bold;">ETB</span>
+          <div style="display: flex; gap: 8px;">
+            <input id="refLinkInput" readonly value="https://t.me/HbeshabingoBot?start=ref1029"
+              style="flex: 1; padding: 10px; border-radius: 8px; background: #07182c; border: 1px solid #294963; color: var(--habesha-gold); font-weight: bold;">
+            <button class="btn btn-gold" onclick="copyReferralLink()">ኮፒ (Copy)</button>
           </div>
-          <small style="font-size: 11px; color: #4ade80;">✓ ፈጣን ማረጋገጫ</small>
         </div>
-      </div>
-      <div class="keyboard-row">
-        <button class="keyboard-btn full-width" id="btnDepositConfirm1" style="font-size: 15px; font-weight: bold; background: linear-gradient(135deg, #10b981, #059669); color: #fff;">✅ 1. አስገባ & ተጫወት (Submit & Play)</button>
-      </div>
-      <div class="keyboard-row">
-        <button class="keyboard-btn full-width" id="btnDepositCancel3">አቋርጥ</button>
-      </div>
-    </div>
-    
-    <!-- Third state: Chat Message -->
-    <div class="telegram-chat-state" id="telegramChatState" hidden>
-      <div class="chat-message user-message">
-        🎮 ይጫወቱ
-        <small class="msg-time">9:31 AM <span style="color: #4caf50;">✓✓</span></small>
-      </div>
-      <div class="chat-message bot-message">
-        <div class="bot-msg-title">🚀 ጨዋታውን አስጀምር</div>
-        <div class="bot-msg-text">በፍጥነት ካርቴላ ይዘው ጨዋታ ውስጥ ለመሳተፍ ከታች ያለውን ይጫኑ! መልካም እድል!</div>
-        <small class="msg-time">9:31 AM</small>
-        <button class="keyboard-btn full-width" id="finalPlayBtn" style="margin-top: 5px; border-radius: 8px;">🎰 ተጫወት (Play)</button>
-        <button class="keyboard-btn full-width" id="chatBackBtn" style="margin-top: 6px; background: #f1f5f9; font-size: 13px; border-radius: 8px;">⬅️ ተመለስ (Back)</button>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+          <div
+            style="background: #081a30; border: 1px solid #1f3c57; border-radius: 10px; padding: 12px; text-align: center;">
+            <small style="color: var(--habesha-muted); display: block;">የተጋበዙ ሰዎች</small>
+            <strong style="font-size: 20px; color: #fff;">0</strong>
+          </div>
+          <div
+            style="background: #081a30; border: 1px solid #1f3c57; border-radius: 10px; padding: 12px; text-align: center;">
+            <small style="color: var(--habesha-muted); display: block;">የተገኘ ገቢ</small>
+            <strong style="font-size: 20px; color: var(--habesha-gold);">0.00 ETB</strong>
+          </div>
+        </div>
+        <button class="btn btn-outline full modal-bottom-back-btn" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to
+          Menu)</button>
       </div>
     </div>
 
-    <!-- VIP Chat State (Matching Screenshot 1) -->
-    <div class="telegram-chat-state" id="telegramVipChatState" hidden>
-      <div class="chat-message user-message">
-        💎 VIP ክፍል
-        <small class="msg-time">2:51 PM <span style="color: #4caf50;">✓✓</span></small>
-      </div>
-      <div class="chat-message bot-message" style="line-height: 1.5; font-size: 13.5px;">
-        <div style="font-weight: 800; font-size: 15px; margin-bottom: 6px; color: #0284c7;">💎 VIP ክፍል</div>
-        <div style="margin-bottom: 8px;">ከፍተኛ ዕድል • 50 ETB ውርድ • ከፍተኛ 2 ካርዶች<br>🎴 50 ልዩ ካርዶች — ለልዩ VIP ብቻ</div>
-        <div style="margin-bottom: 8px;">💰 VIP ሂሳብ: <b class="val-vip-chat">0.00 ETB</b><br>🏆 ጠቅላላ ያሸነፉት: <b>0.00 ETB</b></div>
-        <div style="font-size: 12px; color: #64748b; font-style: italic; margin-bottom: 8px;">ማስታወሻ: VIP ካርድ ለመግዛት የሚያስፈልገው ገንዘብ ከ አዲስ ገቢ ብቻ ነው።</div>
-        <div style="margin-bottom: 6px; font-weight: 600;">አሁኑኑ ይግቡ:</div>
-        <button class="keyboard-btn full-width" id="btnEnterVipRoom" type="button" style="margin-top: 4px; background: #0284c7; color: #ffffff; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; font-size: 14px; border: none; cursor: pointer;" onclick="window.switchToVipRoomView();">
-          💎 VIP ክፍል ይግቡ
-        </button>
-        <button class="keyboard-btn full-width" id="vipChatBackBtn" type="button" style="margin-top: 6px; background: #f1f5f9; color: #1e293b; font-size: 13px; border-radius: 8px;" onclick="closeAllTelegramModals();">⬅️ ተመለስ (Back)</button>
+    <!-- 6. VIP Room / VIP ክፍል Modal -->
+    <div class="modal-backdrop" id="vipModal" hidden>
+      <div class="modal-dialog">
+        <div class="modal-header-nav">
+          <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
+          <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
+        </div>
+        <h2>💎 VIP ቢንጎ ክፍል (VIP Room)</h2>
+        <p style="color: var(--habesha-muted); font-size: 13px; margin-bottom: 15px;">ከፍተኛ ሽልማት እና ልዩ የቢንጎ ተሞክሮ ለ VIP
+          አባላት!</p>
+        <div
+          style="background: linear-gradient(135deg, #182848, #0c182c); border: 1px solid #ffd700; border-radius: 14px; padding: 18px; margin-bottom: 15px; text-align: center;">
+          <div style="font-size: 24px; margin-bottom: 5px;">👑 VIP MEGA JACKPOT</div>
+          <div style="font-size: 28px; font-weight: 900; color: #ffd700; margin-bottom: 5px;">10,000+ ETB</div>
+          <small style="color: #94a3b8;">የመግቢያ ዋጋ: 50 ETB | አነስተኛ ተጫዋች: 20</small>
+        </div>
+        <button class="btn btn-gold full" id="btnJoinVipModal" type="button"
+          style="margin-bottom: 10px; font-weight: 800; font-size: 16px; padding: 14px; cursor: pointer;"
+          onclick="window.switchToVipRoomView();">ክፍሉን ተቀላቀል (Join VIP)</button>
+        <button class="btn btn-outline full modal-bottom-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️
+          ተመለስ (Back to Menu)</button>
       </div>
     </div>
 
-    <!-- Support Chat State (Matching /support) -->
-    <div class="telegram-chat-state" id="telegramSupportChatState" hidden>
-      <div class="chat-message user-message">
-        Contact the Support! (...or send your message here) /support
-        <small class="msg-time">5:25 PM <span style="color: #4caf50;">✓✓</span></small>
+    <!-- 7. Special Promoter Modal -->
+    <div class="modal-backdrop" id="promoterModal" hidden>
+      <div class="modal-dialog">
+        <div class="modal-header-nav">
+          <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
+          <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
+        </div>
+        <h2>🌟 Special Promoter ፕሮግራም</h2>
+        <p style="color: var(--habesha-muted); font-size: 13px; margin-bottom: 15px;">የ AB Bingo ልዩ አስተዋዋቂ (Promoter)
+          በመሆን እስከ 25% ቋሚ ኮሚሽን በየሳምንቱ ያግኙ!</p>
+        <div
+          style="background: #081a30; border: 1px solid #1f3c57; border-radius: 12px; padding: 14px; margin-bottom: 15px;">
+          <h4 style="margin: 0 0 8px; color: var(--habesha-gold);">የአስተዋዋቂ ጥቅሞች:</h4>
+          <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+            <li>በየቀኑ የሚታይ የቀጥታ ገቢ ዳሽቦርድ</li>
+            <li>ፈጣን ሳምንታዊ የኮሚሽን ክፍያ በቴሌብር</li>
+            <li>ለተከታዮችዎ የሚሰጡ ነፃ የጨዋታ ኮዶች</li>
+          </ul>
+        </div>
+        <button class="btn btn-gold full" style="margin-bottom: 10px;"
+          onclick="toast('ማመልከቻዎ ተመዝግቧል! በቅርቡ እናገኝዎታለን')">አስተዋዋቂ ለመሆን አመልክት (Apply)</button>
+        <button class="btn btn-outline full modal-bottom-back-btn" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to
+          Menu)</button>
       </div>
-      <div class="chat-message bot-message" style="line-height: 1.6; font-size: 14px;">
-        <div style="font-weight: 800; font-size: 15px; margin-bottom: 8px; color: #ef4444; display: flex; align-items: center; gap: 6px;">
-          🆘 AB Bingo እርዳታ (Support)
+    </div>
+
+    <!-- 8. Support / እርዳታ Modal -->
+    <div class="modal-backdrop" id="supportModal" hidden>
+      <div class="modal-dialog">
+        <div class="modal-header-nav">
+          <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
+          <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
         </div>
-        <div style="margin-bottom: 10px; font-size: 14px; color: #f8fafc;">
-          👤 <b>Admin:</b> adissu
+        <h2>🆘 AB Bingo እርዳታ (Support)</h2>
+        <div
+          style="background: #081a30; border: 1px solid #1f3c57; border-radius: 12px; padding: 14px; margin-bottom: 14px; line-height: 1.6; font-size: 14px; color: #e2e8f0;">
+          <div style="font-weight: 700; margin-bottom: 6px; color: #f8fafc; font-size: 15px;">👤 Admin: adissu</div>
+          <div style="font-weight: 700; color: #ffd700; margin-bottom: 4px;">👇 ወይም እዚሁ ይጻፉ:</div>
+          <div style="font-size: 13px; color: #94a3b8;">መልእክትዎትን እዚሁ መጻፍ ይችላሉ፣ ለ አድሚን በቀጥታ ይደርሳል።</div>
         </div>
-        <div style="margin-bottom: 6px; font-weight: 700; color: #ffd700;">
-          👇 ወይም እዚሁ ይጻፉ:
+        <div class="support-tabs">
+          <button id="tabNewTicket" class="active">አዲስ ጥያቄ (New Ticket)</button>
+          <button id="tabMyTickets">የቀድሞ መልዕክቶች (My Tickets)</button>
         </div>
-        <div style="margin-bottom: 12px; color: #cbd5e1; font-size: 13px;">
-          መልእክትዎትን እዚሁ መጻፍ ይችላሉ፣ ለ አድሚን በቀጥታ ይደርሳል።
-        </div>
-        <form id="chatSupportForm" style="display: flex; flex-direction: column; gap: 8px;">
-          <textarea id="chatSupportMsgInput" placeholder="መልእክትዎን እዚህ ይጻፉ..." rows="3" style="width: 100%; border-radius: 8px; padding: 10px; background: #0b1424; border: 1px solid #1e3a5f; color: #ffffff; resize: none; font-size: 13.5px; box-sizing: border-box; outline: none;"></textarea>
-          <button class="keyboard-btn full-width" type="submit" style="background: #2563eb; color: #ffffff; font-weight: 700; border-radius: 8px; padding: 10px; border: none; cursor: pointer;">
-            ✉️ መልእክት ላክ (Send to Admin)
-          </button>
+        <form id="supportForm">
+          <label>ጉዳዩ (Subject)<input name="subject" value="የእርዳታ ጥያቄ" required></label>
+          <label>መልዕክትዎ (Message)<textarea name="message" rows="4" placeholder="መልእክትዎን እዚህ ይጻፉ..."
+              required></textarea></label>
+          <button class="btn btn-gold full" type="submit" style="margin-top: 10px;">✉️ ላክ (Send Message)</button>
         </form>
-        <button class="keyboard-btn full-width" id="supportChatBackBtn" type="button" style="margin-top: 6px; background: #f1f5f9; color: #1e293b; font-size: 13px; border-radius: 8px;" onclick="closeAllTelegramModals();">⬅️ ተመለስ (Back)</button>
+        <div id="myTickets" hidden class="my-tickets-list"></div>
+        <button class="btn btn-outline full modal-bottom-back-btn" style="margin-top: 12px;"
+          onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
       </div>
     </div>
 
-    <div class="floating-menu-bar">
-      <button class="menu-toggle-btn" id="menuToggleBtn">
-        ✕ Menu
-      </button>
-      <div class="menu-input-mock">
-        😊 <span style="opacity: 0.5">Message</span>
-      </div>
-      <div class="menu-icons-mock">
-        <span class="mic-icon">🎤</span>
+    <!-- 9. Rules / ደንቦች Modal -->
+    <div class="modal-backdrop" id="rulesModal" hidden>
+      <div class="modal-dialog">
+        <div class="modal-header-nav">
+          <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
+          <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
+        </div>
+        <h2>📜 የቢንጎ ጨዋታ ህጎችና ደንቦች (Rules)</h2>
+        <div
+          style="background: #081a30; border: 1px solid #1f3c57; border-radius: 12px; padding: 16px; margin-bottom: 15px; max-height: 320px; overflow-y: auto; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+          <h4 style="color: var(--habesha-gold); margin: 0 0 6px;">1. የካርቴላ አሞላል:</h4>
+          <p style="margin: 0 0 10px;">እያንዳንዱ ካርቴላ 5x5 የቁጥር ሰንጠረዥ ሲሆን ከ 1 እስከ 75 ቁጥሮችን ይይዛል።</p>
+          <h4 style="color: var(--habesha-gold); margin: 0 0 6px;">2. የማሸነፊያ መንገዶች (Winning Patterns):</h4>
+          <p style="margin: 0 0 10px;">በአግድም (Horizontal)፣ በቁም (Vertical)፣ ወይም በሰያፍ (Diagonal) 5 ቁጥሮችን ያሟላ የመጀመሪያው ተጫዋች
+            አሸናፊ ይሆናል።</p>
+          <h4 style="color: var(--habesha-gold); margin: 0 0 6px;">3. ሽልማት አከፋፈል:</h4>
+          <p style="margin: 0;">አሸናፊው ተጫዋች ወይም ተጫዋቾች ወዲያውኑ የደራሹን ጠቅላላ ገንዘብ በሂሳባቸው ገቢ ይደረግላቸዋል።</p>
+        </div>
+        <button class="btn btn-outline full modal-bottom-back-btn" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to
+          Menu)</button>
       </div>
     </div>
-  </div>
 
-  <!-- 1. Play Rooms Modal -->
-  <div class="modal-backdrop" id="roomsModal" hidden>
-    <div class="modal-dialog">
-      <div class="modal-header-nav">
-        <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
-        <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
+    <!-- 10. Rewards & Announcements / የተለያዩ ማስታወቂያ Modal -->
+    <div class="modal-backdrop" id="rewardsModal" hidden>
+      <div class="modal-dialog">
+        <div class="modal-header-nav">
+          <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
+          <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
+        </div>
+        <h2>🎁 የሽልማት ማዕከል እና ማስታወቂያዎች</h2>
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
+          <div style="background: #081a30; border: 1px solid #1f3c57; border-radius: 12px; padding: 14px;">
+            <h4 style="color: var(--habesha-gold); margin: 0 0 4px;">🎉 የእንኳን ደህና መጡ ቦነስ</h4>
+            <p style="margin: 0; font-size: 13px; color: #94a3b8;">በመጀመሪያ ተቀማጭዎ ላይ ተጨማሪ 20% የጨዋታ ቦነስ ያግኙ!</p>
+          </div>
+          <div style="background: #081a30; border: 1px solid #1f3c57; border-radius: 12px; padding: 14px;">
+            <h4 style="color: #2edbb4; margin: 0 0 4px;">🚀 የዕለቱ ሜጋ ጃክፖት</h4>
+            <p style="margin: 0; font-size: 13px; color: #94a3b8;">የዛሬው ጠቅላላ የደራሽ ሽልማት ከ 50,000 ETB በላይ ደርሷል።</p>
+          </div>
+        </div>
+        <button class="btn btn-gold full" style="margin-bottom: 10px;" onclick="toast('የዕለቱ ቦነስ በቅርቡ ገቢ ይደረጋል!')">ቦነስ
+          ውሰድ (Claim Bonus)</button>
+        <button class="btn btn-outline full modal-bottom-back-btn" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to
+          Menu)</button>
       </div>
-      <h2>🎰 Play Bingo</h2>
-      <p style="color: var(--habesha-muted); margin-bottom: 20px;">Welcome to AB Bingo! Select an available game below to join the fun and win prizes.</p>
-      <div id="roomsList" class="rooms-list"></div>
-      <button class="btn btn-outline full modal-bottom-back-btn" style="margin-top: 15px;" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
     </div>
-  </div>
 
-  <!-- 2. Balance / አሸን Modal -->
-  <div class="modal-backdrop" id="balanceModal" hidden>
-    <div class="modal-dialog">
-      <div class="modal-header-nav">
-        <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
-        <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
-      </div>
-      <h2>💰 የሂሳብ መጠን (Balance)</h2>
-      <div class="wallet-grid" style="grid-template-columns: 1fr; margin-bottom: 15px;">
-        <div class="balance-card main-balance" style="margin-bottom: 10px;">
-          <span>ዋና ሂሳብ (Main Balance)</span>
-          <strong id="modalMainBalance">0.00 ETB</strong>
-          <small>ለመደበኛ ጨዋታዎች የሚያገለግል</small>
-        </div>
-        <div class="balance-card vip-balance">
-          <span>VIP ሂሳብ (VIP Balance)</span>
-          <strong id="modalVipBalance">0.00 ETB</strong>
-          <small>ለ VIP ክፍል ጨዋታዎች</small>
-        </div>
-      </div>
-      <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-        <button class="btn btn-gold full" onclick="openTelegramModal('depositModal')">📥 ገቢ አድርግ</button>
-        <button class="btn btn-outline full" onclick="openTelegramModal('withdrawalModal')">📤 ወጪ አድርግ</button>
-      </div>
-      <button class="btn btn-outline full modal-bottom-back-btn" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
-    </div>
-  </div>
-
-  <!-- 3. Deposit / በላኩት Modal -->
-  <div class="modal-backdrop" id="depositModal" hidden>
-    <div class="modal-dialog">
-      <div class="modal-header-nav">
-        <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
-        <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
-      </div>
-      <h2>📥 ገንዘብ አስገባ (Deposit)</h2>
-      <p style="color: var(--habesha-muted); font-size: 13px; margin-bottom: 15px;">የፈለጉትን የክፍያ አማራጭ በመጠቀም ሂሳብዎን ይሙሉ (ቴሌብር፣ CBE Birr፣ M-Pesa)</p>
-        <div id="modalPaymentAccountsContainer" class="payment-accounts-container" style="display:block; padding:12px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:8px;">
-          <div style="font-size:12px;color:var(--habesha-gold, #f3ca56);margin-bottom:8px;font-weight:700;display:flex;align-items:center;justify-content:space-between;letter-spacing:0.5px;">
-            <span>📱 የክፍያ መላኪያ ሂሳብ (DEPOSIT ACCOUNT)</span>
-            <span style="font-size:10px;background:#10b981;color:#fff;padding:2px 8px;border-radius:10px;font-weight:bold;">● ACTIVE</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(0,0,0,0.25);border-radius:6px;border:1px solid rgba(59,130,246,0.3);">
-            <div>
-              <div style="font-weight:bold;color:#60a5fa;font-size:13px;display:flex;align-items:center;gap:5px;">
-                📱 TeleBirr <span style="font-size:10px;background:#3b82f622;color:#60a5fa;padding:1px 5px;border-radius:4px;">RECOMMENDED</span>
-              </div>
-              <div style="font-size:12px;color:#cbd5e1;margin-top:2px;">ስም: <b>Abrham</b></div>
-            </div>
-            <div style="text-align:right;">
-              <code style="font-size:15px;font-weight:bold;color:#facc15;background:rgba(0,0,0,0.4);padding:4px 8px;border-radius:4px;letter-spacing:0.5px;">0951666750</code>
-            </div>
-          </div>
-        </div>
-        <label>የክፍያ ዘዴ
-          <select name="method" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;">
-            <option>TeleBirr</option>
-            <option>CBE Birr</option>
-            <option>M-Pesa</option>
-            <option>E-Birr</option>
-          </select>
-        </label>
-        <label>የገንዘብ መጠን (ETB)
-          <input name="amount" type="number" min="10" value="10" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;">
-        </label>
-        <label>የክፍያ ማረጋገጫ ቁጥር (Txn Reference)
-          <input name="reference" placeholder="ምሳሌ፡ FT234892..." style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;">
-        </label>
-        <button class="btn btn-gold full" type="submit" style="margin-top: 5px;">ገቢ ጠይቅ (Submit Deposit)</button>
-      </form>
-      <button class="btn btn-outline full modal-bottom-back-btn" style="margin-top: 10px;" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
-    </div>
-  </div>
-
-  <!-- 4. Withdraw / ወጪ ላኩት Modal -->
-  <div class="modal-backdrop" id="withdrawalModal" hidden>
-    <div class="modal-dialog">
-      <div class="modal-header-nav">
-        <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
-        <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
-      </div>
-      <h2>📤 ገንዘብ አውጣ (Withdraw Funds)</h2>
-      <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px; margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <span style="font-size: 11px; color: var(--habesha-muted); display: block;">ሊወጣ የሚችል ሂሳብ</span>
-          <strong id="modalWithdrawableBal" style="font-size: 16px; color: #10b981;">0.00 ETB</strong>
-        </div>
-        <div style="text-align: right;">
-          <span style="font-size: 11px; color: var(--habesha-muted); display: block;">ዝቅተኛ ማውጫ</span>
-          <strong style="font-size: 14px; color: var(--habesha-gold);">100 ETB</strong>
-        </div>
-      </div>
-      <form id="modalWithdrawForm" style="display: flex; flex-direction: column; gap: 10px;">
-        <label>የማውጫ ዘዴ (Payout Method)
-          <select name="method" id="modalWithdrawMethodSelect" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;" required>
-            <option value="TeleBirr">📱 TeleBirr (ቴሌብር)</option>
-            <option value="CBE Birr">🏦 CBE Birr (ሲቢኢ ብር)</option>
-            <option value="CBE Bank">🏛 Commercial Bank of Ethiopia (CBE)</option>
-            <option value="Awash Bank">🏛 Awash Bank (አዋሽ ባንክ)</option>
-            <option value="Bank of Abyssinia">🏛 Bank of Abyssinia (አቢሲኒያ)</option>
-            <option value="M-Pesa">🟢 Safaricom M-Pesa</option>
-            <option value="E-Birr">🟡 E-Birr</option>
-          </select>
-        </label>
-        <label>የገንዘብ መጠን (ETB)
-          <input name="amount" id="modalWithdrawAmountInput" type="number" min="100" value="100" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;" required>
-        </label>
-        <label>ስልክ ቁጥር ወይም አካውንት (Account / Phone)
-          <input name="account" id="modalWithdrawAccountInput" placeholder="ምሳሌ፡ 09xxxxxxxx ወይም 1000xxxxxxxxx" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;" required>
-        </label>
-        <label>የሂሳብ ባለቤት ሙሉ ስም (Account Holder Name)
-          <input name="account_name" id="modalWithdrawAccountNameInput" placeholder="ምሳሌ፡ Abebe Kebede" style="width: 100%; padding: 10px; border-radius: 8px; background: #07182c; color: #fff; border: 1px solid #294963;" required>
-        </label>
-        <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 11.5px; color: var(--habesha-muted); margin-top: 2px;">
-          <input type="checkbox" name="is_adult" checked required style="width: auto; margin-top: 2px;">
-          <span>ዕድሜዬ 18 ዓመትና ከዚያ በላይ መሆኑን አረጋግጣለሁ (18+ Confirmation)</span>
-        </label>
-        <button class="btn btn-gold full" type="submit" style="margin-top: 5px;">📤 ወጪ ጠይቅ (Request Withdrawal)</button>
-      </form>
-      <button class="btn btn-outline full modal-bottom-back-btn" style="margin-top: 10px;" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
-    </div>
-  </div>
-
-  <!-- 5. Referral / ጋር & አጋር Modal -->
-  <div class="modal-backdrop" id="referralModal" hidden>
-    <div class="modal-dialog">
-      <div class="modal-header-nav">
-        <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
-        <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
-      </div>
-      <h2>🔗 ጋብዝ & አግኝ (Refer & Earn)</h2>
-      <p style="color: var(--habesha-muted); font-size: 13px; margin-bottom: 15px;">ጓደኞችዎን በቴሌግራም ይጋብዙ እና በእያንዳንዱ ምዝገባ የቦነስ ሽልማት ያግኙ!</p>
-      <div style="background: #081a30; border: 1px solid #1f3c57; border-radius: 12px; padding: 16px; margin-bottom: 15px;">
-        <div style="font-size: 12px; color: var(--habesha-muted); margin-bottom: 5px;">የእርስዎ መጋበዣ ሊንክ (Invite Link)</div>
-        <div style="display: flex; gap: 8px;">
-          <input id="refLinkInput" readonly value="https://t.me/HbeshabingoBot?start=ref1029" style="flex: 1; padding: 10px; border-radius: 8px; background: #07182c; border: 1px solid #294963; color: var(--habesha-gold); font-weight: bold;">
-          <button class="btn btn-gold" onclick="copyReferralLink()">ኮፒ (Copy)</button>
-        </div>
-      </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-        <div style="background: #081a30; border: 1px solid #1f3c57; border-radius: 10px; padding: 12px; text-align: center;">
-          <small style="color: var(--habesha-muted); display: block;">የተጋበዙ ሰዎች</small>
-          <strong style="font-size: 20px; color: #fff;">0</strong>
-        </div>
-        <div style="background: #081a30; border: 1px solid #1f3c57; border-radius: 10px; padding: 12px; text-align: center;">
-          <small style="color: var(--habesha-muted); display: block;">የተገኘ ገቢ</small>
-          <strong style="font-size: 20px; color: var(--habesha-gold);">0.00 ETB</strong>
-        </div>
-      </div>
-      <button class="btn btn-outline full modal-bottom-back-btn" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
-    </div>
-  </div>
-
-  <!-- 6. VIP Room / VIP ክፍል Modal -->
-  <div class="modal-backdrop" id="vipModal" hidden>
-    <div class="modal-dialog">
-      <div class="modal-header-nav">
-        <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
-        <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
-      </div>
-      <h2>💎 VIP ቢንጎ ክፍል (VIP Room)</h2>
-      <p style="color: var(--habesha-muted); font-size: 13px; margin-bottom: 15px;">ከፍተኛ ሽልማት እና ልዩ የቢንጎ ተሞክሮ ለ VIP አባላት!</p>
-      <div style="background: linear-gradient(135deg, #182848, #0c182c); border: 1px solid #ffd700; border-radius: 14px; padding: 18px; margin-bottom: 15px; text-align: center;">
-        <div style="font-size: 24px; margin-bottom: 5px;">👑 VIP MEGA JACKPOT</div>
-        <div style="font-size: 28px; font-weight: 900; color: #ffd700; margin-bottom: 5px;">10,000+ ETB</div>
-        <small style="color: #94a3b8;">የመግቢያ ዋጋ: 50 ETB | አነስተኛ ተጫዋች: 20</small>
-      </div>
-      <button class="btn btn-gold full" id="btnJoinVipModal" type="button" style="margin-bottom: 10px; font-weight: 800; font-size: 16px; padding: 14px; cursor: pointer;" onclick="window.switchToVipRoomView();">ክፍሉን ተቀላቀል (Join VIP)</button>
-      <button class="btn btn-outline full modal-bottom-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
-    </div>
-  </div>
-
-  <!-- 7. Special Promoter Modal -->
-  <div class="modal-backdrop" id="promoterModal" hidden>
-    <div class="modal-dialog">
-      <div class="modal-header-nav">
-        <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
-        <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
-      </div>
-      <h2>🌟 Special Promoter ፕሮግራም</h2>
-      <p style="color: var(--habesha-muted); font-size: 13px; margin-bottom: 15px;">የ AB Bingo ልዩ አስተዋዋቂ (Promoter) በመሆን እስከ 25% ቋሚ ኮሚሽን በየሳምንቱ ያግኙ!</p>
-      <div style="background: #081a30; border: 1px solid #1f3c57; border-radius: 12px; padding: 14px; margin-bottom: 15px;">
-        <h4 style="margin: 0 0 8px; color: var(--habesha-gold);">የአስተዋዋቂ ጥቅሞች:</h4>
-        <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
-          <li>በየቀኑ የሚታይ የቀጥታ ገቢ ዳሽቦርድ</li>
-          <li>ፈጣን ሳምንታዊ የኮሚሽን ክፍያ በቴሌብር</li>
-          <li>ለተከታዮችዎ የሚሰጡ ነፃ የጨዋታ ኮዶች</li>
-        </ul>
-      </div>
-      <button class="btn btn-gold full" style="margin-bottom: 10px;" onclick="toast('ማመልከቻዎ ተመዝግቧል! በቅርቡ እናገኝዎታለን')">አስተዋዋቂ ለመሆን አመልክት (Apply)</button>
-      <button class="btn btn-outline full modal-bottom-back-btn" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
-    </div>
-  </div>
-
-  <!-- 8. Support / እርዳታ Modal -->
-  <div class="modal-backdrop" id="supportModal" hidden>
-    <div class="modal-dialog">
-      <div class="modal-header-nav">
-        <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
-        <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
-      </div>
-      <h2>🆘 AB Bingo እርዳታ (Support)</h2>
-      <div style="background: #081a30; border: 1px solid #1f3c57; border-radius: 12px; padding: 14px; margin-bottom: 14px; line-height: 1.6; font-size: 14px; color: #e2e8f0;">
-        <div style="font-weight: 700; margin-bottom: 6px; color: #f8fafc; font-size: 15px;">👤 Admin: adissu</div>
-        <div style="font-weight: 700; color: #ffd700; margin-bottom: 4px;">👇 ወይም እዚሁ ይጻፉ:</div>
-        <div style="font-size: 13px; color: #94a3b8;">መልእክትዎትን እዚሁ መጻፍ ይችላሉ፣ ለ አድሚን በቀጥታ ይደርሳል።</div>
-      </div>
-      <div class="support-tabs">
-        <button id="tabNewTicket" class="active">አዲስ ጥያቄ (New Ticket)</button>
-        <button id="tabMyTickets">የቀድሞ መልዕክቶች (My Tickets)</button>
-      </div>
-      <form id="supportForm">
-        <label>ጉዳዩ (Subject)<input name="subject" value="የእርዳታ ጥያቄ" required></label>
-        <label>መልዕክትዎ (Message)<textarea name="message" rows="4" placeholder="መልእክትዎን እዚህ ይጻፉ..." required></textarea></label>
-        <button class="btn btn-gold full" type="submit" style="margin-top: 10px;">✉️ ላክ (Send Message)</button>
-      </form>
-      <div id="myTickets" hidden class="my-tickets-list"></div>
-      <button class="btn btn-outline full modal-bottom-back-btn" style="margin-top: 12px;" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
-    </div>
-  </div>
-
-  <!-- 9. Rules / ደንቦች Modal -->
-  <div class="modal-backdrop" id="rulesModal" hidden>
-    <div class="modal-dialog">
-      <div class="modal-header-nav">
-        <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
-        <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
-      </div>
-      <h2>📜 የቢንጎ ጨዋታ ህጎችና ደንቦች (Rules)</h2>
-      <div style="background: #081a30; border: 1px solid #1f3c57; border-radius: 12px; padding: 16px; margin-bottom: 15px; max-height: 320px; overflow-y: auto; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
-        <h4 style="color: var(--habesha-gold); margin: 0 0 6px;">1. የካርቴላ አሞላል:</h4>
-        <p style="margin: 0 0 10px;">እያንዳንዱ ካርቴላ 5x5 የቁጥር ሰንጠረዥ ሲሆን ከ 1 እስከ 75 ቁጥሮችን ይይዛል።</p>
-        <h4 style="color: var(--habesha-gold); margin: 0 0 6px;">2. የማሸነፊያ መንገዶች (Winning Patterns):</h4>
-        <p style="margin: 0 0 10px;">በአግድም (Horizontal)፣ በቁም (Vertical)፣ ወይም በሰያፍ (Diagonal) 5 ቁጥሮችን ያሟላ የመጀመሪያው ተጫዋች አሸናፊ ይሆናል።</p>
-        <h4 style="color: var(--habesha-gold); margin: 0 0 6px;">3. ሽልማት አከፋፈል:</h4>
-        <p style="margin: 0;">አሸናፊው ተጫዋች ወይም ተጫዋቾች ወዲያውኑ የደራሹን ጠቅላላ ገንዘብ በሂሳባቸው ገቢ ይደረግላቸዋል።</p>
-      </div>
-      <button class="btn btn-outline full modal-bottom-back-btn" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
-    </div>
-  </div>
-
-  <!-- 10. Rewards & Announcements / የተለያዩ ማስታወቂያ Modal -->
-  <div class="modal-backdrop" id="rewardsModal" hidden>
-    <div class="modal-dialog">
-      <div class="modal-header-nav">
-        <button class="modal-top-back-btn" type="button" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back)</button>
-        <button class="modal-close" type="button" onclick="closeAllTelegramModals()">&times;</button>
-      </div>
-      <h2>🎁 የሽልማት ማዕከል እና ማስታወቂያዎች</h2>
-      <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
-        <div style="background: #081a30; border: 1px solid #1f3c57; border-radius: 12px; padding: 14px;">
-          <h4 style="color: var(--habesha-gold); margin: 0 0 4px;">🎉 የእንኳን ደህና መጡ ቦነስ</h4>
-          <p style="margin: 0; font-size: 13px; color: #94a3b8;">በመጀመሪያ ተቀማጭዎ ላይ ተጨማሪ 20% የጨዋታ ቦነስ ያግኙ!</p>
-        </div>
-        <div style="background: #081a30; border: 1px solid #1f3c57; border-radius: 12px; padding: 14px;">
-          <h4 style="color: #2edbb4; margin: 0 0 4px;">🚀 የዕለቱ ሜጋ ጃክፖት</h4>
-          <p style="margin: 0; font-size: 13px; color: #94a3b8;">የዛሬው ጠቅላላ የደራሽ ሽልማት ከ 50,000 ETB በላይ ደርሷል።</p>
-        </div>
-      </div>
-      <button class="btn btn-gold full" style="margin-bottom: 10px;" onclick="toast('የዕለቱ ቦነስ በቅርቡ ገቢ ይደረጋል!')">ቦነስ ውሰድ (Claim Bonus)</button>
-      <button class="btn btn-outline full modal-bottom-back-btn" onclick="closeAllTelegramModals()">⬅️ ተመለስ (Back to Menu)</button>
-    </div>
-  </div>
-
-  <!-- Hulu Bingo Telegram WebApp Modal (Matching screenshot) -->
-  <div class="hulu-webapp-overlay" id="huluBingoWebAppModal" hidden>
-    <div class="hulu-webapp-container">
-      <!-- Telegram WebApp Top Header -->
-      <header class="hulu-webapp-topbar">
-        <button class="tg-back-btn" id="tgAppBackBtn" type="button" title="Back to Main Menu" onclick="closeAllTelegramModals(); document.getElementById('huluBingoWebAppModal').hidden=true;">⬅️ ተመለስ (Menu)</button>
-        <div class="tg-app-title">
-          <span>AB Bingo</span>
-          <svg class="chevron-down" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
-        </div>
-        <button class="tg-icon-btn" id="tgAppCloseBtn" title="Close" onclick="closeAllTelegramModals(); document.getElementById('huluBingoWebAppModal').hidden=true;">✕</button>
-      </header>
-
-      <!-- VIEW 1: Card Selection View (Matching the new screenshot) -->
-      <div class="hulu-card-selection-view" id="huluCardSelectionView">
-        <!-- Top Balance & Logo Bar -->
-        <div class="card-select-topbar">
-          <div class="user-profile-group">
-            <div class="user-avatar-badge">T</div>
-            <div class="user-balances-pill">
-              <div class="bal-row"><span class="lbl-play">መጫወቻ ሂሳብ</span> <b class="val-play" id="tgPlayBalance">0.00 ETB</b></div>
-              <div class="bal-row"><span class="lbl-main">ዋና ሂሳብ</span> <b class="val-main" id="tgMainBalance">0.00 ETB</b></div>
-            </div>
-          </div>
-          <div class="brand-group">
-            <div class="brand-ethiopic">AB Bingo</div>
-            <button class="lang-pill-btn" id="tgLangPillBtn"><span class="lang-am active">አማ</span><span class="lang-divider">|</span><span class="lang-en">EN</span></button>
-          </div>
-        </div>
-
-        <!-- Notification Banner -->
-        <div class="hulu-notice-card">
-          <div class="notice-icon-box">▪</div>
-          <div class="notice-text-content">
-            <div class="notice-tag">ዝግጅቶች</div>
-            <div class="notice-title">ተጨማሪ ቦነስ</div>
-            <div class="notice-sub">በቅርቡ ይጠብቁ!</div>
-          </div>
-        </div>
-
-        <!-- Prize & Countdown Golden Card -->
-        <div class="round-countdown-card">
-          <div class="derash-box">
-            <span class="derash-badge">ደራሽ</span>
-            <div class="derash-amount" id="tgCardSelPrize">0 ETB</div>
-          </div>
-
-          <!-- Golden 3D Balls Cluster/Pyramid -->
-          <div class="balls-pyramid-container">
-            <div class="pyramid-row">
-              <div class="mini-gold-ball"><div class="b-inner"><span class="b-letter">O</span><span class="b-num">66</span></div></div>
-              <div class="mini-gold-ball"><div class="b-inner"><span class="b-letter">O</span><span class="b-num">64</span></div></div>
-              <div class="mini-gold-ball"><div class="b-inner"><span class="b-letter">I</span><span class="b-num">25</span></div></div>
-              <div class="mini-gold-ball"><div class="b-inner"><span class="b-letter">N</span><span class="b-num">32</span></div></div>
-            </div>
-            <div class="pyramid-row">
-              <div class="mini-gold-ball"><div class="b-inner"><span class="b-letter">B</span><span class="b-num">3</span></div></div>
-              <div class="mini-gold-ball"><div class="b-inner"><span class="b-letter">B</span><span class="b-num">8</span></div></div>
-              <div class="mini-gold-ball"><div class="b-inner"><span class="b-letter">I</span><span class="b-num">28</span></div></div>
-              <div class="mini-gold-ball"><div class="b-inner"><span class="b-letter">B</span><span class="b-num">4</span></div></div>
-            </div>
-            <div class="pyramid-row">
-              <div class="mini-gold-ball"><div class="b-inner"><span class="b-letter">B</span><span class="b-num">3</span></div></div>
-              <div class="mini-gold-ball"><div class="b-inner"><span class="b-letter">I</span><span class="b-num">26</span></div></div>
-              <div class="mini-gold-ball"><div class="b-inner"><span class="b-letter">N</span><span class="b-num">40</span></div></div>
-              <div class="mini-gold-ball"><div class="b-inner"><span class="b-letter">I</span><span class="b-num">17</span></div></div>
-            </div>
-          </div>
-
-          <div class="countdown-box">
-            <div class="countdown-heading">ጨዋታው ሊጀምር ነው</div>
-            <div class="countdown-digits" id="tgCardCountdown">01:00</div>
-          </div>
-        </div>
-
-        <!-- Card Selection Grid Container -->
-        <div class="card-selection-box">
-          <div class="selection-box-header">
-            <h3>ካርቴላ ይምረጡ (10 ETB)</h3>
-            <div class="selection-counter"><span class="cnt-cur" id="tgSelectedCount">0</span> <span class="cnt-max">/ 4</span></div>
-          </div>
-          <div class="card-pick-grid" id="tgCardPickGrid"></div>
-        </div>
-
-        <!-- Selected Cartelas Preview Drawer (Matching Screenshot 2: የመረጡት ካርቴላዎች) -->
-        <div class="selected-cartelas-drawer" id="tgSelectedCartelasDrawer" hidden>
-          <div class="drawer-drag-pill"></div>
-          <div class="drawer-header">
-            <h4>AB cartela</h4>
-          </div>
-          <div class="selected-cartelas-list" id="tgSelectedCartelasList"></div>
-        </div>
-      </div>
-
-      <!-- VIEW 2: In-Game Live View (from previous screenshots) -->
-      <div class="hulu-live-game-view" id="huluLiveGameView" hidden>
-        <!-- Info Bar: Game Round & Live Players -->
-        <div class="hulu-info-bar">
-          <div class="hulu-pill round-pill">
-            <span class="gold-triangle">▲</span>
-            <span id="tgGameRound">GAME ROUND #226798</span>
-          </div>
-          <div class="hulu-pill live-pill">
-            <span class="live-indicator"></span>
-            <span id="tgLivePlayers">LIVE - 286 PLAYERS</span>
-            <button class="sound-btn" id="tgSoundBtn" aria-label="Toggle Sound">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- Dashboard Row: Prize Pool, 3D Ball, Ball Tracker -->
-        <div class="hulu-stats-row">
-          <!-- Prize Box -->
-          <div class="hulu-prize-card">
-            <div class="prize-tag">ተደራሽ መጠን</div>
-            <div class="prize-value" id="tgPrizePool">4800 ETB</div>
-          </div>
-
-          <!-- 3D Ball -->
-          <div class="hulu-ball-wrapper">
-            <div class="bingo-3d-ball" id="tgMainBall">
-              <span class="ball-letter" id="tgBallLetter">—</span>
-              <span class="ball-num" id="tgBallNumber">—</span>
-            </div>
-          </div>
-
-          <!-- Recent Balls Strip & Counter -->
-          <div class="hulu-tracker-card">
-            <div class="tracker-chips" id="tgTrackerChips"></div>
-            <div class="tracker-counter">
-              <span class="yellow-dot">●</span>
-              <span id="tgTrackerCount">0/75</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Controls Row: Track numbers & Auto/Manual switch -->
-        <div class="hulu-controls-row">
-          <button class="hulu-track-btn" id="tgTrackBtn">
-            <span class="chart-icon">📊</span>
-            <span>ቁጥሮችን ይከታተሉ</span>
-            <svg class="track-chevron" id="tgTrackChevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
-          </button>
-
-          <div class="hulu-switch-toggle">
-            <button class="switch-opt active" id="tgModeAuto">AUTO</button>
-            <button class="switch-opt" id="tgModeManual">MANUAL</button>
-          </div>
-        </div>
-
-        <!-- Main Body Area -->
-        <div class="hulu-main-content">
-          <!-- 75-Ball B-I-N-G-O Master Board -->
-          <div class="hulu-bingo-table-view" id="huluBingoTableView" hidden>
-            <div class="bingo-table-header">
-              <span class="col-head col-b">B</span>
-              <span class="col-head col-i">I</span>
-              <span class="col-head col-n">N</span>
-              <span class="col-head col-g">G</span>
-              <span class="col-head col-o">O</span>
-            </div>
-            <div class="bingo-table-grid" id="tgBingoTableGrid"></div>
-          </div>
-
-          <!-- 4-Slots Live Grid (Matching Screenshots 3 & 4) -->
-          <div class="hulu-slots-grid" id="tgSlotsGrid">
-            <!-- Dynamically populated with Slot 1..4 based on selected cartelas -->
-          </div>
-          <div class="ticket" id="tgTicketGrid" style="display:none;"></div>
-
-          <!-- Waiting State Screen -->
-          <div class="hulu-waiting-view" id="huluWaitingView" hidden>
-            <div class="clock-icon-circle">
-              <svg class="clock-svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-            </div>
-            <h2 class="waiting-title">ጨዋታው በመካሄድ ላይ ነው...</h2>
-            <p class="waiting-subtitle">እባክዎን ቀጣይ ዙር እስኪጀምር ይጠብቁ!</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- VIEW 3: Winners Celebration View (Matching the new screenshot) -->
-      <div class="hulu-winners-celebration-view" id="huluWinnersCelebrationView" hidden>
-        <div class="winners-sunburst-bg"></div>
-        <div class="winners-confetti-container" id="tgWinnersConfetti"></div>
-
-        <!-- 5 WINNERS Glowing Pill -->
-        <div class="winners-badge-pill" id="tgWinnersBadgePill">
-          <span id="tgWinnersBadgeCount">5 WINNERS</span>
-        </div>
-
-        <!-- Ethiopic Heading -->
-        <h2 class="winners-heading" id="tgWinnersHeading">የደራሽ ሽልማት ተካፋዮች!</h2>
-
-        <!-- Main Winners Card -->
-        <div class="winners-main-card">
-          <div class="winners-stat-row">
-            <span class="stat-lbl">ጠቅላላ አሸናፊዎች</span>
-            <span class="stat-val count-val" id="tgWinnersTotal">5</span>
-          </div>
-
-          <div class="winners-stat-divider"></div>
-
-          <div class="winners-stat-row share-row">
-            <span class="stat-lbl">ለአንድ ሰው ድርሻ</span>
-            <span class="stat-val share-val" id="tgWinnersShare">960 ETB</span>
-          </div>
-
-          <!-- Winner Cards List -->
-          <div class="winner-items-list" id="tgWinnerItemsList">
-            <!-- Winner 1 -->
-            <div class="winner-row-card">
-              <div class="winner-avatar">K</div>
-              <div class="winner-info">
-                <span class="winner-name">King</span>
-                <span class="winner-ticket">Ticket #328</span>
-              </div>
-              <span class="winner-active-dot"></span>
-            </div>
-
-            <!-- Winner 2 -->
-            <div class="winner-row-card">
-              <div class="winner-avatar">A</div>
-              <div class="winner-info">
-                <span class="winner-name">Ati22</span>
-                <span class="winner-ticket">Ticket #556</span>
-              </div>
-              <span class="winner-active-dot"></span>
-            </div>
-
-            <!-- Winner 3 -->
-            <div class="winner-row-card">
-              <div class="winner-avatar">&lt;</div>
-              <div class="winner-info">
-                <span class="winner-name">&lt;*°*&gt;</span>
-                <span class="winner-ticket">Ticket #555</span>
-              </div>
-              <span class="winner-active-dot"></span>
-            </div>
-
-            <!-- Winner 4 -->
-            <div class="winner-row-card">
-              <div class="winner-avatar">M</div>
-              <div class="winner-info">
-                <span class="winner-name">Mezgebu86</span>
-                <span class="winner-ticket">Ticket #459</span>
-              </div>
-              <span class="winner-active-dot"></span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Footnote / Status -->
-        <div class="winners-footer-status">
-          <span>ሽልማት ገቢ እየተደረገ ነው...</span>
-        </div>
-      </div>
-
-      <!-- VIEW 4: Grand Winner BINGO Screen (Matching the latest final screenshot) -->
-      <div class="hulu-grand-winner-view" id="huluGrandWinnerView" hidden>
-        <!-- Confetti Particles -->
-        <div class="confetti-particles-container">
-          <span class="confetti c1"></span><span class="confetti c2"></span><span class="confetti c3"></span>
-          <span class="confetti c4"></span><span class="confetti c5"></span><span class="confetti c6"></span>
-          <span class="confetti c7"></span><span class="confetti c8"></span><span class="confetti c9"></span>
-          <span class="confetti c10"></span><span class="confetti c11"></span><span class="confetti c12"></span>
-        </div>
-
-        <!-- GRAND WINNER Glowing Pill -->
-        <div class="grand-winner-pill">
-          <span>GRAND WINNER</span>
-        </div>
-
-        <!-- BINGO! Title -->
-        <h1 class="grand-bingo-title">BINGO!</h1>
-
-        <!-- Winning Ticket 5x5 Card -->
-        <div class="winning-ticket-card">
-          <div class="wt-card-header">
-            <span class="wt-tag">WINNING TICKET</span>
-            <span class="wt-number">#467</span>
-          </div>
-
-          <!-- Column Header Pills -->
-          <div class="wt-columns-header">
-            <div class="wt-col-pill b">B</div>
-            <div class="wt-col-pill i">I</div>
-            <div class="wt-col-pill n">N</div>
-            <div class="wt-col-pill g">G</div>
-            <div class="wt-col-pill o">O</div>
-          </div>
-
-          <!-- 5x5 Grid Cells -->
-          <div class="wt-card-grid">
-            <!-- Row 1 -->
-            <div class="wt-cell">13</div>
-            <div class="wt-cell">16</div>
-            <div class="wt-cell"><span class="chip-gold">41</span></div>
-            <div class="wt-cell">58</div>
-            <div class="wt-cell"><span class="chip-green">71</span></div>
-
-            <!-- Row 2 -->
-            <div class="wt-cell">8</div>
-            <div class="wt-cell">18</div>
-            <div class="wt-cell">34</div>
-            <div class="wt-cell">54</div>
-            <div class="wt-cell"><span class="chip-green">67</span></div>
-
-            <!-- Row 3 -->
-            <div class="wt-cell">15</div>
-            <div class="wt-cell"><span class="chip-gold">28</span></div>
-            <div class="wt-cell free-cell"><span class="chip-star">★</span></div>
-            <div class="wt-cell"><span class="chip-gold">60</span></div>
-            <div class="wt-cell"><span class="chip-green">68</span></div>
-
-            <!-- Row 4 -->
-            <div class="wt-cell">4</div>
-            <div class="wt-cell">17</div>
-            <div class="wt-cell">39</div>
-            <div class="wt-cell"><span class="chip-gold">55</span></div>
-            <div class="wt-cell"><span class="chip-green">61</span></div>
-
-            <!-- Row 5 -->
-            <div class="wt-cell">5</div>
-            <div class="wt-cell"><span class="chip-gold">21</span></div>
-            <div class="wt-cell">42</div>
-            <div class="wt-cell">57</div>
-            <div class="wt-cell"><span class="chip-green">72</span></div>
-          </div>
-        </div>
-
-        <!-- Winner Profile / Details -->
-        <div class="grand-winner-info-box">
-          <div class="ashenafi-tag">
-            <span class="ribbon-icon">🔖</span>
-            <span>አሸናፊው</span>
-          </div>
-          <h2 class="grand-winner-name">TESFAYE</h2>
-          <div class="grand-ticket-meta">
-            <span>TICKET #467</span>
-            <span class="dot-red">●</span>
-            <span class="prize-tag">4768 ETB</span>
-          </div>
-        </div>
-
-        <!-- Status Footnote -->
-        <div class="grand-footer-status">
-          <span>ሽልማት ገቢ እየተደረገ ነው...</span>
-        </div>
-      </div>
-
-      <!-- VIEW 5: VIP Room View (Matching Screenshot 2) -->
-      <div class="hulu-vip-room-view" id="huluVipRoomView" hidden>
-        <!-- VIP Header -->
-        <div class="vip-header-bar">
-          <button class="vip-back-arrow-btn" id="vipBackArrowBtn" type="button" title="Back">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-          </button>
-          
-          <div class="vip-title-pill">
-            <div class="vip-crown-box">👑</div>
-            <div class="vip-title-col">
-              <span class="vip-title-main">AB Bingo <b class="vip-gold-text">VIP ክፍል</b></span>
-              <span class="vip-round-num" id="vipGameRound">#101408</span>
-            </div>
-          </div>
-
-          <div class="vip-header-actions">
-            <div class="vip-lang-pill">
-              <span class="lang-opt">EN</span>
-              <span class="lang-opt active">አማ</span>
-            </div>
-            <button class="vip-sound-btn" type="button" aria-label="Sound">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- VIP Stats Banner -->
-        <div class="vip-stats-banner">
-          <div class="vip-stat-col">
-            <span class="vip-stat-lbl">VIP መጫወቻ</span>
-            <span class="vip-stat-val" id="vipPlayBalance">0 ETB</span>
-          </div>
-
-          <div class="vip-stat-col">
-            <span class="vip-stat-lbl">🚩 VIP ሽልማት:</span>
-            <span class="vip-stat-val" id="vipPrizeAmount">0 ETB</span>
-          </div>
-
-          <!-- Circular Countdown Timer -->
-          <div class="vip-timer-circle">
-            <svg class="vip-timer-svg" width="46" height="46" viewBox="0 0 46 46">
-              <circle cx="23" cy="23" r="19" class="timer-bg-circle"></circle>
-              <circle cx="23" cy="23" r="19" class="timer-progress-circle" id="vipTimerProgress"></circle>
+    <!-- Hulu Bingo Telegram WebApp Modal (Matching screenshot) -->
+    <div class="hulu-webapp-overlay" id="huluBingoWebAppModal" hidden>
+      <div class="hulu-webapp-container">
+        <!-- Telegram WebApp Top Header -->
+        <header class="hulu-webapp-topbar">
+          <button class="tg-back-btn" id="tgAppBackBtn" type="button" title="Back to Main Menu"
+            onclick="closeAllTelegramModals(); document.getElementById('huluBingoWebAppModal').hidden=true;">⬅️ ተመለስ
+            (Menu)</button>
+          <div class="tg-app-title">
+            <span>AB Bingo</span>
+            <svg class="chevron-down" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2.5">
+              <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
-            <span class="vip-timer-digit" id="vipCountdownNum">38</span>
+          </div>
+          <button class="tg-icon-btn" id="tgAppCloseBtn" title="Close"
+            onclick="closeAllTelegramModals(); document.getElementById('huluBingoWebAppModal').hidden=true;">✕</button>
+        </header>
+
+        <!-- VIEW 1: Card Selection View (Matching the new screenshot) -->
+        <div class="hulu-card-selection-view" id="huluCardSelectionView">
+          <!-- Top Balance & Logo Bar -->
+          <div class="card-select-topbar">
+            <div class="user-profile-group">
+              <div class="user-avatar-badge">T</div>
+              <div class="user-balances-pill">
+                <div class="bal-row"><span class="lbl-play">መጫወቻ ሂሳብ</span> <b class="val-play" id="tgPlayBalance">0.00
+                    ETB</b></div>
+                <div class="bal-row"><span class="lbl-main">ዋና ሂሳብ</span> <b class="val-main" id="tgMainBalance">0.00
+                    ETB</b></div>
+              </div>
+            </div>
+            <div class="brand-group">
+              <div class="brand-ethiopic">AB Bingo</div>
+              <button class="lang-pill-btn" id="tgLangPillBtn"><span class="lang-am active">አማ</span><span
+                  class="lang-divider">|</span><span class="lang-en">EN</span></button>
+            </div>
           </div>
 
-          <div class="vip-stat-col">
-            <span class="vip-stat-lbl">💎 አጠቃላይ ድምር</span>
-            <span class="vip-stat-val" id="vipTotalVolume">0 ETB</span>
+          <!-- Notification Banner -->
+          <div class="hulu-notice-card">
+            <div class="notice-icon-box">▪</div>
+            <div class="notice-text-content">
+              <div class="notice-tag">ዝግጅቶች</div>
+              <div class="notice-title">ተጨማሪ ቦነስ</div>
+              <div class="notice-sub">በቅርቡ ይጠብቁ!</div>
+            </div>
+          </div>
+
+          <!-- Prize & Countdown Golden Card -->
+          <div class="round-countdown-card">
+            <div class="derash-box">
+              <span class="derash-badge">ደራሽ</span>
+              <div class="derash-amount" id="tgCardSelPrize">0 ETB</div>
+            </div>
+
+            <!-- Golden 3D Balls Cluster/Pyramid -->
+            <div class="balls-pyramid-container">
+              <div class="pyramid-row">
+                <div class="mini-gold-ball">
+                  <div class="b-inner"><span class="b-letter">O</span><span class="b-num">66</span></div>
+                </div>
+                <div class="mini-gold-ball">
+                  <div class="b-inner"><span class="b-letter">O</span><span class="b-num">64</span></div>
+                </div>
+                <div class="mini-gold-ball">
+                  <div class="b-inner"><span class="b-letter">I</span><span class="b-num">25</span></div>
+                </div>
+                <div class="mini-gold-ball">
+                  <div class="b-inner"><span class="b-letter">N</span><span class="b-num">32</span></div>
+                </div>
+              </div>
+              <div class="pyramid-row">
+                <div class="mini-gold-ball">
+                  <div class="b-inner"><span class="b-letter">B</span><span class="b-num">3</span></div>
+                </div>
+                <div class="mini-gold-ball">
+                  <div class="b-inner"><span class="b-letter">B</span><span class="b-num">8</span></div>
+                </div>
+                <div class="mini-gold-ball">
+                  <div class="b-inner"><span class="b-letter">I</span><span class="b-num">28</span></div>
+                </div>
+                <div class="mini-gold-ball">
+                  <div class="b-inner"><span class="b-letter">B</span><span class="b-num">4</span></div>
+                </div>
+              </div>
+              <div class="pyramid-row">
+                <div class="mini-gold-ball">
+                  <div class="b-inner"><span class="b-letter">B</span><span class="b-num">3</span></div>
+                </div>
+                <div class="mini-gold-ball">
+                  <div class="b-inner"><span class="b-letter">I</span><span class="b-num">26</span></div>
+                </div>
+                <div class="mini-gold-ball">
+                  <div class="b-inner"><span class="b-letter">N</span><span class="b-num">40</span></div>
+                </div>
+                <div class="mini-gold-ball">
+                  <div class="b-inner"><span class="b-letter">I</span><span class="b-num">17</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="countdown-box">
+              <div class="countdown-heading">ጨዋታው ሊጀምር ነው</div>
+              <div class="countdown-digits" id="tgCardCountdown">01:00</div>
+            </div>
+          </div>
+
+          <!-- Card Selection Grid Container -->
+          <div class="card-selection-box">
+            <div class="selection-box-header">
+              <h3>ካርቴላ ይምረጡ (10 ETB)</h3>
+              <div class="selection-counter"><span class="cnt-cur" id="tgSelectedCount">0</span> <span class="cnt-max">/
+                  4</span></div>
+            </div>
+            <div class="card-pick-grid" id="tgCardPickGrid"></div>
+          </div>
+
+          <!-- Selected Cartelas Preview Drawer (Matching Screenshot 2: የመረጡት ካርቴላዎች) -->
+          <div class="selected-cartelas-drawer" id="tgSelectedCartelasDrawer" hidden>
+            <div class="drawer-drag-pill"></div>
+            <div class="drawer-header">
+              <h4>AB cartela</h4>
+            </div>
+            <div class="selected-cartelas-list" id="tgSelectedCartelasList"></div>
           </div>
         </div>
 
-        <!-- VIP Status Bar -->
-        <div class="vip-status-strip">
-          <div class="vip-status-left">
-            <span class="status-dot-gold">●</span>
-            <span id="vipWaitingText">ተጫዋቾች በመጠበቅ ላይ • <b id="vipSecondsLeft">38 ሴ</b></span>
+        <!-- VIEW 2: In-Game Live View (from previous screenshots) -->
+        <div class="hulu-live-game-view" id="huluLiveGameView" hidden>
+          <!-- Info Bar: Game Round & Live Players -->
+          <div class="hulu-info-bar">
+            <div class="hulu-pill round-pill">
+              <span class="gold-triangle">▲</span>
+              <span id="tgGameRound">GAME ROUND #226798</span>
+            </div>
+            <div class="hulu-pill live-pill">
+              <span class="live-indicator"></span>
+              <span id="tgLivePlayers">LIVE - 286 PLAYERS</span>
+              <button class="sound-btn" id="tgSoundBtn" aria-label="Toggle Sound">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                </svg>
+              </button>
+            </div>
           </div>
-          <div class="vip-status-right">
-            <span id="vipPlayersJoined">0/50</span> • <span class="vip-price-tag">50 ETB</span>
+
+          <!-- Dashboard Row: Prize Pool, 3D Ball, Ball Tracker -->
+          <div class="hulu-stats-row">
+            <!-- Prize Box -->
+            <div class="hulu-prize-card">
+              <div class="prize-tag">ተደራሽ መጠን</div>
+              <div class="prize-value" id="tgPrizePool">4800 ETB</div>
+            </div>
+
+            <!-- 3D Ball -->
+            <div class="hulu-ball-wrapper">
+              <div class="bingo-3d-ball" id="tgMainBall">
+                <span class="ball-letter" id="tgBallLetter">—</span>
+                <span class="ball-num" id="tgBallNumber">—</span>
+              </div>
+            </div>
+
+            <!-- Recent Balls Strip & Counter -->
+            <div class="hulu-tracker-card">
+              <div class="tracker-chips" id="tgTrackerChips"></div>
+              <div class="tracker-counter">
+                <span class="yellow-dot">●</span>
+                <span id="tgTrackerCount">0/75</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Controls Row: Track numbers & Auto/Manual switch -->
+          <div class="hulu-controls-row">
+            <button class="hulu-track-btn" id="tgTrackBtn">
+              <span class="chart-icon">📊</span>
+              <span>ቁጥሮችን ይከታተሉ</span>
+              <svg class="track-chevron" id="tgTrackChevron" width="13" height="13" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5">
+                <polyline points="18 15 12 9 6 15"></polyline>
+              </svg>
+            </button>
+
+            <div class="hulu-switch-toggle">
+              <button class="switch-opt active" id="tgModeAuto">AUTO</button>
+              <button class="switch-opt" id="tgModeManual">MANUAL</button>
+            </div>
+          </div>
+
+          <!-- Main Body Area -->
+          <div class="hulu-main-content">
+            <!-- 75-Ball B-I-N-G-O Master Board -->
+            <div class="hulu-bingo-table-view" id="huluBingoTableView" hidden>
+              <div class="bingo-table-header">
+                <span class="col-head col-b">B</span>
+                <span class="col-head col-i">I</span>
+                <span class="col-head col-n">N</span>
+                <span class="col-head col-g">G</span>
+                <span class="col-head col-o">O</span>
+              </div>
+              <div class="bingo-table-grid" id="tgBingoTableGrid"></div>
+            </div>
+
+            <!-- 4-Slots Live Grid (Matching Screenshots 3 & 4) -->
+            <div class="hulu-slots-grid" id="tgSlotsGrid">
+              <!-- Dynamically populated with Slot 1..4 based on selected cartelas -->
+            </div>
+            <div class="ticket" id="tgTicketGrid" style="display:none;"></div>
+
+            <!-- Waiting State Screen -->
+            <div class="hulu-waiting-view" id="huluWaitingView" hidden>
+              <div class="clock-icon-circle">
+                <svg class="clock-svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="1.8">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <h2 class="waiting-title">ጨዋታው በመካሄድ ላይ ነው...</h2>
+              <p class="waiting-subtitle">እባክዎን ቀጣይ ዙር እስኪጀምር ይጠብቁ!</p>
+            </div>
           </div>
         </div>
 
-        <!-- VIP Notice Banner -->
-        <div class="vip-notice-banner">
-          <div class="vip-notice-left">
-            <span class="bulb-icon">💡</span>
-            <span>VIP ለመጫወት ተጨማሪ ሂሳብ ያስፈልጋል?</span>
+        <!-- VIEW 3: Winners Celebration View (Matching the new screenshot) -->
+        <div class="hulu-winners-celebration-view" id="huluWinnersCelebrationView" hidden>
+          <div class="winners-sunburst-bg"></div>
+          <div class="winners-confetti-container" id="tgWinnersConfetti"></div>
+
+          <!-- 5 WINNERS Glowing Pill -->
+          <div class="winners-badge-pill" id="tgWinnersBadgePill">
+            <span id="tgWinnersBadgeCount">5 WINNERS</span>
           </div>
-          <button class="vip-deposit-btn" id="vipDepositQuickBtn" type="button">ገቢ ያድርጉ</button>
+
+          <!-- Ethiopic Heading -->
+          <h2 class="winners-heading" id="tgWinnersHeading">የደራሽ ሽልማት ተካፋዮች!</h2>
+
+          <!-- Main Winners Card -->
+          <div class="winners-main-card">
+            <div class="winners-stat-row">
+              <span class="stat-lbl">ጠቅላላ አሸናፊዎች</span>
+              <span class="stat-val count-val" id="tgWinnersTotal">5</span>
+            </div>
+
+            <div class="winners-stat-divider"></div>
+
+            <div class="winners-stat-row share-row">
+              <span class="stat-lbl">ለአንድ ሰው ድርሻ</span>
+              <span class="stat-val share-val" id="tgWinnersShare">960 ETB</span>
+            </div>
+
+            <!-- Winner Cards List -->
+            <div class="winner-items-list" id="tgWinnerItemsList">
+              <!-- Winner 1 -->
+              <div class="winner-row-card">
+                <div class="winner-avatar">K</div>
+                <div class="winner-info">
+                  <span class="winner-name">King</span>
+                  <span class="winner-ticket">Ticket #328</span>
+                </div>
+                <span class="winner-active-dot"></span>
+              </div>
+
+              <!-- Winner 2 -->
+              <div class="winner-row-card">
+                <div class="winner-avatar">A</div>
+                <div class="winner-info">
+                  <span class="winner-name">Ati22</span>
+                  <span class="winner-ticket">Ticket #556</span>
+                </div>
+                <span class="winner-active-dot"></span>
+              </div>
+
+              <!-- Winner 3 -->
+              <div class="winner-row-card">
+                <div class="winner-avatar">&lt;</div>
+                <div class="winner-info">
+                  <span class="winner-name">&lt;*°*&gt;</span>
+                  <span class="winner-ticket">Ticket #555</span>
+                </div>
+                <span class="winner-active-dot"></span>
+              </div>
+
+              <!-- Winner 4 -->
+              <div class="winner-row-card">
+                <div class="winner-avatar">M</div>
+                <div class="winner-info">
+                  <span class="winner-name">Mezgebu86</span>
+                  <span class="winner-ticket">Ticket #459</span>
+                </div>
+                <span class="winner-active-dot"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footnote / Status -->
+          <div class="winners-footer-status">
+            <span>ሽልማት ገቢ እየተደረገ ነው...</span>
+          </div>
         </div>
 
-        <!-- VIP Cards Section Header -->
-        <div class="vip-cards-header">
-          <div class="vip-cards-title">
-            <span class="brand-hulu">AB Bingo</span> <span class="cards-lbl">VIP ካርዶች</span>
-            <span class="card-price-hint">የአንዱ ካርቴላ ዋጋ <b class="gold-price">50 ETB</b></span>
+        <!-- VIEW 4: Grand Winner BINGO Screen (Matching the latest final screenshot) -->
+        <div class="hulu-grand-winner-view" id="huluGrandWinnerView" hidden>
+          <!-- Confetti Particles -->
+          <div class="confetti-particles-container">
+            <span class="confetti c1"></span><span class="confetti c2"></span><span class="confetti c3"></span>
+            <span class="confetti c4"></span><span class="confetti c5"></span><span class="confetti c6"></span>
+            <span class="confetti c7"></span><span class="confetti c8"></span><span class="confetti c9"></span>
+            <span class="confetti c10"></span><span class="confetti c11"></span><span class="confetti c12"></span>
           </div>
-          <div class="vip-pick-limit">PICK UP TO 2</div>
+
+          <!-- GRAND WINNER Glowing Pill -->
+          <div class="grand-winner-pill">
+            <span>GRAND WINNER</span>
+          </div>
+
+          <!-- BINGO! Title -->
+          <h1 class="grand-bingo-title">BINGO!</h1>
+
+          <!-- Winning Ticket 5x5 Card -->
+          <div class="winning-ticket-card">
+            <div class="wt-card-header">
+              <span class="wt-tag">WINNING TICKET</span>
+              <span class="wt-number">#467</span>
+            </div>
+
+            <!-- Column Header Pills -->
+            <div class="wt-columns-header">
+              <div class="wt-col-pill b">B</div>
+              <div class="wt-col-pill i">I</div>
+              <div class="wt-col-pill n">N</div>
+              <div class="wt-col-pill g">G</div>
+              <div class="wt-col-pill o">O</div>
+            </div>
+
+            <!-- 5x5 Grid Cells -->
+            <div class="wt-card-grid">
+              <!-- Row 1 -->
+              <div class="wt-cell">13</div>
+              <div class="wt-cell">16</div>
+              <div class="wt-cell"><span class="chip-gold">41</span></div>
+              <div class="wt-cell">58</div>
+              <div class="wt-cell"><span class="chip-green">71</span></div>
+
+              <!-- Row 2 -->
+              <div class="wt-cell">8</div>
+              <div class="wt-cell">18</div>
+              <div class="wt-cell">34</div>
+              <div class="wt-cell">54</div>
+              <div class="wt-cell"><span class="chip-green">67</span></div>
+
+              <!-- Row 3 -->
+              <div class="wt-cell">15</div>
+              <div class="wt-cell"><span class="chip-gold">28</span></div>
+              <div class="wt-cell free-cell"><span class="chip-star">★</span></div>
+              <div class="wt-cell"><span class="chip-gold">60</span></div>
+              <div class="wt-cell"><span class="chip-green">68</span></div>
+
+              <!-- Row 4 -->
+              <div class="wt-cell">4</div>
+              <div class="wt-cell">17</div>
+              <div class="wt-cell">39</div>
+              <div class="wt-cell"><span class="chip-gold">55</span></div>
+              <div class="wt-cell"><span class="chip-green">61</span></div>
+
+              <!-- Row 5 -->
+              <div class="wt-cell">5</div>
+              <div class="wt-cell"><span class="chip-gold">21</span></div>
+              <div class="wt-cell">42</div>
+              <div class="wt-cell">57</div>
+              <div class="wt-cell"><span class="chip-green">72</span></div>
+            </div>
+          </div>
+
+          <!-- Winner Profile / Details -->
+          <div class="grand-winner-info-box">
+            <div class="ashenafi-tag">
+              <span class="ribbon-icon">🔖</span>
+              <span>አሸናፊው</span>
+            </div>
+            <h2 class="grand-winner-name">TESFAYE</h2>
+            <div class="grand-ticket-meta">
+              <span>TICKET #467</span>
+              <span class="dot-red">●</span>
+              <span class="prize-tag">4768 ETB</span>
+            </div>
+          </div>
+
+          <!-- Status Footnote -->
+          <div class="grand-footer-status">
+            <span>ሽልማት ገቢ እየተደረገ ነው...</span>
+          </div>
         </div>
 
-        <!-- VIP 50 Cards Grid (5x10) -->
-        <div class="vip-cards-grid" id="vipCardsGrid"></div>
+        <!-- VIEW 5: VIP Room View (Matching Screenshot 2) -->
+        <div class="hulu-vip-room-view" id="huluVipRoomView" hidden>
+          <!-- VIP Header -->
+          <div class="vip-header-bar">
+            <button class="vip-back-arrow-btn" id="vipBackArrowBtn" type="button" title="Back">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
 
-        <!-- VIP Bottom Floating Action Bar -->
-        <div class="vip-bottom-action-bar" id="vipBottomActionBar" hidden>
-          <div class="vip-selected-info">
-            <span id="vipSelectedCountText">1 ካርድ ተመርጧል</span>
-            <b class="vip-total-bet" id="vipTotalBetText">50 ETB</b>
+            <div class="vip-title-pill">
+              <div class="vip-crown-box">👑</div>
+              <div class="vip-title-col">
+                <span class="vip-title-main">AB Bingo <b class="vip-gold-text">VIP ክፍል</b></span>
+                <span class="vip-round-num" id="vipGameRound">#101408</span>
+              </div>
+            </div>
+
+            <div class="vip-header-actions">
+              <div class="vip-lang-pill">
+                <span class="lang-opt">EN</span>
+                <span class="lang-opt active">አማ</span>
+              </div>
+              <button class="vip-sound-btn" type="button" aria-label="Sound">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                </svg>
+              </button>
+            </div>
           </div>
-          <button class="btn btn-gold vip-play-submit-btn" id="vipPlaySubmitBtn" type="button">💎 VIP ተጫወት (Play VIP)</button>
-        </div>
-      </div>
 
-      <!-- Bottom Bar & Navigation -->
-      <footer class="hulu-bottom-bar">
-        <!-- Floating Nav Pill -->
-        <nav class="hulu-bottom-nav">
-          <button class="bottom-nav-item active" id="tgNavHome">
-            <span class="nav-icon">🏠</span>
-            <span class="nav-label">መነሻ</span>
+          <!-- VIP Stats Banner -->
+          <div class="vip-stats-banner">
+            <div class="vip-stat-col">
+              <span class="vip-stat-lbl">VIP መጫወቻ</span>
+              <span class="vip-stat-val" id="vipPlayBalance">0 ETB</span>
+            </div>
+
+            <div class="vip-stat-col">
+              <span class="vip-stat-lbl">🚩 VIP ሽልማት:</span>
+              <span class="vip-stat-val" id="vipPrizeAmount">0 ETB</span>
+            </div>
+
+            <!-- Circular Countdown Timer -->
+            <div class="vip-timer-circle">
+              <svg class="vip-timer-svg" width="46" height="46" viewBox="0 0 46 46">
+                <circle cx="23" cy="23" r="19" class="timer-bg-circle"></circle>
+                <circle cx="23" cy="23" r="19" class="timer-progress-circle" id="vipTimerProgress"></circle>
+              </svg>
+              <span class="vip-timer-digit" id="vipCountdownNum">38</span>
+            </div>
+
+            <div class="vip-stat-col">
+              <span class="vip-stat-lbl">💎 አጠቃላይ ድምር</span>
+              <span class="vip-stat-val" id="vipTotalVolume">0 ETB</span>
+            </div>
+          </div>
+
+          <!-- VIP Status Bar -->
+          <div class="vip-status-strip">
+            <div class="vip-status-left">
+              <span class="status-dot-gold">●</span>
+              <span id="vipWaitingText">ተጫዋቾች በመጠበቅ ላይ • <b id="vipSecondsLeft">38 ሴ</b></span>
+            </div>
+            <div class="vip-status-right">
+              <span id="vipPlayersJoined">0/50</span> • <span class="vip-price-tag">50 ETB</span>
+            </div>
+          </div>
+
+          <!-- VIP Notice Banner -->
+          <div class="vip-notice-banner">
+            <div class="vip-notice-left">
+              <span class="bulb-icon">💡</span>
+              <span>VIP ለመጫወት ተጨማሪ ሂሳብ ያስፈልጋል?</span>
+            </div>
+            <button class="vip-deposit-btn" id="vipDepositQuickBtn" type="button">ገቢ ያድርጉ</button>
+          </div>
+
+          <!-- VIP Cards Section Header -->
+          <div class="vip-cards-header">
+            <div class="vip-cards-title">
+              <span class="brand-hulu">AB Bingo</span> <span class="cards-lbl">VIP ካርዶች</span>
+              <span class="card-price-hint">የአንዱ ካርቴላ ዋጋ <b class="gold-price">50 ETB</b></span>
+            </div>
+            <div class="vip-pick-limit">PICK UP TO 2</div>
+          </div>
+
+          <!-- VIP 50 Cards Grid (5x10) -->
+          <div class="vip-cards-grid" id="vipCardsGrid"></div>
+
+          <!-- VIP Bottom Floating Action Bar -->
+          <div class="vip-bottom-action-bar" id="vipBottomActionBar" hidden>
+            <div class="vip-selected-info">
+              <span id="vipSelectedCountText">1 ካርድ ተመርጧል</span>
+              <b class="vip-total-bet" id="vipTotalBetText">50 ETB</b>
+            </div>
+            <button class="btn btn-gold vip-play-submit-btn" id="vipPlaySubmitBtn" type="button">💎 VIP ተጫወት (Play
+              VIP)</button>
+          </div>
+        </div>
+
+        <!-- Bottom Bar & Navigation -->
+        <footer class="hulu-bottom-bar">
+          <!-- Floating Nav Pill -->
+          <nav class="hulu-bottom-nav">
+            <button class="bottom-nav-item active" id="tgNavHome">
+              <span class="nav-icon">🏠</span>
+              <span class="nav-label">መነሻ</span>
+            </button>
+            <button class="bottom-nav-item" id="tgNavRank">
+              <span class="nav-icon">📈</span>
+              <span class="nav-label">ደረጃ</span>
+            </button>
+            <button class="bottom-nav-item" id="tgNavProfile">
+              <span class="nav-icon">👤</span>
+              <span class="nav-label">ፕሮፋይል</span>
+            </button>
+            <button class="bottom-nav-item" id="tgNavBoard">
+              <span class="nav-icon">💳</span>
+              <span class="nav-label">ቦርድ</span>
+            </button>
+          </nav>
+
+          <!-- Dynamic Action: Total Bet Button (on Card Select) or BINGO! Button (on Live Game) -->
+          <button class="total-bet-card" id="tgTotalBetBtn">
+            <span class="bet-label">አጠቃላይ የመደቡት</span>
+            <span class="bet-amount" id="tgTotalBetAmount">0 ETB</span>
+            <span class="bet-live-status"><i class="live-dot"></i> LIVE</span>
           </button>
-          <button class="bottom-nav-item" id="tgNavRank">
-            <span class="nav-icon">📈</span>
-            <span class="nav-label">ደረጃ</span>
-          </button>
-          <button class="bottom-nav-item" id="tgNavProfile">
-            <span class="nav-icon">👤</span>
-            <span class="nav-label">ፕሮፋይል</span>
-          </button>
-          <button class="bottom-nav-item" id="tgNavBoard">
-            <span class="nav-icon">💳</span>
-            <span class="nav-label">ቦርድ</span>
-          </button>
-        </nav>
 
-        <!-- Dynamic Action: Total Bet Button (on Card Select) or BINGO! Button (on Live Game) -->
-        <button class="total-bet-card" id="tgTotalBetBtn">
-          <span class="bet-label">አጠቃላይ የመደቡት</span>
-          <span class="bet-amount" id="tgTotalBetAmount">0 ETB</span>
-          <span class="bet-live-status"><i class="live-dot"></i> LIVE</span>
-        </button>
+          <button class="hulu-bingo-btn" id="tgBingoBtn" disabled hidden>
+            BINGO!
+          </button>
+        </footer>
 
-        <button class="hulu-bingo-btn" id="tgBingoBtn" disabled hidden>
-          BINGO!
-        </button>
-      </footer>
-
-      <!-- Android System Navigation Mock -->
-      <div class="android-nav-mock">
-        <span class="nav-key triangle">◁</span>
-        <span class="nav-key circle">○</span>
-        <span class="nav-key square">□</span>
-        <span class="nav-key human">🧍</span>
+        <!-- Android System Navigation Mock -->
+        <div class="android-nav-mock">
+          <span class="nav-key triangle">◁</span>
+          <span class="nav-key circle">○</span>
+          <span class="nav-key square">□</span>
+          <span class="nav-key human">🧍</span>
+        </div>
       </div>
     </div>
-  </div>
   </div>
 
   <div id="adminApp" class="admin-page" hidden>
     <header class="topbar">
       <a class="brand" href="/" id="adminBrandLink"><span>AB</span> BINGO</a>
       <nav>
-        <button class="btn btn-outline" id="adminToOwnerBtn" hidden style="border-color:var(--habesha-gold);color:var(--habesha-gold);">👑 Owner Suite</button>
+        <button class="btn btn-outline" id="adminToOwnerBtn" hidden
+          style="border-color:var(--habesha-gold);color:var(--habesha-gold);">👑 Owner Suite</button>
         <button class="btn btn-outline" id="adminToPlayerBtn">🎮 Player View</button>
         <button class="btn btn-outline" id="adminBackToLoginBtn">⬅️ Back to Login</button>
         <button class="btn btn-gold" id="adminLogoutBtn">Logout</button>
@@ -1219,7 +1412,12 @@
     </header>
     <main class="admin-shell">
       <section id="dashboard" hidden>
-        <div class="admin-heading"><div><div class="eyebrow">OPERATIONS</div><h1>Admin dashboard</h1></div><button class="btn btn-outline" id="refreshBtn">Refresh data</button></div>
+        <div class="admin-heading">
+          <div>
+            <div class="eyebrow">OPERATIONS</div>
+            <h1>Admin dashboard</h1>
+          </div><button class="btn btn-outline" id="refreshBtn">Refresh data</button>
+        </div>
         <div class="admin-stats">
           <div class="balance-card"><span>Users</span><strong id="userCount">0</strong></div>
           <div class="balance-card"><span>Active players</span><strong id="activeUserCount">0</strong></div>
@@ -1232,16 +1430,200 @@
           <div class="balance-card"><span>Winners</span><strong id="winnerCount">0</strong></div>
         </div>
         <div class="admin-grid">
-          <section class="panel admin-section"><div class="section-title"><h2>Users</h2><input class="admin-search" id="userSearch" placeholder="Search name or phone"></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="usersBody"></tbody></table></div></section>
-          <section class="panel admin-section"><div class="section-title"><h2>Wallets</h2></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Main</th><th>VIP</th></tr></thead><tbody id="walletsBody"></tbody></table></div></section>
-          <section class="panel admin-section wide"><div class="section-title"><h2>Games</h2></div><div class="table-wrap"><table><thead><tr><th>Game</th><th>Players</th><th>Pool</th><th>Status</th><th></th></tr></thead><tbody id="gamesBody"></tbody></table></div></section>
-          <section class="panel admin-section wide"><div class="section-title"><h2>Support Messages</h2></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Subject</th><th>Status</th><th>Actions</th></tr></thead><tbody id="supportBody"></tbody></table></div></section>
-          <section class="panel admin-section wide"><div class="section-title"><h2>Transactions</h2></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Type</th><th>Wallet</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="transactionsBody"></tbody></table></div></section>
-          <section class="panel admin-section"><div class="section-title"><h2>Winners</h2></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Game</th><th>Prize</th></tr></thead><tbody id="winnersBody"></tbody></table></div></section>
-          <section class="panel admin-section"><div class="section-title"><h2>Audit log</h2></div><div class="table-wrap"><table><thead><tr><th>Action</th><th>Entity</th><th>Time</th></tr></thead><tbody id="auditBody"></tbody></table></div></section>
-          <section class="panel admin-section"><div class="section-title"><h2>Demo settings</h2></div><form id="settingsForm" class="settings-form"><label>Entry amount<input name="demo_entry_amount" type="number" min="1" max="1000000" required></label><label>Minimum deposit<input name="demo_min_deposit" type="number" min="1" max="1000000" required></label><label>Minimum withdrawal<input name="demo_min_withdrawal" type="number" min="1" max="1000000" required></label><label>Number range maximum<input name="demo_number_max" type="number" min="1" max="150" required></label><button class="btn btn-gold full">Save demo settings</button></form></section>
-          <section class="panel admin-section wide"><div class="section-title"><h2>Payment Accounts</h2></div><form id="paymentAccountForm" class="settings-form" style="display:flex;gap:10px;margin-bottom:10px;align-items:flex-end;"><label>Method<select name="method"><option>TeleBirr</option><option>CBE Birr</option><option>M-Pesa</option><option>E-Birr</option></select></label><label>Account / Phone<input name="account_number" type="text" placeholder="0951666750" required></label><label>Account Name<input name="account_name" type="text" placeholder="Abrham" required></label><button class="btn btn-gold">Add Account</button></form><div class="table-wrap"><table><thead><tr><th>Method</th><th>Account / Phone</th><th>Account Name</th><th>Status</th><th>Actions</th></tr></thead><tbody id="paymentAccountsBody"><tr><td><strong>📱 TeleBirr</strong></td><td><code>0951666750</code></td><td>Abrham</td><td><span class="status-badge completed" style="background:#10b98122;color:#10b981;border:1px solid #10b981;padding:3px 8px;border-radius:6px;font-weight:bold;">● Active</span></td><td><button class="table-action danger toggle-payment-btn" data-id="1" data-active="false">Disable</button></td></tr></tbody></table></div></section>
-          <section class="panel admin-section wide"><div class="section-title"><h2>Recent activity</h2></div><div class="table-wrap"><table><thead><tr><th>Action</th><th>Entity</th><th>Date</th></tr></thead><tbody id="activityBody"></tbody></table></div></section>
+          <section class="panel admin-section">
+            <div class="section-title">
+              <h2>Users</h2><input class="admin-search" id="userSearch" placeholder="Search name or phone">
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="usersBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel admin-section">
+            <div class="section-title">
+              <h2>Wallets</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Main</th>
+                    <th>VIP</th>
+                  </tr>
+                </thead>
+                <tbody id="walletsBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel admin-section wide">
+            <div class="section-title">
+              <h2>Games</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Game</th>
+                    <th>Players</th>
+                    <th>Pool</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="gamesBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel admin-section wide">
+            <div class="section-title">
+              <h2>Support Messages</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Subject</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="supportBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel admin-section wide">
+            <div class="section-title">
+              <h2>Transactions</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Type</th>
+                    <th>Wallet</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="transactionsBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel admin-section">
+            <div class="section-title">
+              <h2>Winners</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Game</th>
+                    <th>Prize</th>
+                  </tr>
+                </thead>
+                <tbody id="winnersBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel admin-section">
+            <div class="section-title">
+              <h2>Audit log</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Action</th>
+                    <th>Entity</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody id="auditBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel admin-section">
+            <div class="section-title">
+              <h2>Demo settings</h2>
+            </div>
+            <form id="settingsForm" class="settings-form"><label>Entry amount<input name="demo_entry_amount"
+                  type="number" min="1" max="1000000" required></label><label>Minimum deposit<input
+                  name="demo_min_deposit" type="number" min="1" max="1000000" required></label><label>Minimum
+                withdrawal<input name="demo_min_withdrawal" type="number" min="1" max="1000000"
+                  required></label><label>Number range maximum<input name="demo_number_max" type="number" min="1"
+                  max="150" required></label><button class="btn btn-gold full">Save demo settings</button></form>
+          </section>
+          <section class="panel admin-section wide">
+            <div class="section-title">
+              <h2>Payment Accounts</h2>
+            </div>
+            <form id="paymentAccountForm" class="settings-form"
+              style="display:flex;gap:10px;margin-bottom:10px;align-items:flex-end;"><label>Method<select name="method">
+                  <option>TeleBirr</option>
+                  <option>CBE Birr</option>
+                  <option>M-Pesa</option>
+                  <option>E-Birr</option>
+                </select></label><label>Account / Phone<input name="account_number" type="text" placeholder="0951666750"
+                  required></label><label>Account Name<input name="account_name" type="text" placeholder="Abrham"
+                  required></label><button class="btn btn-gold">Add Account</button></form>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Method</th>
+                    <th>Account / Phone</th>
+                    <th>Account Name</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="paymentAccountsBody">
+                  <tr>
+                    <td><strong>📱 TeleBirr</strong></td>
+                    <td><code>0951666750</code></td>
+                    <td>Abrham</td>
+                    <td><span class="status-badge completed"
+                        style="background:#10b98122;color:#10b981;border:1px solid #10b981;padding:3px 8px;border-radius:6px;font-weight:bold;">●
+                        Active</span></td>
+                    <td><button class="table-action danger toggle-payment-btn" data-id="1"
+                        data-active="false">Disable</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel admin-section wide">
+            <div class="section-title">
+              <h2>Recent activity</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Action</th>
+                    <th>Entity</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody id="activityBody"></tbody>
+              </table>
+            </div>
+          </section>
         </div>
         <p class="admin-error" id="dashboardError" hidden></p>
       </section>
@@ -1270,10 +1652,13 @@
 
         <div class="admin-stats">
           <div class="balance-card"><span>Total Players</span><strong id="ownerPlayerCount">0</strong></div>
-          <div class="balance-card"><span>Active Admins</span><strong id="ownerAdminCount" style="color:var(--habesha-gold);">0</strong></div>
-          <div class="balance-card"><span>Platform Fees</span><strong id="ownerTotalRevenue" style="color:var(--habesha-green-light);">0 ETB</strong></div>
+          <div class="balance-card"><span>Active Admins</span><strong id="ownerAdminCount"
+              style="color:var(--habesha-gold);">0</strong></div>
+          <div class="balance-card"><span>Platform Fees</span><strong id="ownerTotalRevenue"
+              style="color:var(--habesha-green-light);">0 ETB</strong></div>
           <div class="balance-card"><span>Total Deposits</span><strong id="ownerDepositVolume">0 ETB</strong></div>
-          <div class="balance-card"><span>Total Withdrawals</span><strong id="ownerWithdrawalVolume">0 ETB</strong></div>
+          <div class="balance-card"><span>Total Withdrawals</span><strong id="ownerWithdrawalVolume">0 ETB</strong>
+          </div>
           <div class="balance-card"><span>Active Games</span><strong id="ownerActiveGames">0</strong></div>
           <div class="balance-card"><span>Completed Games</span><strong id="ownerCompletedGames">0</strong></div>
           <div class="balance-card"><span>Prizes Paid</span><strong id="ownerPrizePayouts">0 ETB</strong></div>
@@ -1285,16 +1670,27 @@
             <div class="section-title">
               <h2>👑 Manage Admin Accounts</h2>
             </div>
-            <form id="ownerCreateAdminForm" class="settings-form" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
-              <label style="flex:1;min-width:180px;">Admin Name<input name="name" type="text" placeholder="Admin Full Name" required></label>
-              <label style="flex:1;min-width:180px;">Phone Number<input name="phone" type="tel" placeholder="09xxxxxxxx" required></label>
-              <label style="flex:1;min-width:180px;">Password (min 8)<input name="password" type="password" placeholder="••••••••" required></label>
+            <form id="ownerCreateAdminForm" class="settings-form"
+              style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
+              <label style="flex:1;min-width:180px;">Admin Name<input name="name" type="text"
+                  placeholder="Admin Full Name" required></label>
+              <label style="flex:1;min-width:180px;">Phone Number<input name="phone" type="tel" placeholder="09xxxxxxxx"
+                  required></label>
+              <label style="flex:1;min-width:180px;">Password (min 8)<input name="password" type="password"
+                  placeholder="••••••••" required></label>
               <button class="btn btn-gold" style="height:38px;padding:0 20px;">+ Create Admin</button>
             </form>
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Name</th><th>Phone</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+                  <tr>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
                 </thead>
                 <tbody id="ownerAdminsBody"></tbody>
               </table>
@@ -1303,21 +1699,27 @@
 
           <!-- 2. FINANCIAL & PLATFORM OVERVIEW (OWNER ONLY) -->
           <section class="panel admin-section">
-            <div class="section-title"><h2>Financial Summary</h2></div>
+            <div class="section-title">
+              <h2>Financial Summary</h2>
+            </div>
             <div style="display:flex;flex-direction:column;gap:12px;padding:8px 0;">
-              <div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:8px;">
+              <div
+                style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:8px;">
                 <span style="color:var(--habesha-muted);">Approved Deposits:</span>
                 <strong id="ownerFinDeposits" style="color:var(--habesha-green-light);">0 ETB</strong>
               </div>
-              <div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:8px;">
+              <div
+                style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:8px;">
                 <span style="color:var(--habesha-muted);">Completed Withdrawals:</span>
                 <strong id="ownerFinWithdrawals" style="color:var(--habesha-red-light);">0 ETB</strong>
               </div>
-              <div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:8px;">
+              <div
+                style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:8px;">
                 <span style="color:var(--habesha-muted);">Platform Net Fee Earnings:</span>
                 <strong id="ownerFinNetFee" style="color:var(--habesha-gold);">0 ETB</strong>
               </div>
-              <div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:8px;">
+              <div
+                style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:8px;">
                 <span style="color:var(--habesha-muted);">System Player Liabilities:</span>
                 <strong id="ownerFinWallets">0 ETB</strong>
               </div>
@@ -1330,11 +1732,16 @@
 
           <!-- 3. SYSTEM SETTINGS (OWNER ONLY) -->
           <section class="panel admin-section">
-            <div class="section-title"><h2>System Settings</h2></div>
+            <div class="section-title">
+              <h2>System Settings</h2>
+            </div>
             <form id="ownerSettingsForm" class="settings-form">
-              <label>Entry amount (ETB)<input name="demo_entry_amount" type="number" min="1" max="1000000" required></label>
-              <label>Minimum deposit (ETB)<input name="demo_min_deposit" type="number" min="1" max="1000000" required></label>
-              <label>Minimum withdrawal (ETB)<input name="demo_min_withdrawal" type="number" min="1" max="1000000" required></label>
+              <label>Entry amount (ETB)<input name="demo_entry_amount" type="number" min="1" max="1000000"
+                  required></label>
+              <label>Minimum deposit (ETB)<input name="demo_min_deposit" type="number" min="1" max="1000000"
+                  required></label>
+              <label>Minimum withdrawal (ETB)<input name="demo_min_withdrawal" type="number" min="1" max="1000000"
+                  required></label>
               <label>Number range maximum<input name="demo_number_max" type="number" min="1" max="600" required></label>
               <button class="btn btn-gold full" style="margin-top:14px;">Save System Settings</button>
             </form>
@@ -1342,8 +1749,11 @@
 
           <!-- 4. PAYMENT RECEIVING ACCOUNTS (FULL MANAGEMENT) -->
           <section class="panel admin-section wide">
-            <div class="section-title"><h2>Payment Receiving Accounts (TeleBirr / CBE / M-Pesa / E-Birr)</h2></div>
-            <form id="ownerPaymentAccountForm" class="settings-form" style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap;">
+            <div class="section-title">
+              <h2>Payment Receiving Accounts (TeleBirr / CBE / M-Pesa / E-Birr)</h2>
+            </div>
+            <form id="ownerPaymentAccountForm" class="settings-form"
+              style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap;">
               <label style="min-width:140px;">Method
                 <select name="method" class="status-select" style="width:100%;height:38px;margin-top:5px;">
                   <option>TeleBirr</option>
@@ -1352,27 +1762,54 @@
                   <option>E-Birr</option>
                 </select>
               </label>
-              <label style="flex:1;min-width:160px;">Account / Phone<input name="account_number" type="text" required></label>
-              <label style="flex:1;min-width:160px;">Account Holder Name<input name="account_name" type="text" required></label>
+              <label style="flex:1;min-width:160px;">Account / Phone<input name="account_number" type="text"
+                  required></label>
+              <label style="flex:1;min-width:160px;">Account Holder Name<input name="account_name" type="text"
+                  required></label>
               <button class="btn btn-gold" style="height:38px;">+ Add Payment Account</button>
             </form>
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Method</th><th>Account / Phone</th><th>Account Name</th><th>Status</th><th>Actions</th></tr>
+                  <tr>
+                    <th>Method</th>
+                    <th>Account / Phone</th>
+                    <th>Account Name</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
                 </thead>
-                <tbody id="ownerPaymentAccountsBody"><tr><td><strong>📱 TeleBirr</strong></td><td><code>0951666750</code></td><td>Abrham</td><td><span class="status-badge completed" style="background:#10b98122;color:#10b981;border:1px solid #10b981;padding:3px 8px;border-radius:6px;font-weight:bold;">● Active</span></td><td><button class="table-action danger toggle-payment-btn" data-id="1" data-active="false">Disable</button></td></tr></tbody>
+                <tbody id="ownerPaymentAccountsBody">
+                  <tr>
+                    <td><strong>📱 TeleBirr</strong></td>
+                    <td><code>0951666750</code></td>
+                    <td>Abrham</td>
+                    <td><span class="status-badge completed"
+                        style="background:#10b98122;color:#10b981;border:1px solid #10b981;padding:3px 8px;border-radius:6px;font-weight:bold;">●
+                        Active</span></td>
+                    <td><button class="table-action danger toggle-payment-btn" data-id="1"
+                        data-active="false">Disable</button></td>
+                  </tr>
+                </tbody>
               </table>
             </div>
           </section>
 
           <!-- 5. BINGO GAMES LIFECYCLE -->
           <section class="panel admin-section wide">
-            <div class="section-title"><h2>Bingo Games & Rooms</h2></div>
+            <div class="section-title">
+              <h2>Bingo Games & Rooms</h2>
+            </div>
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Game</th><th>Players</th><th>Pool</th><th>Status</th><th>Actions</th></tr>
+                  <tr>
+                    <th>Game</th>
+                    <th>Players</th>
+                    <th>Pool</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
                 </thead>
                 <tbody id="ownerGamesBody"></tbody>
               </table>
@@ -1381,10 +1818,12 @@
 
           <!-- 6. DEDICATED WITHDRAWALS MANAGEMENT (OWNER & ADMIN) -->
           <section class="panel admin-section wide" style="border: 1px solid rgba(245, 183, 22, 0.4);">
-            <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+            <div class="section-title"
+              style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
               <div>
                 <div class="eyebrow" style="color:var(--habesha-gold);">CASH OUT APPROVAL PIPELINE</div>
-                <h2>Player Withdrawals Review (<span id="ownerPendingWithdrawalsCount" style="color:var(--habesha-gold);">0</span> Pending)</h2>
+                <h2>Player Withdrawals Review (<span id="ownerPendingWithdrawalsCount"
+                    style="color:var(--habesha-gold);">0</span> Pending)</h2>
               </div>
               <div style="display:flex;gap:10px;align-items:center;">
                 <select id="ownerWithdrawalStatusFilter" class="status-select" style="padding:5px 10px;font-size:12px;">
@@ -1394,7 +1833,8 @@
                   <option value="completed">Completed</option>
                   <option value="rejected">Rejected</option>
                 </select>
-                <button type="button" class="btn btn-outline" id="refreshOwnerWithdrawalsBtn" style="padding:5px 12px;font-size:12px;">🔄 Refresh</button>
+                <button type="button" class="btn btn-outline" id="refreshOwnerWithdrawalsBtn"
+                  style="padding:5px 12px;font-size:12px;">🔄 Refresh</button>
               </div>
             </div>
             <div class="table-wrap">
@@ -1418,11 +1858,20 @@
 
           <!-- 7. TRANSACTIONS MANAGEMENT -->
           <section class="panel admin-section wide">
-            <div class="section-title"><h2>Deposits & Withdrawals Review</h2></div>
+            <div class="section-title">
+              <h2>Deposits & Withdrawals Review</h2>
+            </div>
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr><th>User</th><th>Type</th><th>Wallet</th><th>Amount</th><th>Status</th><th>Actions</th></tr>
+                  <tr>
+                    <th>User</th>
+                    <th>Type</th>
+                    <th>Wallet</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
                 </thead>
                 <tbody id="ownerTransactionsBody"></tbody>
               </table>
@@ -1430,40 +1879,54 @@
           </section>
 
           <!-- TELEGRAM BOT & GROUP SYNCHRONIZATION -->
-          <section class="panel admin-section wide" style="border:1px solid rgba(41, 182, 246, 0.4);background:linear-gradient(180deg, rgba(13, 30, 45, 0.7) 0%, rgba(10, 20, 30, 0.9) 100%);">
-            <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+          <section class="panel admin-section wide"
+            style="border:1px solid rgba(41, 182, 246, 0.4);background:linear-gradient(180deg, rgba(13, 30, 45, 0.7) 0%, rgba(10, 20, 30, 0.9) 100%);">
+            <div class="section-title"
+              style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
               <div style="display:flex;align-items:center;gap:10px;">
                 <span style="font-size:24px;">✈️</span>
                 <div>
                   <h2 style="margin:0;color:#29b6f6;">Telegram Bot & Group Live Synchronization</h2>
-                  <small style="color:var(--text-muted);">Bot: <b>@AB BingoBot</b> | Group: <b>"Hbesha bingo"</b></small>
+                  <small style="color:var(--text-muted);">Bot: <b>@AB BingoBot</b> | Group: <b>"Hbesha
+                      bingo"</b></small>
                 </div>
               </div>
               <div style="display:flex;gap:10px;align-items:center;">
-                <span id="tgConnectionBadge" class="owner-badge" style="background:#0288d1;color:#fff;">Checking status...</span>
-                <button type="button" class="btn btn-outline" id="tgTestPingBtn" style="height:32px;font-size:12px;">🧪 Test Group Ping</button>
+                <span id="tgConnectionBadge" class="owner-badge" style="background:#0288d1;color:#fff;">Checking
+                  status...</span>
+                <button type="button" class="btn btn-outline" id="tgTestPingBtn" style="height:32px;font-size:12px;">🧪
+                  Test Group Ping</button>
               </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:15px;margin:15px 0;">
-              <div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
+            <div
+              style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:15px;margin:15px 0;">
+              <div
+                style="background:rgba(255,255,255,0.03);padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
                 <div style="font-size:12px;color:var(--text-muted);">BOT USERNAME</div>
                 <div style="font-size:16px;font-weight:600;color:#29b6f6;" id="tgDisplayBot">@AB BingoBot</div>
                 <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Telegram Official Bot</div>
               </div>
-              <div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
+              <div
+                style="background:rgba(255,255,255,0.03);padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
                 <div style="font-size:12px;color:var(--text-muted);">TARGET TELEGRAM GROUP</div>
-                <div style="font-size:16px;font-weight:600;color:var(--habesha-gold);" id="tgDisplayGroup">Hbesha bingo</div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" id="tgGroupIdDisplay">Auto-discovery active</div>
+                <div style="font-size:16px;font-weight:600;color:var(--habesha-gold);" id="tgDisplayGroup">Hbesha bingo
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" id="tgGroupIdDisplay">Auto-discovery
+                  active</div>
               </div>
-              <div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
+              <div
+                style="background:rgba(255,255,255,0.03);padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
                 <div style="font-size:12px;color:var(--text-muted);">REAL-TIME SYNC ENGINE</div>
-                <div style="font-size:16px;font-weight:600;color:var(--habesha-green-light);" id="tgSyncState">Active & Synchronized</div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Players • Tickets • Calls • Winners</div>
+                <div style="font-size:16px;font-weight:600;color:var(--habesha-green-light);" id="tgSyncState">Active &
+                  Synchronized</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Players • Tickets • Calls • Winners
+                </div>
               </div>
             </div>
 
-            <form id="ownerTelegramConfigForm" class="settings-form" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px;align-items:flex-end;background:rgba(0,0,0,0.25);padding:16px;border-radius:8px;">
+            <form id="ownerTelegramConfigForm" class="settings-form"
+              style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px;align-items:flex-end;background:rgba(0,0,0,0.25);padding:16px;border-radius:8px;">
               <label style="flex:1;">
                 Telegram Bot Token
                 <input name="token" id="tgInputToken" type="password" placeholder="Paste bot token from @BotFather">
@@ -1478,10 +1941,12 @@
               </label>
               <div style="display:flex;gap:10px;align-items:center;">
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;margin:0;">
-                  <input type="checkbox" name="syncEnabled" id="tgInputSyncEnabled" checked style="width:auto;margin:0;">
+                  <input type="checkbox" name="syncEnabled" id="tgInputSyncEnabled" checked
+                    style="width:auto;margin:0;">
                   Enable Live Sync
                 </label>
-                <button type="submit" class="btn btn-gold" style="height:38px;padding:0 18px;white-space:nowrap;">Save & Connect</button>
+                <button type="submit" class="btn btn-gold" style="height:38px;padding:0 18px;white-space:nowrap;">Save &
+                  Connect</button>
               </div>
             </form>
             <p id="tgStatusMsg" style="margin-top:8px;font-size:12px;color:var(--text-muted);"></p>
@@ -1496,7 +1961,12 @@
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Name</th><th>Phone</th><th>Status</th><th>Actions</th></tr>
+                  <tr>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
                 </thead>
                 <tbody id="ownerUsersBody"></tbody>
               </table>
@@ -1505,11 +1975,17 @@
 
           <!-- 8. WINNERS & PRIZES -->
           <section class="panel admin-section">
-            <div class="section-title"><h2>Winners Log</h2></div>
+            <div class="section-title">
+              <h2>Winners Log</h2>
+            </div>
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr><th>User</th><th>Game</th><th>Prize</th></tr>
+                  <tr>
+                    <th>User</th>
+                    <th>Game</th>
+                    <th>Prize</th>
+                  </tr>
                 </thead>
                 <tbody id="ownerWinnersBody"></tbody>
               </table>
@@ -1518,11 +1994,18 @@
 
           <!-- 9. AUDIT TRAIL -->
           <section class="panel admin-section wide">
-            <div class="section-title"><h2>Master Audit Log</h2></div>
+            <div class="section-title">
+              <h2>Master Audit Log</h2>
+            </div>
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Action</th><th>Entity</th><th>IP Address</th><th>Timestamp</th></tr>
+                  <tr>
+                    <th>Action</th>
+                    <th>Entity</th>
+                    <th>IP Address</th>
+                    <th>Timestamp</th>
+                  </tr>
                 </thead>
                 <tbody id="ownerAuditBody"></tbody>
               </table>
@@ -1561,8 +2044,9 @@
     </div>
   </div>
 
-  <script src="app.js?v=20261025-balance"></script>
+  <script src="app.js?v=20261115-fixbalance-v3"></script>
   <script src="admin.js"></script>
   <script src="ai-admin.js"></script>
 </body>
+
 </html>

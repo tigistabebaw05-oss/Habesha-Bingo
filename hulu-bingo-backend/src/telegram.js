@@ -92,6 +92,7 @@ class TelegramBingoService {
       params.push(`tg_user=${user.id}`);
     }
     if (view) params.push(`view=${encodeURIComponent(view)}`);
+    params.push(`t=${Date.now()}`);
     return params.length > 0 ? `${baseUrl}?${params.join("&")}` : baseUrl;
   }
 

@@ -65,6 +65,14 @@ const fs=require("fs");
 const rootFrontend=path.join(__dirname,"..","..","habesha-bingo-frontend");
 const backendFrontend=path.join(__dirname,"..","Habesha-bingo-frontend");
 const frontendDir=fs.existsSync(rootFrontend)?rootFrontend:backendFrontend;
+app.use((req, res, next) => {
+  if (req.path === '/' || req.path.endsWith('.html') || req.path.endsWith('.js') || req.path.endsWith('.css')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
 app.use(express.static(frontendDir));
 app.get(["/","/admin","/owner"],(req,res)=>res.sendFile(path.join(frontendDir,"index.html")));
 app.get(["/admin.html","/owner.html"],(req,res)=>res.redirect("/"));

@@ -1924,19 +1924,21 @@ function updateDerashPrize() {
 function getPlayerMainBalance() {
   if (state.wallet) {
     if (typeof state.wallet.main_balance !== "undefined" && state.wallet.main_balance !== null) {
-      return Number(state.wallet.main_balance || 0);
+      const num = Number(state.wallet.main_balance);
+      return isNaN(num) ? 0 : num;
     }
     if (typeof state.wallet.balance !== "undefined" && state.wallet.balance !== null) {
-      return Number(state.wallet.balance || 0);
+      const num = Number(state.wallet.balance);
+      return isNaN(num) ? 0 : num;
     }
   }
   const tgEl = $("tgMainBalance");
-  if (tgEl) {
+  if (tgEl && tgEl.textContent) {
     const parsed = parseFloat(tgEl.textContent.replace(/[^\d.]/g, ""));
     if (!isNaN(parsed)) return parsed;
   }
   const mainEl = $("mainBalance");
-  if (mainEl) {
+  if (mainEl && mainEl.textContent) {
     const parsed = parseFloat(mainEl.textContent.replace(/[^\d.]/g, ""));
     if (!isNaN(parsed)) return parsed;
   }
@@ -2058,6 +2060,7 @@ function showInsufficientBalanceModal(currentBal, requiredCost, isVip = false) {
   modal.removeAttribute("hidden");
   modal.hidden = false;
   modal.style.setProperty("display", "flex", "important");
+  modal.style.setProperty("z-index", "2147483647", "important");
 
   const depositBtn = $("btnIbDepositNow") || modal.querySelector("#btnIbDepositNow");
   if (depositBtn) {
@@ -2141,13 +2144,13 @@ function handleCartelaSelection(cell, cardNum) {
     return;
   }
 
-  const currentBal = getPlayerMainBalance();
+  const currentBal = Math.max(0, Number(getPlayerMainBalance()) || 0);
   const requiredCost = (selectedCardNumbers.size + 1) * 2;
-  if (currentBal < requiredCost || currentBal < 2) {
+  if (currentBal < 2 || currentBal < requiredCost) {
     if (cell) cell.classList.remove("selected");
     document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.remove("selected"));
     selectedCardNumbers.delete(cardNum);
-    showInsufficientBalanceModal(currentBal, requiredCost, false);
+    showInsufficientBalanceModal(currentBal, Math.max(2, requiredCost), false);
     return;
   }
 
@@ -2179,9 +2182,12 @@ function renderCardSelectionGrid() {
     if (!cell) return;
     cell._handledAt = Date.now();
     const cardNum = Number(cell.dataset.card || cell.textContent.trim());
-    const currentBal = getPlayerMainBalance();
+    const currentBal = Math.max(0, Number(getPlayerMainBalance()) || 0);
     if (!selectedCardNumbers.has(cardNum) && (currentBal < 2 || currentBal < (selectedCardNumbers.size + 1) * 2)) {
-      showInsufficientBalanceModal(currentBal, (selectedCardNumbers.size + 1) * 2, false);
+      if (cell) cell.classList.remove("selected");
+      document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.remove("selected"));
+      selectedCardNumbers.delete(cardNum);
+      showInsufficientBalanceModal(currentBal, Math.max(2, (selectedCardNumbers.size + 1) * 2), false);
       return;
     }
     handleCartelaSelection(cell, cardNum);
@@ -3069,9 +3075,12 @@ document.addEventListener("click", (e) => {
     cell._handledAt = Date.now();
     const cardNum = Number(cell.dataset.card || cell.textContent.trim());
     if (cardNum && !isNaN(cardNum)) {
-      const currentBal = getPlayerMainBalance();
+      const currentBal = Math.max(0, Number(getPlayerMainBalance()) || 0);
       if (!selectedCardNumbers.has(cardNum) && (currentBal < 2 || currentBal < (selectedCardNumbers.size + 1) * 2)) {
-        showInsufficientBalanceModal(currentBal, (selectedCardNumbers.size + 1) * 2, false);
+        if (cell) cell.classList.remove("selected");
+        document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.remove("selected"));
+        selectedCardNumbers.delete(cardNum);
+        showInsufficientBalanceModal(currentBal, Math.max(2, (selectedCardNumbers.size + 1) * 2), false);
         return;
       }
       handleCartelaSelection(cell, cardNum);
