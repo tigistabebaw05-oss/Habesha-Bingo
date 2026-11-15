@@ -7,9 +7,13 @@ let state = { game:null, ticket:null, called:new Set(), socket:null };
 
 function updatePlayBalanceDisplay() {
   const m = getPlayerMainBalance();
+  if (m < 2) {
+    if ($("tgPlayBalance")) $("tgPlayBalance").textContent = money(0);
+    return;
+  }
   const count = (typeof selectedCardNumbers !== "undefined" && selectedCardNumbers && selectedCardNumbers.size > 0)
     ? selectedCardNumbers.size
-    : (window.activeRoundCardCount || 0);
+    : (window.activeRoundCardCount && window.activeRoundCardCount > 0 ? window.activeRoundCardCount : 1);
   const playBal = Math.max(0, m - (count * 2));
   if ($("tgPlayBalance")) $("tgPlayBalance").textContent = money(playBal);
 }
@@ -341,7 +345,7 @@ async function refresh(){
       if($("mainBalance")) $("mainBalance").textContent=money(w.wallet?.main_balance);
       if($("vipBalance")) $("vipBalance").textContent=money(w.wallet?.vip_balance);
       if($("tgMainBalance")) $("tgMainBalance").textContent=money(w.wallet?.main_balance);
-      if($("tgPlayBalance")) $("tgPlayBalance").textContent=money(w.wallet?.main_balance);
+      updatePlayBalanceDisplay();
 
       // Populate KYC name default if empty
       if ($("withdrawAccountNameInput") && !$("withdrawAccountNameInput").value) {
@@ -1801,9 +1805,10 @@ function syncHuluWebApp(overrideNum, overrideList) {
   if (playersEl) playersEl.textContent = `LIVE - ${players} PLAYERS`;
   if (prizeEl) prizeEl.textContent = prize;
 
+  const pCount = parseInt(players || "284", 10) || 284;
   const selPrizeEl = $("tgCardSelPrize");
   if (selPrizeEl) {
-    selPrizeEl.textContent = `${cartelaCount * 8} ETB`;
+    selPrizeEl.textContent = `${pCount * 8} ETB`;
   }
 
   if (currentNum && Number(currentNum) >= 1 && Number(currentNum) <= 75) {
@@ -1911,8 +1916,8 @@ function animateDerashPrize(targetAmount) {
 }
 
 function updateDerashPrize() {
-  const count = selectedCardNumbers.size;
-  const totalDerash = count * 8;
+  const pCount = parseInt(state.game?.players || ($("tgLivePlayers")?.textContent?.match(/\d+/) ? $("tgLivePlayers").textContent.match(/\d+/)[0] : "284"), 10) || 284;
+  const totalDerash = pCount * 8;
   animateDerashPrize(totalDerash);
 }
 
@@ -2052,7 +2057,7 @@ function showInsufficientBalanceModal(currentBal, requiredCost, isVip = false) {
 
   modal.removeAttribute("hidden");
   modal.hidden = false;
-  modal.style.display = "flex";
+  modal.style.setProperty("display", "flex", "important");
 
   const depositBtn = $("btnIbDepositNow") || modal.querySelector("#btnIbDepositNow");
   if (depositBtn) {
@@ -2118,7 +2123,7 @@ function hideInsufficientBalanceModal() {
   if (modal) {
     modal.setAttribute("hidden", "");
     modal.hidden = true;
-    modal.style.display = "none";
+    modal.style.setProperty("display", "none", "important");
   }
 }
 window.showInsufficientBalanceModal = showInsufficientBalanceModal;
@@ -2141,6 +2146,7 @@ function handleCartelaSelection(cell, cardNum) {
   if (currentBal < requiredCost || currentBal < 2) {
     if (cell) cell.classList.remove("selected");
     document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.remove("selected"));
+    selectedCardNumbers.delete(cardNum);
     showInsufficientBalanceModal(currentBal, requiredCost, false);
     return;
   }
@@ -2196,6 +2202,7 @@ function updateCardSelectionTotals() {
 }
 
 function switchToCardSelectionView() {
+  hideInsufficientBalanceModal();
   if (typeof winnersAutoRestartTimeout !== "undefined" && winnersAutoRestartTimeout) {
     clearTimeout(winnersAutoRestartTimeout);
     winnersAutoRestartTimeout = null;
@@ -2235,6 +2242,7 @@ function switchToCardSelectionView() {
 let liveGameTransitionTimeout = null;
 
 function switchToLiveGameView() {
+  hideInsufficientBalanceModal();
   if (typeof winnersAutoRestartTimeout !== "undefined" && winnersAutoRestartTimeout) {
     clearTimeout(winnersAutoRestartTimeout);
     winnersAutoRestartTimeout = null;
