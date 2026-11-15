@@ -92,8 +92,9 @@ class TelegramBingoService {
       params.push(`tg_user=${user.id}`);
     }
     if (view) params.push(`view=${encodeURIComponent(view)}`);
+    params.push(`v=20261115-fixbalance-v4`);
     params.push(`t=${Date.now()}`);
-    return params.length > 0 ? `${baseUrl}?${params.join("&")}` : baseUrl;
+    return `${baseUrl}?${params.join("&")}`;
   }
 
   async init() {
@@ -661,7 +662,12 @@ class TelegramBingoService {
 
   // ==================== PERSISTENT KEYBOARD ====================
   getMainKeyboard(customUrl) {
-    const webAppUrl = customUrl || this.publicUrl || process.env.PUBLIC_APP_URL || "";
+    let webAppUrl = customUrl || this.publicUrl || process.env.PUBLIC_APP_URL || process.env.RENDER_EXTERNAL_URL || "https://habesha-bingo-1-3jdi.onrender.com";
+    if (webAppUrl && webAppUrl.startsWith("https://")) {
+      webAppUrl = webAppUrl.replace(/\/$/, "");
+      const sep = webAppUrl.includes("?") ? "&" : "?";
+      webAppUrl = `${webAppUrl}${sep}v=20261115-fixbalance-v4&t=${Date.now()}`;
+    }
     const playBtn = webAppUrl && webAppUrl.startsWith("https://")
       ? { text: "🎮 ጨዋታውን ይክፈቱ (Play)", web_app: { url: webAppUrl } }
       : { text: "🎮 ጨዋታ ጀምር (Play)" };

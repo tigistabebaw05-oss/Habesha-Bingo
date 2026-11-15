@@ -2048,6 +2048,13 @@ function showInsufficientBalanceModal(currentBal, requiredCost, isVip = false) {
   const balEl = $("ibCurrentBalance");
   if (balEl) balEl.textContent = `${Number(currentBal || 0).toFixed(2)} ETB`;
 
+  // Always force unselect any visual card selection when insufficient balance occurs
+  selectedCardNumbers.clear();
+  document.querySelectorAll(".card-cell.selected").forEach(c => c.classList.remove("selected"));
+  if ($("tgTotalBetAmount")) $("tgTotalBetAmount").textContent = "0 ETB";
+  if ($("tgSelectedCount")) $("tgSelectedCount").textContent = "0";
+  updatePlayBalanceDisplay();
+
   const descEl = $("ibDesc") || modal.querySelector(".ib-desc");
   if (descEl) {
     if (isVip) {
@@ -2135,6 +2142,7 @@ window.hideInsufficientBalanceModal = hideInsufficientBalanceModal;
 function handleCartelaSelection(cell, cardNum) {
   if (!cardNum || isNaN(cardNum)) return;
 
+  // If already selected, clicking it will deselect
   if (selectedCardNumbers.has(cardNum)) {
     selectedCardNumbers.delete(cardNum);
     if (cell) cell.classList.remove("selected");
@@ -2144,12 +2152,14 @@ function handleCartelaSelection(cell, cardNum) {
     return;
   }
 
+  // STRICT ZERO DEPOSIT / INSUFFICIENT BALANCE GUARD
   const currentBal = Math.max(0, Number(getPlayerMainBalance()) || 0);
   const requiredCost = (selectedCardNumbers.size + 1) * 2;
   if (currentBal < 2 || currentBal < requiredCost) {
     if (cell) cell.classList.remove("selected");
     document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.remove("selected"));
     selectedCardNumbers.delete(cardNum);
+    updateCardSelectionTotals();
     showInsufficientBalanceModal(currentBal, Math.max(2, requiredCost), false);
     return;
   }
@@ -2169,6 +2179,10 @@ function handleCartelaSelection(cell, cardNum) {
 function renderCardSelectionGrid() {
   const grid = $("tgCardPickGrid");
   if (!grid) return;
+  const currentBal = Math.max(0, Number(getPlayerMainBalance()) || 0);
+  if (currentBal < 2) {
+    selectedCardNumbers.clear();
+  }
   let html = "";
   for (let i = 1; i <= 600; i++) {
     const isSelected = selectedCardNumbers.has(i);
@@ -2182,12 +2196,13 @@ function renderCardSelectionGrid() {
     if (!cell) return;
     cell._handledAt = Date.now();
     const cardNum = Number(cell.dataset.card || cell.textContent.trim());
-    const currentBal = Math.max(0, Number(getPlayerMainBalance()) || 0);
-    if (!selectedCardNumbers.has(cardNum) && (currentBal < 2 || currentBal < (selectedCardNumbers.size + 1) * 2)) {
+    const bal = Math.max(0, Number(getPlayerMainBalance()) || 0);
+    if (!selectedCardNumbers.has(cardNum) && (bal < 2 || bal < (selectedCardNumbers.size + 1) * 2)) {
       if (cell) cell.classList.remove("selected");
       document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.remove("selected"));
       selectedCardNumbers.delete(cardNum);
-      showInsufficientBalanceModal(currentBal, Math.max(2, (selectedCardNumbers.size + 1) * 2), false);
+      updateCardSelectionTotals();
+      showInsufficientBalanceModal(bal, Math.max(2, (selectedCardNumbers.size + 1) * 2), false);
       return;
     }
     handleCartelaSelection(cell, cardNum);
@@ -2197,6 +2212,11 @@ function renderCardSelectionGrid() {
 }
 
 function updateCardSelectionTotals() {
+  const currentBal = Math.max(0, Number(getPlayerMainBalance()) || 0);
+  if (currentBal < 2 && selectedCardNumbers.size > 0) {
+    selectedCardNumbers.clear();
+    document.querySelectorAll(".card-cell.selected").forEach(c => c.classList.remove("selected"));
+  }
   const count = selectedCardNumbers.size;
   const countEl = $("tgSelectedCount");
   const betEl = $("tgTotalBetAmount");
@@ -3080,6 +3100,7 @@ document.addEventListener("click", (e) => {
         if (cell) cell.classList.remove("selected");
         document.querySelectorAll(`.card-cell[data-card="${cardNum}"]`).forEach(c => c.classList.remove("selected"));
         selectedCardNumbers.delete(cardNum);
+        updateCardSelectionTotals();
         showInsufficientBalanceModal(currentBal, Math.max(2, (selectedCardNumbers.size + 1) * 2), false);
         return;
       }
